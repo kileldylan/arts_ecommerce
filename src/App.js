@@ -7,8 +7,13 @@ import { AuthProvider, useAuth } from './contexts/AuthContexts';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import ProductList from './pages/artist/ProductList';
+import AddProduct from './pages/artist/AddProduct';
+import EditProduct from './pages/artist/EditProduct';
 import './App.css';
 import OAuthSuccess from './pages/OAuthSuccess';
+import Navbar from './components/NavBar'; 
+import { ProductProvider } from './contexts/ProductContext';
 
 const theme = createTheme({
   palette: {
@@ -71,6 +76,31 @@ function AppContent() {
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
+            
+          } 
+        />
+        <Route 
+          path="/artist/products" 
+          element={
+            <ProtectedRoute>
+              <ProductList />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/artist/products/new" 
+          element={
+            <ProtectedRoute>
+              <AddProduct />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/artist/products/edit/:id" 
+          element={
+            <ProtectedRoute>
+              <EditProduct />
+            </ProtectedRoute>
           } 
         />
       </Routes>
@@ -80,12 +110,14 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
+ <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <Router>
-          <AppContent />
-        </Router>
+        <ProductProvider>
+          <Router>
+            <AppContent />
+          </Router>
+        </ProductProvider>
       </AuthProvider>
     </ThemeProvider>
   );

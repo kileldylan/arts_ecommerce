@@ -16,6 +16,7 @@ import {
 import { ExitToApp, Add, TrendingUp, Inventory } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContexts';
 import { useNavigate } from 'react-router-dom';
+import Navbar from '../components/NavBar';
 
 export default function ArtistDashboard() {
   const { user, logout } = useAuth();
@@ -27,6 +28,8 @@ export default function ArtistDashboard() {
   };
 
   return (
+    <>
+    <Navbar/>
     <Box sx={{ flexGrow: 1 }}>
       <AppBar position="static" elevation={2}>
         <Toolbar>
@@ -190,5 +193,6 @@ export default function ArtistDashboard() {
         </Box>
       </Container>
     </Box>
+    </>
   );
 }

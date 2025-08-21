@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContexts';
 import {
   Card, CardContent, TextField, Button, Typography, Box,
-  Divider, Alert, Container, Radio, RadioGroup, FormControlLabel, FormControl
+  Divider, Alert, Container, FormControl
 } from '@mui/material';
 import { Google, GitHub } from '@mui/icons-material';
 
@@ -38,10 +38,6 @@ export default function Login() {
     setLoading(false);
   };
 
-  const handleSocialLogin = (provider) => {
-    alert(`${provider} login will be implemented in Phase 3`);
-  };
-
   return (
     <Container component="main" maxWidth="sm">
       <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', py: 4 }}>
@@ -58,11 +54,6 @@ export default function Login() {
             
             <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
               <FormControl component="fieldset" sx={{ width: '100%', mb: 2 }}>
-                <RadioGroup row value={userType} onChange={(e) => setUserType(e.target.value)}>
-                  <FormControlLabel value="customer" control={<Radio />} label="Customer" />
-                  <FormControlLabel value="artist" control={<Radio />} label="Artist" />
-                  <FormControlLabel value="admin" control={<Radio />} label="Admin" />
-                </RadioGroup>
               </FormControl>
               
               <TextField
