@@ -14,7 +14,7 @@ import {
   Avatar
 } from '@mui/material';
 import { ExitToApp, People, ShoppingCart, Assessment, Security } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContexts';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard() {

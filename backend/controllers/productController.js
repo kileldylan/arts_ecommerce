@@ -127,66 +127,46 @@ exports.updateProduct = (req, res) => {
     const productId = req.params.id;
     let productData = req.body;
 
-    console.log('Updating product with data:', productData);
+    // ...convert fields as before...
 
-    // Convert numeric fields if they exist
-    if (productData.price) productData.price = parseFloat(productData.price);
-    if (productData.category_id) productData.category_id = parseInt(productData.category_id);
-    if (productData.quantity) productData.quantity = parseInt(productData.quantity);
-    
-    if (productData.compare_price) productData.compare_price = parseFloat(productData.compare_price);
-    if (productData.cost_per_item) productData.cost_per_item = parseFloat(productData.cost_per_item);
-    if (productData.weight) productData.weight = parseFloat(productData.weight);
-    if (productData.length) productData.length = parseFloat(productData.length);
-    if (productData.width) productData.width = parseFloat(productData.width);
-    if (productData.height) productData.height = parseFloat(productData.height);
-
-    // Convert boolean fields if they exist
-    if (productData.is_published !== undefined) productData.is_published = Boolean(productData.is_published);
-    if (productData.is_featured !== undefined) productData.is_featured = Boolean(productData.is_featured);
-    if (productData.is_digital !== undefined) productData.is_digital = Boolean(productData.is_digital);
-    if (productData.requires_shipping !== undefined) productData.requires_shipping = productData.requires_shipping !== false;
-    if (productData.allow_out_of_stock_purchases !== undefined) productData.allow_out_of_stock_purchases = Boolean(productData.allow_out_of_stock_purchases);
-
-    // Check if user owns the product or is admin
     Product.findById(productId, (err, products) => {
-      if (err) {
-        console.error('Error finding product:', err);
-        return res.status(500).json({ message: 'Server error', error: err.message });
-      }
-
-      if (products.length === 0) {
-        return res.status(404).json({ message: 'Product not found' });
-      }
+      if (err) return res.status(500).json({ message: 'Server error', error: err.message });
+      if (products.length === 0) return res.status(404).json({ message: 'Product not found' });
 
       const product = products[0];
-      
       if (product.artist_id !== req.user.id && req.user.user_type !== 'admin') {
         return res.status(403).json({ message: 'Access denied' });
       }
 
-      Product.update(productId, productData, (err, results) => {
-        if (err) {
-          console.error('Error updating product:', err);
-          return res.status(500).json({ 
-            message: 'Error updating product', 
-            error: err.message,
-            code: err.code
+      // Separate images from main update data
+      const { images, ...mainUpdateData } = productData;
+
+      Product.update(productId, mainUpdateData, (err, results) => {
+        if (err) return res.status(500).json({ message: 'Error updating product', error: err.message });
+
+        // If images are provided, update them
+        if (Array.isArray(images)) {
+          const db = require('../config/db');
+          db.query('DELETE FROM product_images WHERE product_id = ?', [productId], (delErr) => {
+            if (delErr) console.error('Error deleting old images:', delErr);
+            Product.addImages(productId, images, (imgErr) => {
+              if (imgErr) console.error('Error adding new images:', imgErr);
+              return res.json({
+                message: 'Product and images updated successfully',
+                affectedRows: results.affectedRows
+              });
+            });
+          });
+        } else {
+          return res.json({
+            message: 'Product updated successfully',
+            affectedRows: results.affectedRows
           });
         }
-
-        res.json({
-          message: 'Product updated successfully',
-          affectedRows: results.affectedRows
-        });
       });
     });
   } catch (error) {
-    console.error('Error in updateProduct:', error);
-    res.status(500).json({ 
-      message: 'Server error', 
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 

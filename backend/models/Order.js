@@ -161,8 +161,8 @@ const Order = {
   findAll: (filters = {}, callback) => {
     let query = `
       SELECT o.*, 
-             c.name as customer_name, c.email as customer_email,
-             a.name as artist_name, a.email as artist_email
+            c.name as customer_name, c.email as customer_email,
+            a.name as artist_name, a.email as artist_email
       FROM orders o
       LEFT JOIN users c ON o.customer_id = c.id
       LEFT JOIN users a ON o.artist_id = a.id
@@ -209,17 +209,27 @@ const Order = {
       params.push(filters.offset);
     }
 
-    db.query(query, params, (err, orders) => {
+    db.query(query, params, async (err, orders) => {
       if (err) return callback(err);
-      
+
       // Parse JSON fields
       const parsedOrders = orders.map(order => ({
         ...order,
         shipping_address: JSON.parse(order.shipping_address),
         billing_address: order.billing_address ? JSON.parse(order.billing_address) : null
       }));
-      
-      callback(null, parsedOrders);
+
+      // Fetch items for each order
+      const ordersWithItems = await Promise.all(parsedOrders.map(order =>
+        new Promise((resolve) => {
+          Order.getItems(order.id, (itemErr, items) => {
+            order.items = items || [];
+            resolve(order);
+          });
+        })
+      ));
+
+      callback(null, ordersWithItems);
     });
   },
 

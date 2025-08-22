@@ -3,7 +3,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { AuthProvider, useAuth } from './contexts/AuthContexts';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProductProvider } from './contexts/ProductContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -17,6 +17,10 @@ import Orders from './pages/artist/Orders';
 import Analytics from './pages/artist/Analytics';
 import './App.css';
 import { Box, CircularProgress } from '@mui/material';
+import { OrderProvider } from './contexts/OrderContext';
+import CustomerOrders from './pages/customer/CustomOrder';
+import OrderDetail from './pages/OrderDetail';
+import Checkout from './pages/Checkout';
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -132,6 +136,35 @@ function AppContent() {
               </ProtectedRoute>
             } 
           />
+
+          {/* Customer Routes */}
+          <Route 
+            path="/customer/orders" 
+            element={
+              <ProtectedRoute>
+                <CustomerOrders />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Shared Routes */}
+          <Route 
+            path="/orders/:id" 
+            element={
+              <ProtectedRoute>
+                <OrderDetail />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/checkout" 
+            element={
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            } 
+          />
           <Route 
             path="/artist/analytics" 
             element={
@@ -152,9 +185,11 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <ProductProvider>
+          <OrderProvider>
           <Router>
             <AppContent />
           </Router>
+          </OrderProvider>
         </ProductProvider>
       </AuthProvider>
     </ThemeProvider>

@@ -28,7 +28,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../../contexts/ProductContext';
-import { useAuth } from '../../contexts/AuthContexts';
+import { useAuth } from '../../contexts/AuthContext';
 import Navbar from '../../components/NavBar';
 
 export default function ProductList() {

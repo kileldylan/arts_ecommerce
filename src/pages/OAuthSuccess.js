@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, Typography, CircularProgress, Container } from '@mui/material';
-import { useAuth } from '../contexts/AuthContexts';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function OAuthSuccess() {
   const [searchParams] = useSearchParams();

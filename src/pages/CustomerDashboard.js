@@ -14,8 +14,9 @@ import {
   Avatar
 } from '@mui/material';
 import { ExitToApp, ShoppingCart, Favorite, History } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContexts';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import Navbar from '../components/NavBar';
 
 export default function CustomerDashboard() {
   const { user, logout } = useAuth();
@@ -27,26 +28,9 @@ export default function CustomerDashboard() {
   };
 
   return (
+    <>
+    <Navbar/>
     <Box sx={{ flexGrow: 1 }}>
-      <AppBar position="static" elevation={2}>
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Ujamaa Collective - Customer Dashboard
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Avatar sx={{ bgcolor: 'secondary.main', mr: 1 }}>
-              {user?.name?.charAt(0).toUpperCase()}
-            </Avatar>
-            <Typography variant="body1" sx={{ mr: 2 }}>
-              Hello, {user?.name}
-            </Typography>
-            <IconButton color="inherit" onClick={handleLogout}>
-              <ExitToApp />
-            </IconButton>
-          </Box>
-        </Toolbar>
-      </AppBar>
-      
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         {/* Welcome Section */}
         <Box sx={{ mb: 4 }}>
@@ -265,5 +249,6 @@ export default function CustomerDashboard() {
         </Box>
       </Container>
     </Box>
+    </>
   );
 }

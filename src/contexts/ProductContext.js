@@ -1,6 +1,6 @@
 // src/contexts/ProductContext.js
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { useAuth } from './AuthContexts';
+import { useAuth } from './AuthContext';
 import api from '../utils/axios';
 
 const ProductContext = createContext();

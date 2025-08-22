@@ -21,7 +21,7 @@ import {
   Star,
   Brush
 } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContexts';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
 import Navbar from '../components/NavBar';

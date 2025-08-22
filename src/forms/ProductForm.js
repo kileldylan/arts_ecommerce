@@ -16,7 +16,7 @@ import {
   Avatar
 } from '@mui/material';
 import { useProducts } from '../contexts/ProductContext';
-import { useAuth } from '../contexts/AuthContexts';
+import { useAuth } from '../contexts/AuthContext';
 
 const categories = [
   { id: 1, name: 'Jewelry', slug: 'jewelry' },

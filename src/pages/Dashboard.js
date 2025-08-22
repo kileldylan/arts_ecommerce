@@ -1,6 +1,6 @@
 // src/pages/Dashboard.js
 import React from 'react';
-import { useAuth } from '../contexts/AuthContexts';
+import { useAuth } from '../contexts/AuthContext';
 import CustomerDashboard from '../pages/CustomerDashboard';
 import ArtistDashboard from '../pages/ArtistDashboard';
 import AdminDashboard from '../pages/AdminDashboard';

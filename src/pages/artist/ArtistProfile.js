@@ -16,7 +16,7 @@ import {
   FormControlLabel
 } from '@mui/material';
 import { Edit, Save, CameraAlt, Link } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContexts';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function ArtistProfile() {
   const { user } = useAuth();

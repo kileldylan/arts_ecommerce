@@ -28,10 +28,12 @@ import {
   Person,
   AdminPanelSettings,
   Brush,
-  Favorite
+  Favorite,
+  
 } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContexts';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import CustomerOrders from '../pages/customer/CustomOrder';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -88,6 +90,7 @@ export default function Navbar() {
           { label: 'My Studio', path: '/artist', icon: <Brush /> },
           { label: 'My Products', path: '/artist/products', icon: <Store /> },
           { label: 'Orders', path: '/artist/orders', icon: <Store /> },
+          { label: 'Checkout', path: '/checkout', icon: <Store /> },
           { label: 'Analytics', path: '/artist/analytics', icon: <Store /> }
         ];
       case 'customer':
@@ -95,6 +98,7 @@ export default function Navbar() {
         return [
           ...commonItems,
           { label: 'Wishlist', path: '/wishlist', icon: <Favorite /> },
+          { label: 'Orders', path: '/customer/orders', icon: <Store /> },
           { label: 'Cart', path: '/cart', icon: <ShoppingCart /> }
         ];
     }
