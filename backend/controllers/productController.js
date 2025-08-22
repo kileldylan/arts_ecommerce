@@ -47,64 +47,147 @@ exports.getProduct = (req, res) => {
 
 // Create new product
 exports.createProduct = (req, res) => {
-  const productData = {
-    ...req.body,
-    artist_id: req.user.id // Set artist from authenticated user
-  };
+  try {
+    console.log('Creating product with data:', req.body);
+    console.log('Authenticated user:', req.user);
+    
+    const productData = {
+      ...req.body,
+      artist_id: req.user.id // Set artist from authenticated user
+    };
 
-  Product.create(productData, (err, product) => {
-    if (err) {
-      return res.status(500).json({ message: 'Server error', error: err.message });
-    }
-
-    // Add images if provided
-    if (req.body.images && req.body.images.length > 0) {
-      Product.addImages(product.id, req.body.images, (err) => {
-        if (err) {
-          console.error('Error adding product images:', err);
-        }
+    // Validate required fields
+    if (!productData.name || !productData.description || !productData.price || !productData.category_id) {
+      return res.status(400).json({ 
+        message: 'Missing required fields: name, description, price, or category_id' 
       });
     }
 
-    res.status(201).json({
-      message: 'Product created successfully',
-      product: product
+    // Convert numeric fields
+    productData.price = parseFloat(productData.price);
+    productData.category_id = parseInt(productData.category_id);
+    productData.quantity = parseInt(productData.quantity) || 0;
+    
+    if (productData.compare_price) productData.compare_price = parseFloat(productData.compare_price);
+    if (productData.cost_per_item) productData.cost_per_item = parseFloat(productData.cost_per_item);
+    if (productData.weight) productData.weight = parseFloat(productData.weight);
+    if (productData.length) productData.length = parseFloat(productData.length);
+    if (productData.width) productData.width = parseFloat(productData.width);
+    if (productData.height) productData.height = parseFloat(productData.height);
+
+    // Convert boolean fields
+    productData.is_published = Boolean(productData.is_published);
+    productData.is_featured = Boolean(productData.is_featured);
+    productData.is_digital = Boolean(productData.is_digital);
+    productData.requires_shipping = productData.requires_shipping !== false;
+    productData.allow_out_of_stock_purchases = Boolean(productData.allow_out_of_stock_purchases);
+
+    Product.create(productData, (err, product) => {
+      if (err) {
+        console.error('Error creating product:', err);
+        return res.status(500).json({ 
+          message: 'Error creating product', 
+          error: err.message,
+          code: err.code
+        });
+      }
+
+      // Add images if provided
+      if (req.body.images && req.body.images.length > 0) {
+        Product.addImages(product.id, req.body.images, (err) => {
+          if (err) {
+            console.error('Error adding product images:', err);
+            // Still return success but log the image error
+          }
+          
+          res.status(201).json({
+            message: 'Product created successfully',
+            product: product
+          });
+        });
+      } else {
+        res.status(201).json({
+          message: 'Product created successfully',
+          product: product
+        });
+      }
     });
-  });
+  } catch (error) {
+    console.error('Error in createProduct:', error);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message 
+    });
+  }
 };
 
 // Update product
 exports.updateProduct = (req, res) => {
-  const productId = req.params.id;
-  const productData = req.body;
+  try {
+    const productId = req.params.id;
+    let productData = req.body;
 
-  // Check if user owns the product or is admin
-  Product.findById(productId, (err, products) => {
-    if (err) {
-      return res.status(500).json({ message: 'Server error', error: err.message });
-    }
+    console.log('Updating product with data:', productData);
 
-    if (products.length === 0) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    const product = products[0];
+    // Convert numeric fields if they exist
+    if (productData.price) productData.price = parseFloat(productData.price);
+    if (productData.category_id) productData.category_id = parseInt(productData.category_id);
+    if (productData.quantity) productData.quantity = parseInt(productData.quantity);
     
-    if (product.artist_id !== req.user.id && req.user.user_type !== 'admin') {
-      return res.status(403).json({ message: 'Access denied' });
-    }
+    if (productData.compare_price) productData.compare_price = parseFloat(productData.compare_price);
+    if (productData.cost_per_item) productData.cost_per_item = parseFloat(productData.cost_per_item);
+    if (productData.weight) productData.weight = parseFloat(productData.weight);
+    if (productData.length) productData.length = parseFloat(productData.length);
+    if (productData.width) productData.width = parseFloat(productData.width);
+    if (productData.height) productData.height = parseFloat(productData.height);
 
-    Product.update(productId, productData, (err, results) => {
+    // Convert boolean fields if they exist
+    if (productData.is_published !== undefined) productData.is_published = Boolean(productData.is_published);
+    if (productData.is_featured !== undefined) productData.is_featured = Boolean(productData.is_featured);
+    if (productData.is_digital !== undefined) productData.is_digital = Boolean(productData.is_digital);
+    if (productData.requires_shipping !== undefined) productData.requires_shipping = productData.requires_shipping !== false;
+    if (productData.allow_out_of_stock_purchases !== undefined) productData.allow_out_of_stock_purchases = Boolean(productData.allow_out_of_stock_purchases);
+
+    // Check if user owns the product or is admin
+    Product.findById(productId, (err, products) => {
       if (err) {
+        console.error('Error finding product:', err);
         return res.status(500).json({ message: 'Server error', error: err.message });
       }
 
-      res.json({
-        message: 'Product updated successfully',
-        affectedRows: results.affectedRows
+      if (products.length === 0) {
+        return res.status(404).json({ message: 'Product not found' });
+      }
+
+      const product = products[0];
+      
+      if (product.artist_id !== req.user.id && req.user.user_type !== 'admin') {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      Product.update(productId, productData, (err, results) => {
+        if (err) {
+          console.error('Error updating product:', err);
+          return res.status(500).json({ 
+            message: 'Error updating product', 
+            error: err.message,
+            code: err.code
+          });
+        }
+
+        res.json({
+          message: 'Product updated successfully',
+          affectedRows: results.affectedRows
+        });
       });
     });
-  });
+  } catch (error) {
+    console.error('Error in updateProduct:', error);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message 
+    });
+  }
 };
 
 // Delete product

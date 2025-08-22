@@ -1,6 +1,39 @@
 // backend/models/Product.js
 const db = require('../config/db');
 
+// Helper function to generate slug
+const generateSlug = (name) => {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+};
+
+// Helper function to generate unique slug
+const generateUniqueSlug = (name, callback) => {
+  const baseSlug = generateSlug(name);
+  let slug = baseSlug;
+  let counter = 1;
+
+  const checkSlug = () => {
+    const query = 'SELECT id FROM products WHERE slug = ?';
+    db.query(query, [slug], (err, results) => {
+      if (err) return callback(err);
+      
+      if (results.length > 0) {
+        // Slug exists, try with counter
+        slug = `${baseSlug}-${counter}`;
+        counter++;
+        checkSlug();
+      } else {
+        callback(null, slug);
+      }
+    });
+  };
+
+  checkSlug();
+};
+
 const Product = {
   // Create new product
   create: (productData, callback) => {
@@ -11,24 +44,68 @@ const Product = {
       requires_shipping, seo_title, seo_description, slug
     } = productData;
 
-    const query = `
-      INSERT INTO products (
-        name, description, price, compare_price, cost_per_item, category_id,
-        artist_id, sku, barcode, quantity, allow_out_of_stock_purchases,
-        weight, length, width, height, is_published, is_featured, is_digital,
-        requires_shipping, seo_title, seo_description, slug
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    // Generate unique slug if not provided
+    if (slug) {
+      // If slug is provided, use it directly
+      executeInsert(slug);
+    } else {
+      // Generate unique slug from name
+      generateUniqueSlug(name, (err, generatedSlug) => {
+        if (err) return callback(err);
+        executeInsert(generatedSlug);
+      });
+    }
 
-    db.query(query, [
-      name, description, price, compare_price, cost_per_item, category_id,
-      artist_id, sku, barcode, quantity, allow_out_of_stock_purchases,
-      weight, length, width, height, is_published, is_featured, is_digital,
-      requires_shipping, seo_title, seo_description, slug
-    ], (err, results) => {
-      if (err) return callback(err);
-      callback(null, { id: results.insertId, ...productData });
-    });
+    function executeInsert(finalSlug) {
+      const query = `
+        INSERT INTO products (
+          name, description, price, compare_price, cost_per_item, category_id,
+          artist_id, sku, barcode, quantity, allow_out_of_stock_purchases,
+          weight, length, width, height, is_published, is_featured, is_digital,
+          requires_shipping, seo_title, seo_description, slug
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      db.query(query, [
+        name, 
+        description, 
+        price, 
+        compare_price || null, 
+        cost_per_item || null, 
+        category_id,
+        artist_id, 
+        sku || null, 
+        barcode || null, 
+        quantity || 0, 
+        allow_out_of_stock_purchases || false,
+        weight || null, 
+        length || null, 
+        width || null, 
+        height || null, 
+        is_published || false, 
+        is_featured || false, 
+        is_digital || false,
+        requires_shipping !== false, // Default to true if not specified
+        seo_title || null, 
+        seo_description || null, 
+        finalSlug
+      ], (err, results) => {
+        if (err) {
+          console.error('Database error in Product.create:', err);
+          return callback(err);
+        }
+        
+        // Get the newly created product
+        const productId = results.insertId;
+        Product.findById(productId, (err, productResults) => {
+          if (err) {
+            console.error('Error fetching created product:', err);
+            return callback(err);
+          }
+          callback(null, { id: productId, ...productResults[0] });
+        });
+      });
+    }
   },
 
   // Find product by ID
@@ -114,13 +191,17 @@ const Product = {
 
   // Update product
   update: (id, productData, callback) => {
+    // Remove slug and images from update data if they exist
+    const { slug, images, ...updateData } = productData;
+
     const fields = [];
     const values = [];
 
-    Object.keys(productData).forEach(key => {
-      if (productData[key] !== undefined) {
+    Object.keys(updateData).forEach(key => {
+      // Only update fields that are not undefined and not empty string
+      if (updateData[key] !== undefined && updateData[key] !== '') {
         fields.push(`${key} = ?`);
-        values.push(productData[key]);
+        values.push(updateData[key]);
       }
     });
 
@@ -131,7 +212,7 @@ const Product = {
     values.push(id);
 
     const query = `UPDATE products SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-    
+
     db.query(query, values, (err, results) => {
       if (err) return callback(err);
       callback(null, results);

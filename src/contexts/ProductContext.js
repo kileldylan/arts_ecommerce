@@ -1,11 +1,16 @@
 // src/contexts/ProductContext.js
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useAuth } from './AuthContexts';
+import api from '../utils/axios';
 
 const ProductContext = createContext();
 
 export function useProducts() {
-  return useContext(ProductContext);
+  const context = useContext(ProductContext);
+  if (!context) {
+    throw new Error('useProducts must be used within a ProductProvider');
+  }
+  return context;
 }
 
 export function ProductProvider({ children }) {
@@ -15,25 +20,18 @@ export function ProductProvider({ children }) {
   const [error, setError] = useState(null);
   const { user } = useAuth();
 
-  const API_BASE = 'http://localhost:5000/api';
-
   const getProducts = useCallback(async (filters = {}) => {
     setLoading(true);
     setError(null);
     try {
-      const queryParams = new URLSearchParams(filters).toString();
-      const response = await fetch(`${API_BASE}/products?${queryParams}`);
-      const data = await response.json();
-      
-      if (response.ok) {
-        setProducts(data);
-        return data;
-      } else {
-        throw new Error(data.message || 'Failed to fetch products');
-      }
+      const response = await api.get('/products', { params: filters });
+      setProducts(response.data);
+      return response.data;
     } catch (err) {
-      setError(err.message);
+      const errorMessage = err.response?.data?.message || 'Failed to fetch products';
+      setError(errorMessage);
       console.error('Error fetching products:', err);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -46,50 +44,48 @@ export function ProductProvider({ children }) {
       const id = artistId || user?.id;
       if (!id) return;
       
-      const response = await fetch(`${API_BASE}/products/artist/${id}`);
-      const data = await response.json();
-      
-      if (response.ok) {
-        setArtistProducts(data);
-        return data;
-      } else {
-        throw new Error(data.message || 'Failed to fetch artist products');
-      }
+      const response = await api.get(`/products/artist/${id}`);
+      setArtistProducts(response.data);
+      return response.data;
     } catch (err) {
-      setError(err.message);
+      const errorMessage = err.response?.data?.message || 'Failed to fetch artist products';
+      setError(errorMessage);
       console.error('Error fetching artist products:', err);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
   }, [user]);
 
+  const getProduct = async (productId) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get(`/products/${productId}`);
+      return response.data;
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Failed to fetch product';
+      setError(errorMessage);
+      console.error('Error fetching product:', err);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const createProduct = async (productData) => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/products`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(productData)
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        // Refresh artist products
-        await getArtistProducts();
-        return data;
-      } else {
-        throw new Error(data.message || 'Failed to create product');
-      }
+      const response = await api.post('/products', productData);
+      // Refresh artist products
+      await getArtistProducts();
+      return response.data;
     } catch (err) {
-      setError(err.message);
+      const errorMessage = err.response?.data?.message || 'Failed to create product';
+      setError(errorMessage);
       console.error('Error creating product:', err);
-      throw err;
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -99,29 +95,15 @@ export function ProductProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/products/${productId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(productData)
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        // Refresh artist products
-        await getArtistProducts();
-        return data;
-      } else {
-        throw new Error(data.message || 'Failed to update product');
-      }
+      const response = await api.put(`/products/${productId}`, productData);
+      // Refresh artist products
+      await getArtistProducts();
+      return response.data;
     } catch (err) {
-      setError(err.message);
+      const errorMessage = err.response?.data?.message || 'Failed to update product';
+      setError(errorMessage);
       console.error('Error updating product:', err);
-      throw err;
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -131,27 +113,35 @@ export function ProductProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/products/${productId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        // Refresh artist products
-        await getArtistProducts();
-        return data;
-      } else {
-        throw new Error(data.message || 'Failed to delete product');
-      }
+      const response = await api.delete(`/products/${productId}`);
+      // Refresh artist products
+      await getArtistProducts();
+      return response.data;
     } catch (err) {
-      setError(err.message);
+      const errorMessage = err.response?.data?.message || 'Failed to delete product';
+      setError(errorMessage);
       console.error('Error deleting product:', err);
-      throw err;
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const togglePublishProduct = async (productId, isPublished) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.put(`/products/${productId}`, {
+        is_published: isPublished
+      });
+      // Refresh artist products
+      await getArtistProducts();
+      return response.data;
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Failed to update product status';
+      setError(errorMessage);
+      console.error('Error updating product status:', err);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -164,9 +154,11 @@ export function ProductProvider({ children }) {
     error,
     getProducts,
     getArtistProducts,
+    getProduct,
     createProduct,
     updateProduct,
     deleteProduct,
+    togglePublishProduct,
     clearError: () => setError(null)
   };
 

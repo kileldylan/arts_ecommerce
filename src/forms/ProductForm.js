@@ -22,11 +22,7 @@ const categories = [
   { id: 1, name: 'Jewelry', slug: 'jewelry' },
   { id: 2, name: 'Paintings', slug: 'paintings' },
   { id: 3, name: 'Sculptures', slug: 'sculptures' },
-  { id: 4, name: 'Textiles', slug: 'textiles' },
-  { id: 5, name: 'Pottery', slug: 'pottery' },
-  { id: 6, name: 'Baskets', slug: 'baskets' },
-  { id: 7, name: 'Wood Carvings', slug: 'wood-carvings' },
-  { id: 8, name: 'Beadwork', slug: 'beadwork' }
+  { id: 4, name: 'Wood Carvings', slug: 'wood-carvings' }
 ];
 
 export default function ProductForm({ product, onSubmit, loading }) {

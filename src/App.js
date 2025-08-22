@@ -4,17 +4,19 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider, useAuth } from './contexts/AuthContexts';
+import { ProductProvider } from './contexts/ProductContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import OAuthSuccess from './pages/OAuthSuccess';
 import ProductList from './pages/artist/ProductList';
 import AddProduct from './pages/artist/AddProduct';
 import EditProduct from './pages/artist/EditProduct';
+import ArtistProfile from './pages/artist/ArtistProfile';
+import Orders from './pages/artist/Orders';
+import Analytics from './pages/artist/Analytics';
 import './App.css';
-import OAuthSuccess from './pages/OAuthSuccess';
-import Navbar from './components/NavBar'; 
-import { ProductProvider } from './contexts/ProductContext';
-
+import { Box, CircularProgress } from '@mui/material';
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -57,60 +59,96 @@ function ProtectedRoute({ children }) {
 }
 
 function AppContent() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   
-  return (
-    <div className="app">
-      <Routes>
-        <Route 
-          path="/" 
-          element={user ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} 
-        />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/oauth-success" element={<OAuthSuccess />} />
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-            
-          } 
-        />
-        <Route 
-          path="/artist/products" 
-          element={
-            <ProtectedRoute>
-              <ProductList />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/artist/products/new" 
-          element={
-            <ProtectedRoute>
-              <AddProduct />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/artist/products/edit/:id" 
-          element={
-            <ProtectedRoute>
-              <EditProduct />
-            </ProtectedRoute>
-          } 
-        />
-      </Routes>
-    </div>
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Box component="main" sx={{ flexGrow: 1 }}>
+        <Routes>
+          <Route 
+            path="/" 
+            element={user ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} 
+          />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/oauth-success" element={<OAuthSuccess />} />
+          
+          {/* Protected Routes */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Artist Routes */}
+          <Route 
+            path="/artist/products" 
+            element={
+              <ProtectedRoute>
+                <ProductList />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/artist/products/new" 
+            element={
+              <ProtectedRoute>
+                <AddProduct />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/artist/products/edit/:id" 
+            element={
+              <ProtectedRoute>
+                <EditProduct />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/artist/profile" 
+            element={
+              <ProtectedRoute>
+                <ArtistProfile />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/artist/orders" 
+            element={
+              <ProtectedRoute>
+                <Orders />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/artist/analytics" 
+            element={
+              <ProtectedRoute>
+                <Analytics />
+              </ProtectedRoute>
+            } 
+          />
+        </Routes>
+      </Box>
+    </Box>
   );
 }
 
 function App() {
   return (
- <ThemeProvider theme={theme}>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
         <ProductProvider>

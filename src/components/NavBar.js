@@ -65,8 +65,7 @@ export default function Navbar() {
   // Navigation items based on user type
   const getNavItems = () => {
     const commonItems = [
-      { label: 'Products', path: '/artist/products', icon: <Store /> },
-      { label: 'Dashboard', path: '/dashboard', icon: <Dashboard /> }
+      { label: 'Dashboard', path: '/dashboard', icon: <Dashboard /> } 
     ];
 
     if (!user) {
@@ -87,7 +86,9 @@ export default function Navbar() {
         return [
           ...commonItems,
           { label: 'My Studio', path: '/artist', icon: <Brush /> },
-          { label: 'My Products', path: '/artist/products', icon: <Store /> }
+          { label: 'My Products', path: '/artist/products', icon: <Store /> },
+          { label: 'Orders', path: '/artist/orders', icon: <Store /> },
+          { label: 'Analytics', path: '/artist/analytics', icon: <Store /> }
         ];
       case 'customer':
       default:
@@ -200,7 +201,7 @@ export default function Navbar() {
               open={Boolean(anchorEl)}
               onClose={handleMenuClose}
             >
-              <MenuItem onClick={() => handleNavigation('/profile')}>
+              <MenuItem onClick={() => handleNavigation('/artist/profile')}>
                 <ListItemIcon><Person fontSize="small" /></ListItemIcon>
                 Profile
               </MenuItem>

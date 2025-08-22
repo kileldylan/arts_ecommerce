@@ -4,7 +4,11 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 const AuthContext = createContext();
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }
 
 export function AuthProvider({ children }) {
@@ -13,10 +17,20 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Check if user is logged in on initial load
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Verify token with backend
-      fetchUserProfile(token);
+    // Use sessionStorage for tab isolation, fallback to localStorage
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    const savedUser = sessionStorage.getItem('user') || localStorage.getItem('user');
+    
+    if (token && savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+        
+        // Verify token is still valid with backend
+        fetchUserProfile(token);
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        clearAuthData();
+      }
     } else {
       setLoading(false);
     }
@@ -33,18 +47,28 @@ export function AuthProvider({ children }) {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+        // Store in both sessionStorage (for tab isolation) and localStorage (for persistence)
+        sessionStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('user', JSON.stringify(userData));
+        sessionStorage.setItem('token', token);
+        localStorage.setItem('token', token);
       } else {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        clearAuthData();
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      clearAuthData();
     } finally {
       setLoading(false);
     }
+  };
+
+  const clearAuthData = () => {
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
   };
 
   const login = async (email, password, userType) => {
@@ -60,10 +84,13 @@ export function AuthProvider({ children }) {
       const data = await response.json();
       
       if (response.ok) {
-        const { token, user } = data;
+        const { token, user: userData } = data;
+        // Store in both sessionStorage (for tab isolation) and localStorage (for persistence)
+        sessionStorage.setItem('token', token);
         localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
-        setUser(user);
+        sessionStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
         return { success: true };
       } else {
         return { success: false, error: data.message };
@@ -86,10 +113,13 @@ export function AuthProvider({ children }) {
       const data = await response.json();
       
       if (response.ok) {
-        const { token, user } = data;
+        const { token, user: userData } = data;
+        // Store in both sessionStorage (for tab isolation) and localStorage (for persistence)
+        sessionStorage.setItem('token', token);
         localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
-        setUser(user);
+        sessionStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
         return { success: true };
       } else {
         return { success: false, error: data.message };
@@ -100,9 +130,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearAuthData();
   };
 
   const value = {
@@ -115,7 +143,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

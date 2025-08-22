@@ -12,13 +12,13 @@ const {
 const { auth } = require('../middleware/auth');
 
 // Public routes
-router.get('/products', getAllProducts);
-router.get('/products/:id', getProduct);
-router.get('/products/artist/:artistId?', getArtistProducts);
+router.get('/', getAllProducts);
+router.get('/:id', getProduct);
+router.get('/artist/:artistId', getArtistProducts);
 
 // Protected routes
-router.post('/products', auth, createProduct);
-router.put('/products/:id', auth, updateProduct);
-router.delete('/products/:id', auth, deleteProduct);
+router.post('', auth, createProduct);
+router.put('/:id', auth, updateProduct);
+router.delete('/:id', auth, deleteProduct);
 
 module.exports = router;
