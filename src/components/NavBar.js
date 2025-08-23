@@ -90,7 +90,6 @@ export default function Navbar() {
           { label: 'My Studio', path: '/artist', icon: <Brush /> },
           { label: 'My Products', path: '/artist/products', icon: <Store /> },
           { label: 'Orders', path: '/artist/orders', icon: <Store /> },
-          { label: 'Checkout', path: '/checkout', icon: <Store /> },
           { label: 'Analytics', path: '/artist/analytics', icon: <Store /> }
         ];
       case 'customer':

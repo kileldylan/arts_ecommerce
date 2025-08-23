@@ -154,7 +154,7 @@ export default function ProductList() {
                     </Typography>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6" color="primary">
-                        ${product.price}
+                        Ksh{product.price}
                       </Typography>
                       <Chip
                         size="small"

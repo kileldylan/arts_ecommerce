@@ -20,7 +20,7 @@ import { Box, CircularProgress } from '@mui/material';
 import { OrderProvider } from './contexts/OrderContext';
 import CustomerOrders from './pages/customer/CustomOrder';
 import OrderDetail from './pages/OrderDetail';
-import Checkout from './pages/Checkout';
+import Checkout from './pages/customer/Checkout';
 const theme = createTheme({
   palette: {
     mode: 'light',

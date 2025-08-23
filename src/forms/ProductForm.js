@@ -142,7 +142,7 @@ export default function ProductForm({ product, onSubmit, loading }) {
                     value={formData.price}
                     onChange={handleChange('price')}
                     InputProps={{
-                      startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                      startAdornment: <InputAdornment position="start">Ksh</InputAdornment>,
                     }}
                   />
                 </Grid>

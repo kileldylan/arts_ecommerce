@@ -22,8 +22,8 @@ import {
   LocationOn,
   Payment
 } from '@mui/icons-material';
-import { useOrders } from '../contexts/OrderContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useOrders } from '../../contexts/OrderContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Mock cart data - you'll replace this with your actual cart context
 const mockCart = {
