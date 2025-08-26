@@ -71,7 +71,7 @@ CREATE TABLE `order_items` (
   KEY `product_id` (`product_id`),
   CONSTRAINT `order_items_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
   CONSTRAINT `order_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -147,7 +147,7 @@ CREATE TABLE `orders` (
   KEY `artist_id` (`artist_id`),
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`artist_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -156,6 +156,7 @@ CREATE TABLE `orders` (
 
 LOCK TABLES `orders` WRITE;
 /*!40000 ALTER TABLE `orders` DISABLE KEYS */;
+INSERT INTO `orders` VALUES (1,'ORD-1755935870647-214',3,2,'pending',70.17,59.98,4.20,5.99,0.00,'mpesa','pending','{\"city\": \"Eldoret\", \"state\": \"Uasin Gishu\", \"street\": \"Uasin Gishu\", \"country\": \"Kenya\", \"postal_code\": \"30100\"}',NULL,NULL,NULL,NULL,'2025-08-23 07:57:50','2025-08-23 07:57:50');
 /*!40000 ALTER TABLE `orders` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -177,7 +178,7 @@ CREATE TABLE `product_images` (
   PRIMARY KEY (`id`),
   KEY `product_id` (`product_id`),
   CONSTRAINT `product_images_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -279,6 +280,7 @@ CREATE TABLE `products` (
   `slug` varchar(255) NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `images` text,
   PRIMARY KEY (`id`),
   UNIQUE KEY `slug` (`slug`),
   UNIQUE KEY `sku` (`sku`),
@@ -286,7 +288,7 @@ CREATE TABLE `products` (
   KEY `artist_id` (`artist_id`),
   CONSTRAINT `products_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE CASCADE,
   CONSTRAINT `products_ibfk_2` FOREIGN KEY (`artist_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -295,7 +297,7 @@ CREATE TABLE `products` (
 
 LOCK TABLES `products` WRITE;
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
-INSERT INTO `products` VALUES (4,'Test','test product',100.00,NULL,NULL,1,1,NULL,NULL,100,0,NULL,NULL,NULL,NULL,0,1,0,0,NULL,NULL,'test-1','2025-08-22 10:40:34','2025-08-22 10:40:34'),(5,'Necklace','Gold',1000.00,NULL,NULL,1,1,NULL,NULL,20,0,NULL,NULL,NULL,NULL,1,0,0,1,NULL,NULL,'necklace','2025-08-22 10:49:06','2025-08-22 12:00:12');
+INSERT INTO `products` VALUES (7,'Bracelet','Brass',300.00,NULL,NULL,1,1,'01',NULL,20,0,NULL,NULL,NULL,NULL,0,0,0,1,NULL,NULL,'bracelet','2025-08-23 08:54:28','2025-08-23 09:08:34','[{\"image_url\":\"blob:http://localhost:3000/d0f11413-caca-407a-96fa-1f5cd04880a8\",\"alt_text\":\"brass_bracelet.jpeg\",\"is_primary\":true}]'),(9,'Necklace','Gold',2000.00,NULL,NULL,1,1,'02',NULL,30,0,NULL,NULL,NULL,NULL,0,0,0,1,NULL,NULL,'necklace','2025-08-23 08:56:58','2025-08-23 09:08:12','[{\"image_url\":\"blob:http://localhost:3000/150931ea-95b6-4d3b-a334-6b6deefafd1b\",\"alt_text\":\"necklace.jpeg\",\"is_primary\":true}]'),(10,'Earings','elegant',20.00,NULL,NULL,1,3,'03',NULL,100,0,NULL,NULL,NULL,NULL,0,0,0,0,NULL,NULL,'earings','2025-08-23 09:03:25','2025-08-23 09:03:25','[{\"image_url\":\"blob:http://localhost:3000/8e24f2fe-60f5-4b84-a42c-11245d2635c1\",\"alt_text\":\"earings.jpeg\",\"is_primary\":true}]'),(11,'Earings','Elegant earings',50.00,NULL,NULL,1,1,'04',NULL,200,0,NULL,NULL,NULL,NULL,0,0,0,0,NULL,NULL,'earings-1','2025-08-23 09:09:23','2025-08-23 09:09:23','[{\"image_url\":\"blob:http://localhost:3000/576569e6-69a7-4428-ac21-aadc2013e1f6\",\"alt_text\":\"earings.jpeg\",\"is_primary\":true}]');
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -439,4 +441,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-08-22 17:19:34
+-- Dump completed on 2025-08-26 10:20:28
