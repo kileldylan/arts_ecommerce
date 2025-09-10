@@ -2,23 +2,24 @@
 const express = require('express');
 const router = express.Router();
 const {
-  getAllProducts,
   getProduct,
   createProduct,
   updateProduct,
   deleteProduct,
-  getArtistProducts
+  getArtistProducts,
+  getAllProducts
 } = require('../controllers/productController');
 const { auth } = require('../middleware/auth');
+const { uploadProductImages } = require('../middleware/uploads'); // Import from middleware
 
 // Public routes
-router.get('/', getAllProducts);
+router.get('/all', getAllProducts);
 router.get('/:id', getProduct);
 router.get('/artist/:artistId', getArtistProducts);
 
 // Protected routes
-router.post('', auth, createProduct);
-router.put('/:id', auth, updateProduct);
+router.post('/', auth, uploadProductImages, createProduct);
+router.put('/:id', auth, uploadProductImages, updateProduct);
 router.delete('/:id', auth, deleteProduct);
 
 module.exports = router;

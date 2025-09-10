@@ -13,8 +13,15 @@ router.get('/me', auth, getMe);
 // Google OAuth routes
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 router.get('/google/callback', 
-  passport.authenticate('google', { failureRedirect: '/api/auth/failure', session: false }),
-  oauthSuccess
+  passport.authenticate('google', { 
+    failureRedirect: '/login',
+    session: false 
+  }),
+  (req, res) => {
+    // Successful authentication
+    const token = generateToken(req.user); // Your token generation function
+    res.redirect(`http://localhost:3000/auth/success?token=${token}`);
+  }
 );
 
 // GitHub OAuth routes

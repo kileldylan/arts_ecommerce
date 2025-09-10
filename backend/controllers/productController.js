@@ -1,10 +1,9 @@
-// backend/controllers/productController.js
 const Product = require('../models/Product');
+const upload = require('../config/multer');
 
 // Get all products
 exports.getAllProducts = (req, res) => {
   const filters = {
-    is_published: true,
     ...req.query
   };
 
@@ -40,8 +39,27 @@ exports.createProduct = (req, res) => {
       artist_id: req.user.id
     };
 
+    // Handle uploaded files
+    if (req.files && req.files.length > 0) {
+      productData.images = req.files.map(file => file.filename);
+    } else {
+      productData.images = [];
+    }
+
     // Validate required fields
     if (!productData.name || !productData.description || !productData.price || !productData.category_id) {
+      // Clean up uploaded files if validation fails
+      if (req.files && req.files.length > 0) {
+        req.files.forEach(file => {
+          const fs = require('fs');
+          const path = require('path');
+          const filePath = path.join(__dirname, '../uploads', file.filename);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        });
+      }
+      
       return res.status(400).json({ 
         message: 'Missing required fields: name, description, price, or category_id' 
       });
@@ -65,10 +83,22 @@ exports.createProduct = (req, res) => {
     productData.requires_shipping = productData.requires_shipping !== false;
     productData.allow_out_of_stock_purchases = Boolean(productData.allow_out_of_stock_purchases);
 
-    // Images are now part of productData
     Product.create(productData, (err, product) => {
       if (err) {
         console.error('Error creating product:', err);
+        
+        // Clean up uploaded files if product creation fails
+        if (req.files && req.files.length > 0) {
+          req.files.forEach(file => {
+            const fs = require('fs');
+            const path = require('path');
+            const filePath = path.join(__dirname, '../uploads', file.filename);
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+            }
+          });
+        }
+        
         return res.status(500).json({ 
           message: 'Error creating product', 
           error: err.message,
@@ -95,13 +125,30 @@ exports.updateProduct = (req, res) => {
     const productId = req.params.id;
     let productData = req.body;
 
+    // Handle uploaded files
+    if (req.files && req.files.length > 0) {
+      productData.images = req.files.map(file => file.filename);
+    }
+
     Product.findById(productId, (err, products) => {
       if (err) return res.status(500).json({ message: 'Server error', error: err.message });
       if (products.length === 0) return res.status(404).json({ message: 'Product not found' });
 
-      // No need to separate images or delete/add in another table
       Product.update(productId, productData, (err, results) => {
-        if (err) return res.status(500).json({ message: 'Error updating product', error: err.message });
+        if (err) {
+          // Clean up uploaded files if update fails
+          if (req.files && req.files.length > 0) {
+            req.files.forEach(file => {
+              const fs = require('fs');
+              const path = require('path');
+              const filePath = path.join(__dirname, '../uploads', file.filename);
+              if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+              }
+            });
+          }
+          return res.status(500).json({ message: 'Error updating product', error: err.message });
+        }
 
         return res.json({
           message: 'Product updated successfully',
@@ -118,7 +165,6 @@ exports.updateProduct = (req, res) => {
 exports.deleteProduct = (req, res) => {
   const productId = req.params.id;
 
-  // Check if user owns the product or is admin
   Product.findById(productId, (err, products) => {
     if (err) {
       return res.status(500).json({ message: 'Server error', error: err.message });

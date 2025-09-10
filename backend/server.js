@@ -8,6 +8,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/usersRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const analyticsRoutes = require('./routes/analytics')
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -17,11 +18,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

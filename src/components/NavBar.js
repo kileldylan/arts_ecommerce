@@ -17,7 +17,8 @@ import {
   ListItemIcon,
   useMediaQuery,
   useTheme,
-  Badge
+  Badge,
+  alpha
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -29,11 +30,21 @@ import {
   AdminPanelSettings,
   Brush,
   Favorite,
-  
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import CustomerOrders from '../pages/customer/CustomOrder';
+
+// Use the same color palette as CustomerDashboard
+const themeColors = {
+  primary: '#2C3E50', // Deep navy blue
+  secondary: '#E74C3C', // Vibrant coral red
+  accent: '#F39C12', // Warm gold
+  background: '#FAFAFA',
+  text: '#2C3E50',
+  lightText: '#7F8C8D',
+  white: '#FFFFFF',
+  border: '#ECF0F1'
+};
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -98,7 +109,6 @@ export default function Navbar() {
           ...commonItems,
           { label: 'Wishlist', path: '/wishlist', icon: <Favorite /> },
           { label: 'Orders', path: '/customer/orders', icon: <Store /> },
-          { label: 'Cart', path: '/cart', icon: <ShoppingCart /> }
         ];
     }
   };
@@ -110,7 +120,17 @@ export default function Navbar() {
       <Typography
         variant="h6"
         component="div"
-        sx={{ cursor: 'pointer', mr: 4 }}
+        sx={{ 
+          cursor: 'pointer', 
+          mr: 4,
+          fontWeight: '800',
+          fontSize: '1.5rem',
+          background: 'linear-gradient(45deg, #FFFFFF 30%, #F39C12 90%)',
+          backgroundClip: 'text',
+          textFillColor: 'transparent',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent'
+        }}
         onClick={() => navigate('/')}
       >
         Ujamaa Collective
@@ -123,6 +143,15 @@ export default function Navbar() {
             color="inherit"
             startIcon={item.icon}
             onClick={() => handleNavigation(item.path)}
+            sx={{
+              color: 'white',
+              fontWeight: '500',
+              '&:hover': {
+                backgroundColor: alpha('#FFFFFF', 0.1),
+                transform: 'translateY(-1px)'
+              },
+              transition: 'all 0.2s ease-in-out'
+            }}
           >
             {item.label}
           </Button>
@@ -136,6 +165,11 @@ export default function Navbar() {
       <IconButton
         color="inherit"
         onClick={() => setMobileDrawer(true)}
+        sx={{
+          '&:hover': {
+            backgroundColor: alpha('#FFFFFF', 0.1)
+          }
+        }}
       >
         <MenuIcon />
       </IconButton>
@@ -144,13 +178,23 @@ export default function Navbar() {
         anchor="left"
         open={mobileDrawer}
         onClose={() => setMobileDrawer(false)}
+        PaperProps={{
+          sx: {
+            backgroundColor: themeColors.primary,
+            color: 'white'
+          }
+        }}
       >
-        <Box sx={{ width: 250 }}>
+        <Box sx={{ width: 280, height: '100%', backgroundColor: themeColors.primary }}>
           <List>
-            <ListItem>
+            <ListItem sx={{ py: 3 }}>
               <ListItemText 
                 primary="Ujamaa Collective" 
-                primaryTypographyProps={{ variant: 'h6' }}
+                primaryTypographyProps={{ 
+                  variant: 'h6',
+                  fontWeight: '700',
+                  color: 'white'
+                }}
               />
             </ListItem>
             {navItems.map((item) => (
@@ -158,9 +202,17 @@ export default function Navbar() {
                 button 
                 key={item.path}
                 onClick={() => handleNavigation(item.path)}
+                sx={{
+                  '&:hover': {
+                    backgroundColor: alpha('#FFFFFF', 0.1)
+                  }
+                }}
               >
-                <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.label} />
+                <ListItemIcon sx={{ color: 'white' }}>{item.icon}</ListItemIcon>
+                <ListItemText 
+                  primary={item.label} 
+                  primaryTypographyProps={{ color: 'white' }}
+                />
               </ListItem>
             ))}
           </List>
@@ -170,7 +222,16 @@ export default function Navbar() {
       <Typography
         variant="h6"
         component="div"
-        sx={{ flexGrow: 1, textAlign: 'center' }}
+        sx={{ 
+          flexGrow: 1, 
+          textAlign: 'center',
+          fontWeight: '800',
+          background: 'linear-gradient(45deg, #FFFFFF 30%, #F39C12 90%)',
+          backgroundClip: 'text',
+          textFillColor: 'transparent',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent'
+        }}
       >
         Ujamaa Collective
       </Typography>
@@ -178,23 +239,39 @@ export default function Navbar() {
   );
 
   return (
-    <AppBar position="static" elevation={2}>
+    <AppBar 
+      position="static" 
+      elevation={0}
+      sx={{
+        background: `linear-gradient(135deg, ${themeColors.primary} 0%, ${alpha(themeColors.primary, 0.95)} 100%)`,
+        borderBottom: `1px solid ${alpha('#FFFFFF', 0.1)}`,
+        backdropFilter: 'blur(10px)'
+      }}
+    >
       <Toolbar>
         {isMobile ? renderMobileNav() : renderDesktopNav()}
         
         {user ? (
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {/* Cart Icon for customers */}
-            {user.user_type === 'customer' && (
-              <IconButton color="inherit" sx={{ mr: 1 }}>
-                <Badge badgeContent={0} color="secondary">
-                  <ShoppingCart />
-                </Badge>
-              </IconButton>
-            )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             
-            <IconButton onClick={handleMenuOpen} color="inherit">
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
+            <IconButton 
+              onClick={handleMenuOpen} 
+              color="inherit"
+              sx={{
+                '&:hover': {
+                  backgroundColor: alpha('#FFFFFF', 0.1)
+                }
+              }}
+            >
+              <Avatar 
+                sx={{ 
+                  width: 36, 
+                  height: 36, 
+                  backgroundColor: themeColors.accent,
+                  fontWeight: '600',
+                  fontSize: '1rem'
+                }}
+              >
                 {user.name?.charAt(0).toUpperCase()}
               </Avatar>
             </IconButton>
@@ -203,26 +280,73 @@ export default function Navbar() {
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
               onClose={handleMenuClose}
+              PaperProps={{
+                sx: {
+                  backgroundColor: themeColors.primary,
+                  color: 'white',
+                  border: `1px solid ${alpha('#FFFFFF', 0.1)}`,
+                  borderRadius: '12px',
+                  marginTop: '8px'
+                }
+              }}
             >
-              <MenuItem onClick={() => handleNavigation('/artist/profile')}>
-                <ListItemIcon><Person fontSize="small" /></ListItemIcon>
-                Profile
+              <MenuItem 
+                onClick={() => handleNavigation('/artist/profile')}
+                sx={{
+                  '&:hover': {
+                    backgroundColor: alpha('#FFFFFF', 0.1)
+                  }
+                }}
+              >
+                <ListItemIcon>
+                  <Person fontSize="small" sx={{ color: 'white' }} />
+                </ListItemIcon>
+                <ListItemText primary="Profile" />
               </MenuItem>
-              <MenuItem onClick={handleLogout}>
-                <ListItemIcon><ExitToApp fontSize="small" /></ListItemIcon>
-                Logout
+              <MenuItem 
+                onClick={handleLogout}
+                sx={{
+                  '&:hover': {
+                    backgroundColor: alpha('#FFFFFF', 0.1)
+                  }
+                }}
+              >
+                <ListItemIcon>
+                  <ExitToApp fontSize="small" sx={{ color: 'white' }} />
+                </ListItemIcon>
+                <ListItemText primary="Logout" />
               </MenuItem>
             </Menu>
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button color="inherit" onClick={() => navigate('/login')}>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button 
+              color="inherit" 
+              onClick={() => navigate('/login')}
+              sx={{
+                fontWeight: '500',
+                '&:hover': {
+                  backgroundColor: alpha('#FFFFFF', 0.1)
+                }
+              }}
+            >
               Login
             </Button>
             <Button 
-              color="secondary" 
               variant="contained" 
               onClick={() => navigate('/register')}
+              sx={{
+                backgroundColor: themeColors.accent,
+                color: 'white',
+                fontWeight: '600',
+                borderRadius: '8px',
+                px: 3,
+                '&:hover': {
+                  backgroundColor: alpha(themeColors.accent, 0.9),
+                  transform: 'translateY(-1px)'
+                },
+                transition: 'all 0.2s ease-in-out'
+              }}
             >
               Sign Up
             </Button>

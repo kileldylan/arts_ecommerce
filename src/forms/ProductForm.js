@@ -13,8 +13,12 @@ import {
   MenuItem,
   InputAdornment,
   Chip,
-  Avatar
+  Avatar,
+  CircularProgress,
+  Alert,
+  IconButton
 } from '@mui/material';
+import { Delete, Star, StarBorder } from '@mui/icons-material';
 import { useProducts } from '../contexts/ProductContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -30,19 +34,29 @@ export default function ProductForm({ product, onSubmit, loading }) {
     name: '',
     description: '',
     price: '',
+    compare_price: '',
+    cost_per_item: '',
     category_id: '',
-    quantity: '',
+    quantity: '0',
     sku: '',
+    barcode: '',
     is_published: false,
     is_featured: false,
+    is_digital: false,
     requires_shipping: true,
+    allow_out_of_stock_purchases: false,
     weight: '',
     length: '',
     width: '',
-    height: ''
+    height: '',
+    seo_title: '',
+    seo_description: ''
   });
 
   const [images, setImages] = useState([]);
+  const [imageFiles, setImageFiles] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (product) {
@@ -50,17 +64,26 @@ export default function ProductForm({ product, onSubmit, loading }) {
         name: product.name || '',
         description: product.description || '',
         price: product.price || '',
+        compare_price: product.compare_price || '',
+        cost_per_item: product.cost_per_item || '',
         category_id: product.category_id || '',
-        quantity: product.quantity || '',
+        quantity: product.quantity || '0',
         sku: product.sku || '',
+        barcode: product.barcode || '',
         is_published: product.is_published || false,
         is_featured: product.is_featured || false,
+        is_digital: product.is_digital || false,
         requires_shipping: product.requires_shipping !== false,
+        allow_out_of_stock_purchases: product.allow_out_of_stock_purchases || false,
         weight: product.weight || '',
         length: product.length || '',
         width: product.width || '',
-        height: product.height || ''
+        height: product.height || '',
+        seo_title: product.seo_title || '',
+        seo_description: product.seo_description || ''
       });
+      
+      // Set existing images (already uploaded)
       setImages(product.images || []);
     }
   }, [product]);
@@ -69,30 +92,99 @@ export default function ProductForm({ product, onSubmit, loading }) {
     const value = event.target.value;
     setFormData(prev => ({
       ...prev,
-      [field]: field === 'is_published' || field === 'is_featured' || field === 'requires_shipping' 
+      [field]: ['is_published', 'is_featured', 'is_digital', 'requires_shipping', 'allow_out_of_stock_purchases'].includes(field)
         ? event.target.checked 
         : value
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit({ ...formData, images });
+    setError('');
+    
+    try {
+      // Prepare form data for submission
+      const submitData = new FormData();
+      
+      // Append all form fields
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== null && formData[key] !== undefined) {
+          submitData.append(key, formData[key]);
+        }
+      });
+      
+      // Append image files
+      imageFiles.forEach(file => {
+        submitData.append('images', file);
+      });
+      
+      // Call the onSubmit handler with FormData
+      await onSubmit(submitData);
+      
+      // Clear image files after successful submission
+      setImageFiles([]);
+      
+    } catch (err) {
+      setError(err.message || 'Failed to submit product');
+    }
   };
 
   const handleImageUpload = (event) => {
-    // Simulate image upload - in real app, you'd upload to cloud storage
     const files = Array.from(event.target.files);
-    const newImages = files.map(file => ({
-      image_url: URL.createObjectURL(file),
-      alt_text: file.name,
-      is_primary: images.length === 0
+    setError('');
+    
+    // Validate file types and sizes
+    const validFiles = files.filter(file => {
+      if (!file.type.startsWith('image/')) {
+        setError('Only image files are allowed');
+        return false;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File size must be less than 5MB');
+        return false;
+      }
+      return true;
+    });
+    
+    if (validFiles.length === 0) return;
+    
+    // Add to image files for upload
+    setImageFiles(prev => [...prev, ...validFiles]);
+    
+    // Create preview URLs for new images
+    const newImagePreviews = validFiles.map(file => ({
+      preview: URL.createObjectURL(file),
+      filename: file.name,
+      is_primary: images.length + imageFiles.length === 0,
+      isNew: true
     }));
-    setImages(prev => [...prev, ...newImages]);
+    
+    setImages(prev => [...prev, ...newImagePreviews]);
+    event.target.value = ''; // Reset file input
   };
 
   const removeImage = (index) => {
+    const imageToRemove = images[index];
+    
+    if (imageToRemove.isNew) {
+      // Remove from both previews and files to upload
+      const fileIndex = imageFiles.findIndex(file => 
+        file.name === imageToRemove.filename
+      );
+      if (fileIndex !== -1) {
+        setImageFiles(prev => prev.filter((_, i) => i !== fileIndex));
+      }
+      // Revoke the object URL
+      URL.revokeObjectURL(imageToRemove.preview);
+    }
+    
     setImages(prev => prev.filter((_, i) => i !== index));
+    
+    // If we removed the primary image, set a new primary
+    if (imageToRemove.is_primary && images.length > 1) {
+      const newPrimaryIndex = index === 0 ? 0 : index - 1;
+      setPrimaryImage(newPrimaryIndex);
+    }
   };
 
   const setPrimaryImage = (index) => {
@@ -102,8 +194,54 @@ export default function ProductForm({ product, onSubmit, loading }) {
     })));
   };
 
+  const renderImagePreview = (image, index) => (
+    <Box key={index} sx={{ position: 'relative', mb: 2, p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Avatar
+          variant="rounded"
+          src={image.preview || image}
+          sx={{ width: 80, height: 80, flexShrink: 0 }}
+        />
+        <Box sx={{ flexGrow: 1 }}>
+          <Typography variant="body2" noWrap>
+            {image.filename || image.split('/').pop()}
+          </Typography>
+          {image.isNew && (
+            <Typography variant="caption" color="primary">
+              New - Ready to upload
+            </Typography>
+          )}
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <IconButton
+            size="small"
+            color={image.is_primary ? 'primary' : 'default'}
+            onClick={() => setPrimaryImage(index)}
+            title={image.is_primary ? 'Primary image' : 'Set as primary'}
+          >
+            {image.is_primary ? <Star /> : <StarBorder />}
+          </IconButton>
+          <IconButton
+            size="small"
+            color="error"
+            onClick={() => removeImage(index)}
+            title="Remove image"
+          >
+            <Delete />
+          </IconButton>
+        </Box>
+      </Box>
+    </Box>
+  );
+
   return (
     <Box component="form" onSubmit={handleSubmit}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
+      
       <Grid container spacing={3}>
         {/* Basic Information */}
         <Grid item xs={12} md={8}>
@@ -120,6 +258,7 @@ export default function ProductForm({ product, onSubmit, loading }) {
                     label="Product Name"
                     value={formData.name}
                     onChange={handleChange('name')}
+                    placeholder="Enter product name"
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -131,9 +270,10 @@ export default function ProductForm({ product, onSubmit, loading }) {
                     label="Description"
                     value={formData.description}
                     onChange={handleChange('description')}
+                    placeholder="Describe your product in detail"
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={4}>
                   <TextField
                     required
                     fullWidth
@@ -146,6 +286,32 @@ export default function ProductForm({ product, onSubmit, loading }) {
                     }}
                   />
                 </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Compare at Price"
+                    value={formData.compare_price}
+                    onChange={handleChange('compare_price')}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">Ksh</InputAdornment>,
+                    }}
+                    placeholder="Original price"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Cost per Item"
+                    value={formData.cost_per_item}
+                    onChange={handleChange('cost_per_item')}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">Ksh</InputAdornment>,
+                    }}
+                    placeholder="Your cost"
+                  />
+                </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
                     required
@@ -155,6 +321,7 @@ export default function ProductForm({ product, onSubmit, loading }) {
                     value={formData.category_id}
                     onChange={handleChange('category_id')}
                   >
+                    <MenuItem value="">Select a category</MenuItem>
                     {categories.map((category) => (
                       <MenuItem key={category.id} value={category.id}>
                         {category.name}
@@ -181,6 +348,7 @@ export default function ProductForm({ product, onSubmit, loading }) {
                     label="Quantity"
                     value={formData.quantity}
                     onChange={handleChange('quantity')}
+                    inputProps={{ min: 0 }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -189,7 +357,27 @@ export default function ProductForm({ product, onSubmit, loading }) {
                     label="SKU"
                     value={formData.sku}
                     onChange={handleChange('sku')}
-                    placeholder="Optional"
+                    placeholder="Stock keeping unit"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Barcode"
+                    value={formData.barcode}
+                    onChange={handleChange('barcode')}
+                    placeholder="ISBN, UPC, etc."
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={formData.allow_out_of_stock_purchases}
+                        onChange={handleChange('allow_out_of_stock_purchases')}
+                      />
+                    }
+                    label="Allow out of stock purchases"
                   />
                 </Grid>
               </Grid>
@@ -211,37 +399,90 @@ export default function ProductForm({ product, onSubmit, loading }) {
                 }
                 label="This product requires shipping"
               />
-              {formData.requires_shipping && (
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.is_digital}
+                    onChange={handleChange('is_digital')}
+                  />
+                }
+                label="This is a digital product"
+              />
+              {formData.requires_shipping && !formData.is_digital && (
                 <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <Grid item xs={12} sm={4}>
+                  <Grid item xs={12} sm={3}>
                     <TextField
                       fullWidth
                       type="number"
                       label="Weight (kg)"
                       value={formData.weight}
                       onChange={handleChange('weight')}
+                      placeholder="0.0"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={4}>
+                  <Grid item xs={12} sm={3}>
                     <TextField
                       fullWidth
                       type="number"
                       label="Length (cm)"
                       value={formData.length}
                       onChange={handleChange('length')}
+                      placeholder="0.0"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={4}>
+                  <Grid item xs={12} sm={3}>
                     <TextField
                       fullWidth
                       type="number"
                       label="Width (cm)"
                       value={formData.width}
                       onChange={handleChange('width')}
+                      placeholder="0.0"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={3}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Height (cm)"
+                      value={formData.height}
+                      onChange={handleChange('height')}
+                      placeholder="0.0"
                     />
                   </Grid>
                 </Grid>
               )}
+            </CardContent>
+          </Card>
+
+          {/* SEO */}
+          <Card sx={{ mt: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                SEO Settings
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="SEO Title"
+                    value={formData.seo_title}
+                    onChange={handleChange('seo_title')}
+                    placeholder="Optional - for search engines"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={2}
+                    label="SEO Description"
+                    value={formData.seo_description}
+                    onChange={handleChange('seo_description')}
+                    placeholder="Optional - for search engines"
+                  />
+                </Grid>
+              </Grid>
             </CardContent>
           </Card>
         </Grid>
@@ -278,6 +519,7 @@ export default function ProductForm({ product, onSubmit, loading }) {
                 fullWidth
                 sx={{ mt: 2 }}
                 disabled={loading}
+                startIcon={loading && <CircularProgress size={20} />}
               >
                 {loading ? 'Saving...' : (product ? 'Update Product' : 'Create Product')}
               </Button>
@@ -288,8 +530,12 @@ export default function ProductForm({ product, onSubmit, loading }) {
           <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Images
+                Product Images
               </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Upload high-quality images of your product. The first image will be used as the primary display image.
+              </Typography>
+              
               <input
                 accept="image/*"
                 style={{ display: 'none' }}
@@ -304,31 +550,14 @@ export default function ProductForm({ product, onSubmit, loading }) {
                 </Button>
               </label>
               
-              <Box sx={{ mt: 2 }}>
-                {images.map((image, index) => (
-                  <Box key={index} sx={{ position: 'relative', mb: 1 }}>
-                    <Avatar
-                      variant="rounded"
-                      src={image.image_url}
-                      sx={{ width: '100%', height: 100 }}
-                    />
-                    <Box sx={{ position: 'absolute', top: 4, right: 4 }}>
-                      <Chip
-                        size="small"
-                        label={image.is_primary ? 'Primary' : 'Set primary'}
-                        color={image.is_primary ? 'primary' : 'default'}
-                        onClick={() => setPrimaryImage(index)}
-                        sx={{ mr: 0.5 }}
-                      />
-                      <Chip
-                        size="small"
-                        label="Remove"
-                        color="error"
-                        onClick={() => removeImage(index)}
-                      />
-                    </Box>
-                  </Box>
-                ))}
+              <Box sx={{ mt: 2, maxHeight: 400, overflow: 'auto' }}>
+                {images.length === 0 ? (
+                  <Typography variant="body2" color="textSecondary" textAlign="center" sx={{ py: 4 }}>
+                    No images uploaded yet
+                  </Typography>
+                ) : (
+                  images.map((image, index) => renderImagePreview(image, index))
+                )}
               </Box>
             </CardContent>
           </Card>

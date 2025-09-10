@@ -11,7 +11,8 @@ import {
   Paper,
   LinearProgress,
   Chip,
-  Avatar
+  Avatar,
+  alpha
 } from '@mui/material';
 import {
   Add,
@@ -25,6 +26,18 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
 import Navbar from '../components/NavBar';
+
+// Modern color palette
+const themeColors = {
+  primary: '#2C3E50',
+  secondary: '#E74C3C',
+  accent: '#F39C12',
+  background: '#FAFAFA',
+  text: '#2C3E50',
+  lightText: '#7F8C8D',
+  white: '#FFFFFF',
+  border: '#ECF0F1'
+};
 
 export default function ArtistDashboard() {
   const { user } = useAuth();
@@ -49,7 +62,9 @@ export default function ArtistDashboard() {
       const published = artistProducts.filter(p => p.is_published).length;
       const totalSales = artistProducts.reduce((sum, p) => sum + (p.sales_count || 0), 0);
       const totalViews = artistProducts.reduce((sum, p) => sum + (p.view_count || 0), 0);
-      const avgRating = artistProducts.reduce((sum, p) => sum + (p.average_rating || 0), 0) / artistProducts.length;
+      const avgRating =
+        artistProducts.reduce((sum, p) => sum + (p.average_rating || 0), 0) /
+        artistProducts.length;
 
       setStats({
         totalProducts: artistProducts.length,
@@ -62,19 +77,45 @@ export default function ArtistDashboard() {
   }, [artistProducts]);
 
   const StatCard = ({ icon, title, value, subtitle, color = 'primary' }) => (
-    <Card elevation={2} sx={{ height: '100%' }}>
+    <Card
+      elevation={2}
+      sx={{
+        height: '100%',
+        borderRadius: '12px',
+        overflow: 'hidden',
+        transition: 'all 0.3s ease-in-out',
+        border: `1px solid ${themeColors.border}`,
+        '&:hover': {
+          transform: 'translateY(-6px)',
+          boxShadow: '0 12px 28px rgba(0,0,0,0.08)',
+          borderColor: themeColors.accent
+        }
+      }}
+    >
       <CardContent sx={{ textAlign: 'center', p: 3 }}>
-        <Box sx={{ fontSize: 40, color: `${color}.main`, mb: 1 }}>
+        <Box sx={{ fontSize: 36, color: `${color}.main`, mb: 1 }}>
           {icon}
         </Box>
-        <Typography variant="h4" component="div" fontWeight="bold">
+        <Typography
+          variant="h4"
+          fontWeight="bold"
+          sx={{ color: themeColors.text, fontFamily: 'Roboto, sans-serif' }}
+        >
           {value}
         </Typography>
-        <Typography variant="h6" component="div" color="text.secondary">
+        <Typography
+          variant="subtitle2"
+          color={themeColors.lightText}
+          sx={{ fontFamily: 'Roboto, sans-serif', mt: 0.5 }}
+        >
           {title}
         </Typography>
         {subtitle && (
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="body2"
+            color={themeColors.lightText}
+            sx={{ fontFamily: 'Roboto, sans-serif', mt: 0.25 }}
+          >
             {subtitle}
           </Typography>
         )}
@@ -83,37 +124,81 @@ export default function ArtistDashboard() {
   );
 
   const RecentProductItem = ({ product }) => (
-    <Paper elevation={1} sx={{ p: 2, mb: 1, cursor: 'pointer' }} onClick={() => navigate(`/artist/products/${product.id}`)}>
+    <Paper
+      elevation={1}
+      sx={{
+        p: 2.5,
+        mb: 2,
+        borderRadius: '12px',
+        cursor: 'pointer',
+        transition: 'all 0.3s ease-in-out',
+        border: `1px solid ${themeColors.border}`,
+        '&:hover': {
+          transform: 'translateY(-3px)',
+          boxShadow: '0 10px 20px rgba(0,0,0,0.06)',
+          borderColor: themeColors.accent
+        }
+      }}
+      onClick={() => navigate(`/artist/products/${product.id}`)}
+    >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <Avatar
           variant="rounded"
           src={product.images?.[0]?.image_url}
-          sx={{ width: 60, height: 60, bgcolor: 'grey.100' }}
+          sx={{
+            width: 70,
+            height: 70,
+            bgcolor: 'grey.100',
+            borderRadius: '8px'
+          }}
         >
-          <Brush />
+          <Brush sx={{ fontSize: 32, color: themeColors.primary }} />
         </Avatar>
         <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="subtitle1" fontWeight="medium">
+          <Typography
+            variant="subtitle1"
+            fontWeight="medium"
+            sx={{ color: themeColors.text, fontFamily: 'Roboto, sans-serif' }}
+          >
             {product.name}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            ${product.price} • {product.category_name}
+          <Typography
+            variant="body2"
+            color={themeColors.lightText}
+            sx={{ fontFamily: 'Roboto, sans-serif', mt: 0.25 }}
+          >
+            Ksh{product.price} • {product.category_name}
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
             <Chip
               size="small"
               label={product.is_published ? 'Published' : 'Draft'}
-              color={product.is_published ? 'success' : 'default'}
+              sx={{
+                fontFamily: 'Roboto, sans-serif',
+                backgroundColor: product.is_published
+                  ? alpha('#27AE60', 0.1)
+                  : alpha('#BDC3C7', 0.1),
+                color: product.is_published ? '#27AE60' : '#7F8C8D'
+              }}
             />
             <Chip
               size="small"
               label={`${product.quantity} in stock`}
               variant="outlined"
+              sx={{
+                fontFamily: 'Roboto, sans-serif',
+                borderColor: themeColors.border,
+                color: themeColors.lightText
+              }}
             />
           </Box>
         </Box>
         <Box sx={{ textAlign: 'right' }}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="caption"
+            color={themeColors.lightText}
+            sx={{ fontFamily: 'Roboto, sans-serif' }}
+          >
             {new Date(product.created_at).toLocaleDateString()}
           </Typography>
         </Box>
@@ -123,22 +208,51 @@ export default function ArtistDashboard() {
 
   return (
     <>
-    <Navbar/>
-    <Box sx={{ flexGrow: 1, bgcolor: 'grey.50', minHeight: '100vh' }}>
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        {/* Header */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h3" component="h1" fontWeight="bold" gutterBottom>
-            Welcome back, {user?.name}!
-          </Typography>
-          <Typography variant="h6" color="text.secondary">
-            Manage your artwork and track your performance
-          </Typography>
-        </Box>
+      <Navbar />
+      <Box
+        sx={{
+          flexGrow: 1,
+          bgcolor: themeColors.background,
+          minHeight: '100vh',
+          pt: 2,
+          pb: 8
+        }}
+      >
+        <Container maxWidth="xl">
+          {/* Header */}
+          <Box sx={{ mb: 5, textAlign: 'left' }}>
+            <Typography
+              variant="h3"
+              component="h1"
+              fontWeight="bold"
+              gutterBottom
+              sx={{
+                fontFamily: 'Roboto, sans-serif',
+                letterSpacing: -0.3,
+                color: themeColors.text,
+                fontSize: { xs: '2rem', md: '2.75rem' }
+              }}
+            >
+              Welcome back, {user?.name}!
+            </Typography>
+            <Typography
+              variant="h6"
+              color={themeColors.lightText}
+              sx={{ fontFamily: 'Roboto, sans-serif' }}
+            >
+              Manage your artwork and track your performance
+            </Typography>
+          </Box>
 
-        {/* Stats Grid */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
+          {/* Stats Grid */}
+          <Box
+            sx={{
+              mb: 6,
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' },
+              gap: 2
+            }}
+          >
             <StatCard
               icon={<Inventory />}
               title="Total Products"
@@ -146,9 +260,6 @@ export default function ArtistDashboard() {
               subtitle={`${stats.publishedProducts} published`}
               color="primary"
             />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
             <StatCard
               icon={<ShoppingCart />}
               title="Total Sales"
@@ -156,9 +267,6 @@ export default function ArtistDashboard() {
               subtitle="All time"
               color="success"
             />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
             <StatCard
               icon={<Visibility />}
               title="Total Views"
@@ -166,9 +274,6 @@ export default function ArtistDashboard() {
               subtitle="Product views"
               color="info"
             />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
             <StatCard
               icon={<Star />}
               title="Average Rating"
@@ -176,148 +281,379 @@ export default function ArtistDashboard() {
               subtitle="Out of 5 stars"
               color="warning"
             />
-          </Grid>
-        </Grid>
+          </Box>
 
-        {/* Action Cards */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} md={8}>
-            <Card elevation={2}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h5" gutterBottom fontWeight="bold">
-                  Quick Actions
-                </Typography>
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <Grid item xs={12} sm={6} md={4}>
-                    <Button
-                      variant="contained"
-                      startIcon={<Add />}
-                      fullWidth
-                      sx={{ py: 2 }}
-                      onClick={() => navigate('/artist/products/new')}
-                    >
-                      New Product
-                    </Button>
+          {/* Action Cards */}
+          <Grid container spacing={3} sx={{ mb: 6 }}>
+            <Grid item xs={12} md={8}>
+              <Card
+                elevation={2}
+                sx={{
+                  borderRadius: '12px',
+                  border: `1px solid ${themeColors.border}`
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Typography
+                    variant="h5"
+                    gutterBottom
+                    fontWeight="bold"
+                    sx={{
+                      fontFamily: 'Roboto, sans-serif',
+                      color: themeColors.text
+                    }}
+                  >
+                    Quick Actions
+                  </Typography>
+                  <Grid container spacing={2} sx={{ mt: 1 }}>
+                    <Grid item xs={12} sm={4}>
+                      <Button
+                        variant="contained"
+                        startIcon={<Add />}
+                        fullWidth
+                        sx={{
+                          py: 1.5,
+                          fontSize: '0.95rem',
+                          fontFamily: 'Roboto, sans-serif',
+                          borderRadius: '8px',
+                          backgroundColor: themeColors.primary,
+                          '&:hover': {
+                            backgroundColor: alpha(themeColors.primary, 0.9),
+                            transform: 'translateY(-2px)'
+                          },
+                          transition: 'all 0.2s ease-in-out'
+                        }}
+                        onClick={() => navigate('/artist/products/new')}
+                      >
+                        New Product
+                      </Button>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <Button
+                        variant="outlined"
+                        fullWidth
+                        sx={{
+                          py: 1.5,
+                          fontSize: '0.95rem',
+                          fontFamily: 'Roboto, sans-serif',
+                          borderRadius: '8px',
+                          borderColor: themeColors.border,
+                          color: themeColors.text,
+                          '&:hover': {
+                            borderColor: themeColors.primary,
+                            backgroundColor: alpha(themeColors.primary, 0.04)
+                          }
+                        }}
+                        onClick={() => navigate('/artist/products')}
+                      >
+                        Manage Products
+                      </Button>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <Button
+                        variant="outlined"
+                        fullWidth
+                        sx={{
+                          py: 1.5,
+                          fontSize: '0.95rem',
+                          fontFamily: 'Roboto, sans-serif',
+                          borderRadius: '8px',
+                          borderColor: themeColors.border,
+                          color: themeColors.text,
+                          '&:hover': {
+                            borderColor: themeColors.primary,
+                            backgroundColor: alpha(themeColors.primary, 0.04)
+                          }
+                        }}
+                        onClick={() => navigate('/artist/profile')}
+                      >
+                        Edit Profile
+                      </Button>
+                    </Grid>
                   </Grid>
-                  <Grid item xs={12} sm={6} md={4}>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <Card
+                elevation={2}
+                sx={{
+                  borderRadius: '12px',
+                  border: `1px solid ${themeColors.border}`
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Typography
+                    variant="h5"
+                    gutterBottom
+                    fontWeight="bold"
+                    sx={{
+                      fontFamily: 'Roboto, sans-serif',
+                      color: themeColors.text
+                    }}
+                  >
+                    Performance
+                  </Typography>
+                  <Box sx={{ mt: 2 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        mb: 1
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: themeColors.text,
+                          fontFamily: 'Roboto, sans-serif'
+                        }}
+                      >
+                        Sales Target
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        fontWeight="bold"
+                        sx={{
+                          color: themeColors.text,
+                          fontFamily: 'Roboto, sans-serif'
+                        }}
+                      >
+                        75%
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={75}
+                      sx={{
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: themeColors.border,
+                        '& .MuiLinearProgress-bar': {
+                          backgroundColor: themeColors.accent
+                        }
+                      }}
+                    />
+
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        mb: 1,
+                        mt: 2
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: themeColors.text,
+                          fontFamily: 'Roboto, sans-serif'
+                        }}
+                      >
+                        Inventory Health
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        fontWeight="bold"
+                        sx={{
+                          color: themeColors.text,
+                          fontFamily: 'Roboto, sans-serif'
+                        }}
+                      >
+                        90%
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={90}
+                      color="success"
+                      sx={{
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: themeColors.border,
+                        '& .MuiLinearProgress-bar': {
+                          backgroundColor: themeColors.secondary
+                        }
+                      }}
+                    />
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+
+          {/* Recent Products */}
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={8}>
+              <Card
+                elevation={2}
+                sx={{
+                  borderRadius: '12px',
+                  border: `1px solid ${themeColors.border}`
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      mb: 2
+                    }}
+                  >
+                    <Typography
+                      variant="h5"
+                      fontWeight="bold"
+                      sx={{
+                        fontFamily: 'Roboto, sans-serif',
+                        color: themeColors.text
+                      }}
+                    >
+                      Recent Products
+                    </Typography>
                     <Button
                       variant="outlined"
-                      fullWidth
-                      sx={{ py: 2 }}
+                      sx={{
+                        fontFamily: 'Roboto, sans-serif',
+                        borderColor: themeColors.border,
+                        color: themeColors.text,
+                        '&:hover': {
+                          borderColor: themeColors.primary,
+                          backgroundColor: alpha(themeColors.primary, 0.04)
+                        }
+                      }}
                       onClick={() => navigate('/artist/products')}
                     >
-                      Manage Products
+                      View All
                     </Button>
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={4}>
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      sx={{ py: 2 }}
-                      onClick={() => navigate('/artist/profile')}
-                    >
-                      Edit Profile
-                    </Button>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} md={4}>
-            <Card elevation={2}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h5" gutterBottom fontWeight="bold">
-                  Performance
-                </Typography>
-                <Box sx={{ mt: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2">Sales Target</Typography>
-                    <Typography variant="body2" fontWeight="bold">75%</Typography>
                   </Box>
-                  <LinearProgress variant="determinate" value={75} sx={{ height: 8, borderRadius: 4 }} />
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, mt: 2 }}>
-                    <Typography variant="body2">Inventory Health</Typography>
-                    <Typography variant="body2" fontWeight="bold">90%</Typography>
-                  </Box>
-                  <LinearProgress variant="determinate" value={90} color="success" sx={{ height: 8, borderRadius: 4 }} />
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
 
-        {/* Recent Products */}
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
-            <Card elevation={2}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                  <Typography variant="h5" fontWeight="bold">
-                    Recent Products
-                  </Typography>
-                  <Button onClick={() => navigate('/artist/products')}>
-                    View All
-                  </Button>
-                </Box>
-                
-                {loading ? (
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography>Loading products...</Typography>
-                  </Box>
-                ) : artistProducts.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Inventory sx={{ fontSize: 48, color: 'grey.300', mb: 2 }} />
-                    <Typography variant="h6" color="text.secondary" gutterBottom>
-                      No products yet
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                      Start by creating your first artwork listing
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      startIcon={<Add />}
-                      onClick={() => navigate('/artist/products/new')}
-                    >
-                      Create First Product
-                    </Button>
-                  </Box>
-                ) : (
-                  artistProducts.slice(0, 5).map((product) => (
-                    <RecentProductItem key={product.id} product={product} />
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} md={4}>
-            <Card elevation={2}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h5" gutterBottom fontWeight="bold">
-                  Quick Tips
-                </Typography>
-                <Box sx={{ mt: 2 }}>
-                  {[
-                    "Use high-quality images to showcase your artwork",
-                    "Write detailed descriptions about your creative process",
-                    "Set competitive prices based on market research",
-                    "Keep your inventory updated to avoid overselling",
-                    "Respond promptly to customer inquiries"
-                  ].map((tip, index) => (
-                    <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
-                      <Star color="primary" sx={{ fontSize: 16, mt: 0.5, mr: 1 }} />
-                      <Typography variant="body2">{tip}</Typography>
+                  {loading ? (
+                    <Box sx={{ textAlign: 'center', py: 3 }}>
+                      <Typography
+                        variant="body2"
+                        color={themeColors.lightText}
+                        sx={{ fontFamily: 'Roboto, sans-serif' }}
+                      >
+                        Loading products...
+                      </Typography>
                     </Box>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
+                  ) : artistProducts.length === 0 ? (
+                    <Box sx={{ textAlign: 'center', py: 3 }}>
+                      <Inventory
+                        sx={{
+                          fontSize: 40,
+                          color: themeColors.lightText,
+                          mb: 1.5
+                        }}
+                      />
+                      <Typography
+                        variant="subtitle1"
+                        color={themeColors.lightText}
+                        gutterBottom
+                        sx={{ fontFamily: 'Roboto, sans-serif' }}
+                      >
+                        No products yet
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color={themeColors.lightText}
+                        sx={{
+                          mb: 2,
+                          fontFamily: 'Roboto, sans-serif'
+                        }}
+                      >
+                        Start by creating your first artwork listing
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        startIcon={<Add />}
+                        sx={{
+                          backgroundColor: themeColors.primary,
+                          '&:hover': {
+                            backgroundColor: alpha(themeColors.primary, 0.9),
+                            transform: 'translateY(-2px)'
+                          },
+                          transition: 'all 0.2s ease-in-out',
+                          borderRadius: '8px'
+                        }}
+                        onClick={() => navigate('/artist/products/new')}
+                      >
+                        Create First Product
+                      </Button>
+                    </Box>
+                  ) : (
+                    artistProducts.slice(0, 5).map(product => (
+                      <RecentProductItem key={product.id} product={product} />
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <Card
+                elevation={2}
+                sx={{
+                  borderRadius: '12px',
+                  border: `1px solid ${themeColors.border}`
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Typography
+                    variant="h5"
+                    gutterBottom
+                    fontWeight="bold"
+                    sx={{
+                      fontFamily: 'Roboto, sans-serif',
+                      color: themeColors.text
+                    }}
+                  >
+                    Quick Tips
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    {[
+                      'Use high-quality images to showcase your artwork',
+                      'Write detailed descriptions about your creative process',
+                      'Set competitive prices based on market research',
+                      'Keep your inventory updated to avoid overselling',
+                      'Respond promptly to customer inquiries'
+                    ].map((tip, index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          mb: 1.5
+                        }}
+                      >
+                        <Star
+                          sx={{
+                            fontSize: 14,
+                            mt: 0.25,
+                            mr: 1,
+                            color: themeColors.accent
+                          }}
+                        />
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: themeColors.lightText,
+                            fontFamily: 'Roboto, sans-serif'
+                          }}
+                        >
+                          {tip}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
           </Grid>
-        </Grid>
-      </Container>
-    </Box>
+        </Container>
+      </Box>
     </>
   );
 }

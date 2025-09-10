@@ -21,6 +21,7 @@ import { OrderProvider } from './contexts/OrderContext';
 import CustomerOrders from './pages/customer/CustomOrder';
 import OrderDetail from './pages/OrderDetail';
 import Checkout from './pages/customer/Checkout';
+import { CartProvider } from './contexts/CartContext';
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -186,9 +187,11 @@ function App() {
       <AuthProvider>
         <ProductProvider>
           <OrderProvider>
+            <CartProvider>
           <Router>
             <AppContent />
           </Router>
+            </CartProvider>
           </OrderProvider>
         </ProductProvider>
       </AuthProvider>

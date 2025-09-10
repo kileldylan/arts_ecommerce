@@ -17,7 +17,8 @@ import {
   DialogActions,
   LinearProgress,
   Alert,
-  Snackbar
+  Snackbar,
+  alpha
 } from '@mui/material';
 import {
   Add,
@@ -30,6 +31,18 @@ import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../../contexts/ProductContext';
 import { useAuth } from '../../contexts/AuthContext';
 import Navbar from '../../components/NavBar';
+
+// Modern color palette
+const themeColors = {
+  primary: '#2C3E50',
+  secondary: '#E74C3C',
+  accent: '#F39C12',
+  background: '#FAFAFA',
+  text: '#2C3E50',
+  lightText: '#7F8C8D',
+  white: '#FFFFFF',
+  border: '#ECF0F1'
+};
 
 export default function ProductList() {
   const navigate = useNavigate();
@@ -101,8 +114,18 @@ export default function ProductList() {
           <Button
             variant="contained"
             startIcon={<Add />}
-            onClick={() => navigate('/artist/products/new')}
-            size="large"
+            sx={{
+              py: 1.5,
+              fontSize: '0.95rem',
+              fontFamily: 'Roboto, sans-serif',
+              borderRadius: '8px',
+              backgroundColor: themeColors.primary,
+              '&:hover': {
+                backgroundColor: alpha(themeColors.primary, 0.9),
+                transform: 'translateY(-2px)'
+              },
+              transition: 'all 0.2s ease-in-out'
+            }}
           >
             Add New Product
           </Button>
