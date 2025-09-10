@@ -22,6 +22,7 @@ import CustomerOrders from './pages/customer/CustomOrder';
 import OrderDetail from './pages/OrderDetail';
 import Checkout from './pages/customer/Checkout';
 import { CartProvider } from './contexts/CartContext';
+import CRMDashboard from './pages/artist/CRMDashboard';
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -102,6 +103,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <ProductList />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/artist/CRM" 
+            element={
+              <ProtectedRoute>
+                <CRMDashboard />
               </ProtectedRoute>
             } 
           />
