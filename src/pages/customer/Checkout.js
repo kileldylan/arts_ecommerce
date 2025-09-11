@@ -28,6 +28,7 @@ import {
 import { useOrders } from '../../contexts/OrderContext';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
+import Navbar from '../../components/NavBar';
 
 // Modern color palette
 const themeColors = {
@@ -147,6 +148,8 @@ export default function Checkout() {
   }
 
   return (
+    <>
+    <Navbar/>
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h3" fontWeight="bold" gutterBottom sx={{ color: themeColors.text }}>
         Checkout
@@ -351,5 +354,6 @@ export default function Checkout() {
         </Grid>
       </Grid>
     </Container>
+    </>
   );
 }

@@ -98,7 +98,6 @@ export default function Navbar() {
       case 'artist':
         return [
           ...commonItems,
-          { label: 'My Studio', path: '/artist', icon: <Brush /> },
           { label: 'My Products', path: '/artist/products', icon: <Store /> },
           { label: 'Orders', path: '/artist/orders', icon: <Store /> },
           { label: 'Analytics', path: '/artist/analytics', icon: <Store /> },

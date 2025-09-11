@@ -74,7 +74,7 @@ export default function CustomerOrders() {
 
           <Grid item xs={12} md={2}>
             <Typography variant="body2" fontWeight="medium">
-              ${order.total_amount}
+              Ksh {order.total_amount}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {order.items.length} item(s)
@@ -128,7 +128,7 @@ export default function CustomerOrders() {
                     {item.product_name}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {item.quantity} × ${item.product_price}
+                    {item.quantity} × Ksh {item.product_price}
                   </Typography>
                 </Box>
               </Box>

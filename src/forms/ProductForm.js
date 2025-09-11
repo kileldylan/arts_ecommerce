@@ -1,26 +1,10 @@
-// src/components/forms/ProductForm.js
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  TextField,
-  Button,
-  Grid,
-  Card,
-  CardContent,
-  Typography,
-  Switch,
-  FormControlLabel,
-  MenuItem,
-  InputAdornment,
-  Chip,
-  Avatar,
-  CircularProgress,
-  Alert,
-  IconButton
+  Box, TextField, Button, Grid, Card, CardContent, Typography,
+  Switch, FormControlLabel, MenuItem, InputAdornment, Avatar,
+  CircularProgress, Alert, IconButton
 } from '@mui/material';
 import { Delete, Star, StarBorder } from '@mui/icons-material';
-import { useProducts } from '../contexts/ProductContext';
-import { useAuth } from '../contexts/AuthContext';
 
 const categories = [
   { id: 1, name: 'Jewelry', slug: 'jewelry' },
@@ -31,32 +15,19 @@ const categories = [
 
 export default function ProductForm({ product, onSubmit, loading }) {
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    compare_price: '',
-    cost_per_item: '',
-    category_id: '',
-    quantity: '0',
-    sku: '',
-    barcode: '',
-    is_published: false,
-    is_featured: false,
-    is_digital: false,
-    requires_shipping: true,
-    allow_out_of_stock_purchases: false,
-    weight: '',
-    length: '',
-    width: '',
-    height: '',
-    seo_title: '',
-    seo_description: ''
+    name: '', description: '', price: '', compare_price: '', cost_per_item: '',
+    category_id: '', quantity: '0', sku: '', barcode: '', is_published: false,
+    is_featured: false, is_digital: false, requires_shipping: true,
+    allow_out_of_stock_purchases: false, weight: '', length: '', width: '',
+    height: '', seo_title: '', seo_description: ''
   });
 
   const [images, setImages] = useState([]);
   const [imageFiles, setImageFiles] = useState([]);
-  const [uploadProgress, setUploadProgress] = useState({});
   const [error, setError] = useState('');
+
+  // Backend base URL (configure in .env or hardcode for now)
+  const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     if (product) {
@@ -82,18 +53,24 @@ export default function ProductForm({ product, onSubmit, loading }) {
         seo_title: product.seo_title || '',
         seo_description: product.seo_description || ''
       });
-      
-      // Set existing images (already uploaded)
-      setImages(product.images || []);
+
+      // Set existing images with full URLs
+      setImages((product.images || []).map((url, index) => ({
+        url,
+        preview: `${BASE_URL}${url}`,
+        filename: url.split('/').pop(),
+        is_primary: index === 0,
+        isNew: false
+      })));
     }
-  }, [product]);
+  }, [product, BASE_URL]);
 
   const handleChange = (field) => (event) => {
     const value = event.target.value;
     setFormData(prev => ({
       ...prev,
       [field]: ['is_published', 'is_featured', 'is_digital', 'requires_shipping', 'allow_out_of_stock_purchases'].includes(field)
-        ? event.target.checked 
+        ? event.target.checked
         : value
     }));
   };
@@ -101,29 +78,30 @@ export default function ProductForm({ product, onSubmit, loading }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     try {
-      // Prepare form data for submission
       const submitData = new FormData();
-      
-      // Append all form fields
       Object.keys(formData).forEach(key => {
         if (formData[key] !== null && formData[key] !== undefined) {
           submitData.append(key, formData[key]);
         }
       });
-      
-      // Append image files
+
+      // Append existing images (for updates)
+      const existingImages = images.filter(img => !img.isNew).map(img => img.url);
+      if (existingImages.length > 0) {
+        submitData.append('existingImages', JSON.stringify(existingImages));
+      }
+
+      // Append new image files
       imageFiles.forEach(file => {
         submitData.append('images', file);
       });
-      
-      // Call the onSubmit handler with FormData
+
+      console.log('Submitting FormData:', Object.fromEntries(submitData)); // Debug
       await onSubmit(submitData);
-      
-      // Clear image files after successful submission
       setImageFiles([]);
-      
+      setImages(prev => prev.filter(img => !img.isNew));
     } catch (err) {
       setError(err.message || 'Failed to submit product');
     }
@@ -132,8 +110,7 @@ export default function ProductForm({ product, onSubmit, loading }) {
   const handleImageUpload = (event) => {
     const files = Array.from(event.target.files);
     setError('');
-    
-    // Validate file types and sizes
+
     const validFiles = files.filter(file => {
       if (!file.type.startsWith('image/')) {
         setError('Only image files are allowed');
@@ -145,42 +122,33 @@ export default function ProductForm({ product, onSubmit, loading }) {
       }
       return true;
     });
-    
+
     if (validFiles.length === 0) return;
-    
-    // Add to image files for upload
+
     setImageFiles(prev => [...prev, ...validFiles]);
-    
-    // Create preview URLs for new images
     const newImagePreviews = validFiles.map(file => ({
+      url: file.name,
       preview: URL.createObjectURL(file),
       filename: file.name,
-      is_primary: images.length + imageFiles.length === 0,
+      is_primary: images.length === 0,
       isNew: true
     }));
-    
+
     setImages(prev => [...prev, ...newImagePreviews]);
-    event.target.value = ''; // Reset file input
+    event.target.value = '';
   };
 
   const removeImage = (index) => {
     const imageToRemove = images[index];
-    
     if (imageToRemove.isNew) {
-      // Remove from both previews and files to upload
-      const fileIndex = imageFiles.findIndex(file => 
-        file.name === imageToRemove.filename
-      );
+      const fileIndex = imageFiles.findIndex(file => file.name === imageToRemove.filename);
       if (fileIndex !== -1) {
         setImageFiles(prev => prev.filter((_, i) => i !== fileIndex));
       }
-      // Revoke the object URL
       URL.revokeObjectURL(imageToRemove.preview);
     }
-    
+
     setImages(prev => prev.filter((_, i) => i !== index));
-    
-    // If we removed the primary image, set a new primary
     if (imageToRemove.is_primary && images.length > 1) {
       const newPrimaryIndex = index === 0 ? 0 : index - 1;
       setPrimaryImage(newPrimaryIndex);
@@ -199,12 +167,12 @@ export default function ProductForm({ product, onSubmit, loading }) {
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <Avatar
           variant="rounded"
-          src={image.preview || image}
+          src={image.preview}
           sx={{ width: 80, height: 80, flexShrink: 0 }}
         />
         <Box sx={{ flexGrow: 1 }}>
           <Typography variant="body2" noWrap>
-            {image.filename || image.split('/').pop()}
+            {image.filename}
           </Typography>
           {image.isNew && (
             <Typography variant="caption" color="primary">
@@ -241,9 +209,7 @@ export default function ProductForm({ product, onSubmit, loading }) {
           {error}
         </Alert>
       )}
-      
       <Grid container spacing={3}>
-        {/* Basic Information */}
         <Grid item xs={12} md={8}>
           <Card>
             <CardContent>
@@ -332,8 +298,6 @@ export default function ProductForm({ product, onSubmit, loading }) {
               </Grid>
             </CardContent>
           </Card>
-
-          {/* Inventory */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -383,8 +347,6 @@ export default function ProductForm({ product, onSubmit, loading }) {
               </Grid>
             </CardContent>
           </Card>
-
-          {/* Shipping */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -454,8 +416,6 @@ export default function ProductForm({ product, onSubmit, loading }) {
               )}
             </CardContent>
           </Card>
-
-          {/* SEO */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -486,10 +446,7 @@ export default function ProductForm({ product, onSubmit, loading }) {
             </CardContent>
           </Card>
         </Grid>
-
-        {/* Sidebar */}
         <Grid item xs={12} md={4}>
-          {/* Publish */}
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -525,8 +482,6 @@ export default function ProductForm({ product, onSubmit, loading }) {
               </Button>
             </CardContent>
           </Card>
-
-          {/* Images */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -535,7 +490,6 @@ export default function ProductForm({ product, onSubmit, loading }) {
               <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                 Upload high-quality images of your product. The first image will be used as the primary display image.
               </Typography>
-              
               <input
                 accept="image/*"
                 style={{ display: 'none' }}
@@ -549,7 +503,6 @@ export default function ProductForm({ product, onSubmit, loading }) {
                   Upload Images
                 </Button>
               </label>
-              
               <Box sx={{ mt: 2, maxHeight: 400, overflow: 'auto' }}>
                 {images.length === 0 ? (
                   <Typography variant="body2" color="textSecondary" textAlign="center" sx={{ py: 4 }}>

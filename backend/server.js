@@ -9,6 +9,7 @@ const userRoutes = require('./routes/usersRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const analyticsRoutes = require('./routes/analytics')
+const crmRoutes = require('./routes/crmRoutes')
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,6 +27,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/crm', crmRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

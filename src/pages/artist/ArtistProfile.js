@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import { Edit, Save, CameraAlt, Link } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import Navbar from '../../components/NavBar';
 
 export default function ArtistProfile() {
   const { user } = useAuth();
@@ -57,6 +58,8 @@ export default function ArtistProfile() {
   };
 
   return (
+    <>
+    <Navbar/>
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h3" fontWeight="bold" gutterBottom>
         Artist Profile
@@ -224,5 +227,6 @@ export default function ArtistProfile() {
         </Grid>
       </Grid>
     </Container>
+    </>
   );
 }
