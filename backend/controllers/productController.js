@@ -31,21 +31,44 @@ exports.getProduct = (req, res) => {
 const parseBoolean = (value) => {
   if (value === 'true' || value === true) return true;
   if (value === 'false' || value === false) return false;
+  if (value === 'on') return true;
+  if (value === 'off') return false;
   return Boolean(value);
 };
 
 // Helper function to parse number values
 const parseNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null;
-  return parseFloat(value);
+  const num = parseFloat(value);
+  return isNaN(num) ? null : num;
 };
 
-// Create Product
 exports.createProduct = (req, res) => {
   try {
     console.log('=== CREATE PRODUCT DEBUG ===');
-    console.log('Files received:', req.files ? req.files.map(f => f.filename) : 'No files');
-    console.log('Body fields:', req.body);
+    console.log('Request files:', req.files); // Detailed file info
+    console.log('Request body:', req.body);
+    
+    // Check if files were received
+    if (!req.files || req.files.length === 0) {
+      console.log('NO FILES RECEIVED - This is the main issue!');
+      console.log('Request headers:', req.headers);
+    } else {
+      console.log('Files received:', req.files.length);
+      req.files.forEach((file, index) => {
+        console.log(`File ${index + 1}:`, {
+          originalname: file.originalname,
+          filename: file.filename,
+          size: file.size,
+          path: file.path,
+          mimetype: file.mimetype
+        });
+        
+        // Check if file actually exists on disk
+        const fileExists = fs.existsSync(file.path);
+        console.log(`File exists on disk: ${fileExists}`);
+      });
+    }
 
     // Parse and validate required fields
     const { name, description, price, category_id } = req.body;
@@ -53,13 +76,23 @@ exports.createProduct = (req, res) => {
       // Clean up uploaded files if validation fails
       if (req.files && req.files.length > 0) {
         req.files.forEach(file => {
-          fs.unlinkSync(file.path);
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
         });
       }
       return res.status(400).json({
         message: 'Missing required fields: name, description, price, or category_id'
       });
     }
+
+    // Process images
+    let imagePaths = [];
+    if (req.files && req.files.length > 0) {
+      imagePaths = req.files.map(file => `/uploads/${file.filename}`);
+    }
+    
+    console.log('Final image paths:', imagePaths);
 
     const productData = {
       name: name,
@@ -83,13 +116,10 @@ exports.createProduct = (req, res) => {
       is_digital: parseBoolean(req.body.is_digital),
       requires_shipping: parseBoolean(req.body.requires_shipping),
       allow_out_of_stock_purchases: parseBoolean(req.body.allow_out_of_stock_purchases),
-      // Store image paths correctly
-      images: req.files && req.files.length > 0 
-        ? JSON.stringify(req.files.map(file => `/uploads/${file.filename}`))
-        : JSON.stringify([])
+      images: JSON.stringify(imagePaths)
     };
 
-    console.log('Processed product data:', productData);
+    console.log('Product data for database:', productData);
 
     Product.create(productData, (err, result) => {
       if (err) {
@@ -97,7 +127,9 @@ exports.createProduct = (req, res) => {
         // Clean up uploaded files on database error
         if (req.files && req.files.length > 0) {
           req.files.forEach(file => {
-            fs.unlinkSync(file.path);
+            if (fs.existsSync(file.path)) {
+              fs.unlinkSync(file.path);
+            }
           });
         }
         return res.status(500).json({
@@ -106,13 +138,16 @@ exports.createProduct = (req, res) => {
         });
       }
 
+      // Return the created product with proper image URLs
+      const createdProduct = {
+        id: result.insertId,
+        ...productData,
+        images: imagePaths
+      };
+
       res.status(201).json({
         message: 'Product created successfully',
-        product: {
-          ...productData,
-          id: result.insertId,
-          images: JSON.parse(productData.images)
-        }
+        product: createdProduct
       });
     });
 

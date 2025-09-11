@@ -89,8 +89,8 @@ const getAllProducts = useCallback(async (filters = {}) => {
       
       const response = await api.post('/products', productData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
         },
+        timeout: 30000
       });
       
       console.log('Product created successfully:', response.data);
