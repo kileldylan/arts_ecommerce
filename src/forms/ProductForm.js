@@ -75,37 +75,51 @@ export default function ProductForm({ product, onSubmit, loading }) {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError('');
 
-    try {
-      const submitData = new FormData();
-      Object.keys(formData).forEach(key => {
-        if (formData[key] !== null && formData[key] !== undefined) {
-          submitData.append(key, formData[key]);
-        }
-      });
-
-      // Append existing images (for updates)
-      const existingImages = images.filter(img => !img.isNew).map(img => img.url);
-      if (existingImages.length > 0) {
-        submitData.append('existingImages', JSON.stringify(existingImages));
+  try {
+    const submitData = new FormData();
+    
+    // Convert all form data to strings for FormData
+    Object.keys(formData).forEach(key => {
+      let value = formData[key];
+      
+      // Convert booleans to strings
+      if (typeof value === 'boolean') {
+        value = value.toString();
       }
+      
+      // Convert numbers to strings
+      if (typeof value === 'number') {
+        value = value.toString();
+      }
+      
+      if (value !== null && value !== undefined) {
+        submitData.append(key, value);
+      }
+    });
 
-      // Append new image files
-      imageFiles.forEach(file => {
-        submitData.append('images', file);
-      });
-
-      console.log('Submitting FormData:', Object.fromEntries(submitData)); // Debug
-      await onSubmit(submitData);
-      setImageFiles([]);
-      setImages(prev => prev.filter(img => !img.isNew));
-    } catch (err) {
-      setError(err.message || 'Failed to submit product');
+    // Debug: Log all form data entries
+    console.log('FormData entries:');
+    for (let [key, value] of submitData.entries()) {
+      console.log(key, value);
     }
-  };
+
+    // Append new image files
+    imageFiles.forEach(file => {
+      console.log('Appending file:', file.name, file.size);
+      submitData.append('images', file);
+    });
+
+    await onSubmit(submitData);
+    setImageFiles([]);
+    
+  } catch (err) {
+    setError(err.message || 'Failed to submit product');
+  }
+};
 
   const handleImageUpload = (event) => {
     const files = Array.from(event.target.files);

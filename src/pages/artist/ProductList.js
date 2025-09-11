@@ -114,6 +114,7 @@ export default function ProductList() {
           <Button
             variant="contained"
             startIcon={<Add />}
+            onClick={() => navigate(`/artist/products/new`)}
             sx={{
               py: 1.5,
               fontSize: '0.95rem',

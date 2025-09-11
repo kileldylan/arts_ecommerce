@@ -43,7 +43,7 @@ const getAllProducts = useCallback(async (filters = {}) => {
   } finally {
     setLoading(false);
   }
-}, [api, setLoading, setError, setProducts]);
+}, [setLoading, setError, setProducts]);
 
   const getArtistProducts = useCallback(async (artistId = null) => {
     setLoading(true);
@@ -85,14 +85,22 @@ const getAllProducts = useCallback(async (filters = {}) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.post('/products', productData);
-      // Refresh artist products
+      console.log('Sending product data...');
+      
+      const response = await api.post('/products', productData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      console.log('Product created successfully:', response.data);
       await getArtistProducts();
       return response.data;
+      
     } catch (err) {
+      console.error('API error:', err.response?.data || err.message);
       const errorMessage = err.response?.data?.message || 'Failed to create product';
       setError(errorMessage);
-      console.error('Error creating product:', err);
       throw new Error(errorMessage);
     } finally {
       setLoading(false);

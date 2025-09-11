@@ -27,28 +27,33 @@ exports.getProduct = (req, res) => {
   });
 };
 
+// Helper function to parse boolean values from form data
+const parseBoolean = (value) => {
+  if (value === 'true' || value === true) return true;
+  if (value === 'false' || value === false) return false;
+  return Boolean(value);
+};
+
+// Helper function to parse number values
+const parseNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  return parseFloat(value);
+};
+
 // Create Product
 exports.createProduct = (req, res) => {
   try {
-    console.log('createProduct - req.files:', req.files); // Debug
-    console.log('createProduct - req.body:', req.body); // Debug
+    console.log('=== CREATE PRODUCT DEBUG ===');
+    console.log('Files received:', req.files ? req.files.map(f => f.filename) : 'No files');
+    console.log('Body fields:', req.body);
 
-    const productData = {
-      ...req.body,
-      artist_id: req.user.id,
-      images: req.files ? req.files.map(file => `/uploads/${file.filename}`) : []
-    };
-
-    // Validate required fields
-    if (!productData.name || !productData.description || !productData.price || !productData.category_id) {
-      // Clean up uploaded files
+    // Parse and validate required fields
+    const { name, description, price, category_id } = req.body;
+    if (!name || !description || !price || !category_id) {
+      // Clean up uploaded files if validation fails
       if (req.files && req.files.length > 0) {
         req.files.forEach(file => {
-          const filePath = path.join(__dirname, '..', 'uploads', file.filename);
-          if (fs.existsSync(filePath)) {
-            console.log('Cleaning up file:', filePath); // Debug
-            fs.unlinkSync(filePath);
-          }
+          fs.unlinkSync(file.path);
         });
       }
       return res.status(400).json({
@@ -56,48 +61,63 @@ exports.createProduct = (req, res) => {
       });
     }
 
-    // Convert fields
-    productData.price = parseFloat(productData.price);
-    productData.category_id = parseInt(productData.category_id);
-    productData.quantity = parseInt(productData.quantity) || 0;
-    if (productData.compare_price) productData.compare_price = parseFloat(productData.compare_price);
-    if (productData.cost_per_item) productData.cost_per_item = parseFloat(productData.cost_per_item);
-    if (productData.weight) productData.weight = parseFloat(productData.weight);
-    if (productData.length) productData.length = parseFloat(productData.length);
-    if (productData.width) productData.width = parseFloat(productData.width);
-    if (productData.height) productData.height = parseFloat(productData.height);
-    productData.is_published = Boolean(productData.is_published);
-    productData.is_featured = Boolean(productData.is_featured);
-    productData.is_digital = Boolean(productData.is_digital);
-    productData.requires_shipping = productData.requires_shipping !== false;
-    productData.allow_out_of_stock_purchases = Boolean(productData.allow_out_of_stock_purchases);
+    const productData = {
+      name: name,
+      description: description,
+      price: parseNumber(price),
+      compare_price: parseNumber(req.body.compare_price),
+      cost_per_item: parseNumber(req.body.cost_per_item),
+      category_id: parseInt(category_id),
+      artist_id: req.user.id,
+      sku: req.body.sku || '',
+      barcode: req.body.barcode || '',
+      quantity: parseInt(req.body.quantity) || 0,
+      weight: parseNumber(req.body.weight),
+      length: parseNumber(req.body.length),
+      width: parseNumber(req.body.width),
+      height: parseNumber(req.body.height),
+      seo_title: req.body.seo_title || '',
+      seo_description: req.body.seo_description || '',
+      is_published: parseBoolean(req.body.is_published),
+      is_featured: parseBoolean(req.body.is_featured),
+      is_digital: parseBoolean(req.body.is_digital),
+      requires_shipping: parseBoolean(req.body.requires_shipping),
+      allow_out_of_stock_purchases: parseBoolean(req.body.allow_out_of_stock_purchases),
+      // Store image paths correctly
+      images: req.files && req.files.length > 0 
+        ? JSON.stringify(req.files.map(file => `/uploads/${file.filename}`))
+        : JSON.stringify([])
+    };
 
-    Product.create(productData, (err, product) => {
+    console.log('Processed product data:', productData);
+
+    Product.create(productData, (err, result) => {
       if (err) {
-        console.error('Error creating product:', err);
-        // Clean up uploaded files
+        console.error('Database error:', err);
+        // Clean up uploaded files on database error
         if (req.files && req.files.length > 0) {
           req.files.forEach(file => {
-            const filePath = path.join(__dirname, '..', 'uploads', file.filename);
-            if (fs.existsSync(filePath)) {
-              console.log('Cleaning up file on DB error:', filePath); // Debug
-              fs.unlinkSync(filePath);
-            }
+            fs.unlinkSync(file.path);
           });
         }
         return res.status(500).json({
           message: 'Error creating product',
-          error: err.message,
-          code: err.code
+          error: err.message
         });
       }
+
       res.status(201).json({
         message: 'Product created successfully',
-        product
+        product: {
+          ...productData,
+          id: result.insertId,
+          images: JSON.parse(productData.images)
+        }
       });
     });
+
   } catch (error) {
-    console.error('Error in createProduct:', error);
+    console.error('Unexpected error in createProduct:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
