@@ -26,7 +26,7 @@ const generateUniqueSlug = (name, callback) => {
   checkSlug();
 };
 
-// ✅ Simple safe JSON parse
+// Safe JSON parse
 const safeJsonParse = (str) => {
   try {
     return str ? JSON.parse(str) : [];
@@ -35,17 +35,19 @@ const safeJsonParse = (str) => {
   }
 };
 
-// ✅ Always return proper URLs
+// Format image URLs
 const formatImageUrls = (imagesArray) => {
   if (!Array.isArray(imagesArray)) return [];
-  return imagesArray.map((img) => {
-    if (!img) return '';
-    if (img.startsWith('http') || img.startsWith('/uploads')) return img;
-    return `/uploads/${img}`;
-  }).filter(Boolean);
+  return imagesArray
+    .map((img) => {
+      if (!img) return '';
+      if (img.startsWith('http') || img.startsWith('/uploads')) return img;
+      return `/uploads/${img}`;
+    })
+    .filter(Boolean);
 };
 
-// Helper: delete old files
+// Delete old images
 const deleteOldImages = (oldImageUrls) => {
   if (!oldImageUrls || !Array.isArray(oldImageUrls)) return;
   oldImageUrls.forEach((url) => {
@@ -62,7 +64,7 @@ const deleteOldImages = (oldImageUrls) => {
 };
 
 const Product = {
-  // Create new product
+  // Create product
   create: (productData, callback) => {
     ['weight', 'length', 'width', 'height'].forEach((f) => {
       if (!productData[f]) productData[f] = null;
@@ -136,43 +138,42 @@ const Product = {
   },
 
   update: (id, productData, callback) => {
-  Product.findById(id, (err, current) => {
-    if (err) return callback(err);
-    if (current.length === 0) return callback(new Error('Product not found'));
-
-    ['weight', 'length', 'width', 'height'].forEach((f) => {
-      if (!productData[f]) productData[f] = null;
-      else productData[f] = parseFloat(productData[f]);
-    });
-
-    const fields = [];
-    const values = [];
-
-    Object.entries(productData).forEach(([key, value]) => {
-      if (value !== undefined && key !== 'images') {
-        fields.push(`${key} = ?`);
-        values.push(value);
-      }
-    });
-
-    // ✅ Save merged images (no delete unless explicitly requested)
-    if (productData.images && Array.isArray(productData.images)) {
-      fields.push('images = ?');
-      values.push(JSON.stringify(productData.images));
-    }
-
-    if (fields.length === 0) return callback(new Error('No fields to update'));
-
-    fields.push('updated_at = CURRENT_TIMESTAMP');
-    values.push(id);
-
-    const query = `UPDATE products SET ${fields.join(', ')} WHERE id = ?`;
-    db.query(query, values, (err, results) => {
+    Product.findById(id, (err, current) => {
       if (err) return callback(err);
-      Product.findById(id, callback); // return updated product
+      if (current.length === 0) return callback(new Error('Product not found'));
+
+      ['weight', 'length', 'width', 'height'].forEach((f) => {
+        if (!productData[f]) productData[f] = null;
+        else productData[f] = parseFloat(productData[f]);
+      });
+
+      const fields = [];
+      const values = [];
+
+      Object.entries(productData).forEach(([key, value]) => {
+        if (value !== undefined && key !== 'images') {
+          fields.push(`${key} = ?`);
+          values.push(value);
+        }
+      });
+
+      if (productData.images && Array.isArray(productData.images)) {
+        fields.push('images = ?');
+        values.push(JSON.stringify(productData.images));
+      }
+
+      if (fields.length === 0) return callback(new Error('No fields to update'));
+
+      fields.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(id);
+
+      const query = `UPDATE products SET ${fields.join(', ')} WHERE id = ?`;
+      db.query(query, values, (err) => {
+        if (err) return callback(err);
+        Product.findById(id, callback);
+      });
     });
-  });
-},
+  },
 
   delete: (id, callback) => {
     Product.findById(id, (err, products) => {

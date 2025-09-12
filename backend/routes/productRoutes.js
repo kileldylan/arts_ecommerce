@@ -6,17 +6,17 @@ const {auth} = require('../middleware/auth');
 
 // Create product with image upload - FIXED middleware order
 router.post('/', 
+  auth, 
   upload.array('images', 5), // Handle up to 5 files
   handleMulterError, // Add error handling
-  auth, 
   productController.createProduct
 );
 
 // Update product with image upload
 router.put('/:id', 
+  auth, 
   upload.array('images', 5),
   handleMulterError,
-  auth, 
   productController.updateProduct
 );
 

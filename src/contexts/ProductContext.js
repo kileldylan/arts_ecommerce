@@ -81,44 +81,43 @@ const getAllProducts = useCallback(async (filters = {}) => {
     }
   };
 
-  const createProduct = async (productData) => {
-    setLoading(true);
-    setError(null);
-    try {
-      console.log('Sending product data...');
-      
-      const response = await api.post('/products', productData, {
-        headers: {
-        },
-        timeout: 30000
-      });
-      
-      console.log('Product created successfully:', response.data);
-      await getArtistProducts();
-      return response.data;
-      
-    } catch (err) {
-      console.error('API error:', err.response?.data || err.message);
-      const errorMessage = err.response?.data?.message || 'Failed to create product';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+const createProduct = async (formData) => {
+  setLoading(true);
+  setError(null);
+  try {
+    const response = await api.post('/products', formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 30000,
+    });
+
+    await getArtistProducts();
+    return response.data;
+  } catch (err) {
+    console.error("API error:", {
+      status: err.response?.status,
+      data: err.response?.data,
+      message: err.message,
+    });
+    const errorMessage = err.response?.data?.message || 'Failed to create product';
+    setError(errorMessage);
+    throw new Error(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const updateProduct = async (productId, productData) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.put(`/products/${productId}`, productData);
-      // Refresh artist products
+      const response = await api.put(`/products/${productId}`, productData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       await getArtistProducts();
       return response.data;
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Failed to update product';
       setError(errorMessage);
-      console.error('Error updating product:', err);
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
