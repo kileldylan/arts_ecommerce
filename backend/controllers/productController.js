@@ -197,7 +197,7 @@ exports.deleteProduct = (req, res) => {
     if (products.length === 0) return res.status(404).json({ message: 'Product not found' });
 
     const product = products[0];
-    if (product.artist_id !== req.user.id && req.user.user_type !== 'admin') {
+    if (product.artist_id !== req.user.id) {
       return res.status(403).json({ message: 'Access denied' });
     }
 

@@ -386,8 +386,8 @@ export default function CustomerDashboard() {
         <Container maxWidth="xl" sx={{ pb: 8 }}>
           {/* Search and Filter Bar */}
           <Card sx={{ 
-            mb: 6, 
-            p: 3,
+            mb: 3,
+            p: 1.5    ,
             borderRadius: '16px',
             border: `1px solid ${themeColors.border}`,
             boxShadow: '0 8px 32px rgba(0,0,0,0.08)'

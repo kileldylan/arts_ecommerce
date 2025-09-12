@@ -280,19 +280,6 @@ export default function ProductList() {
                         }}
                       />
                     </Box>
-                    <Box sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      mb: 0.25,
-                      fontSize: '0.7rem'
-                    }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                        Category:
-                      </Typography>
-                      <Typography variant="caption" fontWeight="medium" sx={{ fontSize: '0.7rem' }}>
-                        {product.category_name}
-                      </Typography>
-                    </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem' }}>
                       <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                         Stock:
