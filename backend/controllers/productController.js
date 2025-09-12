@@ -108,7 +108,7 @@ exports.createProduct = (req, res) => {
       seo_title: seo_title || '',
       seo_description: seo_description || '',
       slug,
-      images: JSON.stringify(imagePaths), // ✅ Stringify for DB
+      images: imagePaths,
     };
 
     console.log('Product data for DB:', productData);
