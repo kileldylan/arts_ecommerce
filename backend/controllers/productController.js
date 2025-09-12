@@ -2,18 +2,29 @@ const Product = require('../models/Product');
 const fs = require('fs');
 const path = require('path');
 
-// Get all products (unchanged)
+const normalizeProduct = (product) => {
+  if (product.images && typeof product.images === 'string') {
+    try {
+      return { ...product, images: JSON.parse(product.images) };
+    } catch {
+      return { ...product, images: [] };
+    }
+  }
+  return product;
+};
+
+// Get all products
 exports.getAllProducts = (req, res) => {
   const filters = { ...req.query };
   Product.findAll(filters, (err, products) => {
     if (err) {
       return res.status(500).json({ message: 'Server error', error: err.message });
     }
-    res.json(products);
+    res.json(products.map(normalizeProduct));
   });
 };
 
-// Get single product (unchanged)
+// Get single product
 exports.getProduct = (req, res) => {
   const productId = req.params.id;
   Product.findById(productId, (err, products) => {
@@ -23,7 +34,17 @@ exports.getProduct = (req, res) => {
     if (products.length === 0) {
       return res.status(404).json({ message: 'Product not found' });
     }
-    res.json(products[0]);
+    res.json(normalizeProduct(products[0]));
+  });
+};
+
+// Get products by artist
+exports.getArtistProducts = (req, res) => {
+  const artistId = req.params.artistId || req.user.id;
+  const filters = { artist_id: artistId, ...req.query };
+  Product.findAll(filters, (err, products) => {
+    if (err) return res.status(500).json({ message: 'Server error', error: err.message });
+    res.json(products.map(normalizeProduct));
   });
 };
 
@@ -184,15 +205,5 @@ exports.deleteProduct = (req, res) => {
       if (err) return res.status(500).json({ message: 'Server error', error: err.message });
       res.json({ message: 'Product deleted successfully', affectedRows: results.affectedRows });
     });
-  });
-};
-
-// Get products by artist (unchanged)
-exports.getArtistProducts = (req, res) => {
-  const artistId = req.params.artistId || req.user.id;
-  const filters = { artist_id: artistId, ...req.query };
-  Product.findAll(filters, (err, products) => {
-    if (err) return res.status(500).json({ message: 'Server error', error: err.message });
-    res.json(products);
   });
 };

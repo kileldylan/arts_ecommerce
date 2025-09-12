@@ -64,6 +64,33 @@ const categories = [
   { id: 3, name: 'Paintings', slug: 'paintings', icon: <Palette /> },
   { id: 4, name: 'Sculptures', slug: 'sculptures', icon: <Brush /> }
 ];
+const API_BASE_URL = "http://localhost:5000"; // static file host
+
+const getProductImageUrl = (product) => {
+  try {
+    if (!product.images) return null;
+    
+    // Parse the images if it's a string (JSON)
+    const images = typeof product.images === 'string' 
+      ? JSON.parse(product.images) 
+      : product.images;
+    
+    // Handle both object format and string format
+    if (Array.isArray(images) && images.length > 0) {
+      const firstImage = images[0];
+      // Check if it's an object with image_url property or just a string path
+      if (typeof firstImage === 'object' && firstImage.image_url) {
+        return `${API_BASE_URL}${firstImage.image_url}`;
+      } else if (typeof firstImage === 'string') {
+        return `${API_BASE_URL}${firstImage}`;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Error parsing product images:', error);
+    return null;
+  }
+};
 
 export default function CustomerDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -120,10 +147,11 @@ export default function CustomerDashboard() {
   const ProductCard = ({ product }) => {
     const isWishlisted = wishlist.includes(product.id);
     const cartItem = cart.find(item => item.id === product.id);
+    const imageUrl = getProductImageUrl(product);
 
     return (
       <Card sx={{ 
-        height: '100%', 
+        height: 'auto', 
         display: 'flex', 
         flexDirection: 'column',
         transition: 'all 0.3s ease-in-out',
@@ -138,18 +166,17 @@ export default function CustomerDashboard() {
       }}>
         <Box sx={{ position: 'relative', overflow: 'hidden' }}>
           <CardMedia
-            component="img"
-            height="120"
-            image={product.images?.[0]?.image_url || '/api/placeholder/300/280'}
-            alt={product.name}
-            sx={{ 
-              objectFit: 'cover',
-              transition: 'transform 0.3s ease-in-out',
-              '&:hover': {
-                transform: 'scale(1.05)'
-              }
-            }}
-          />
+                component="img"
+                height="250"
+                image={imageUrl || '/api/placeholder/300/250'}
+                alt={product.name}
+                sx={{ 
+                      width: '100%', 
+                      height: 120,
+                      bgcolor: 'grey.100',
+                      borderRadius: '8px 8px 0 0'
+                }}
+            />
           <IconButton
             sx={{
               position: 'absolute',
@@ -190,7 +217,7 @@ export default function CustomerDashboard() {
 
         <CardContent sx={{ 
           flexGrow: 1, 
-          p: 3,
+          p: 1,
           display: 'flex',
           flexDirection: 'column',
           gap: 1
@@ -222,15 +249,6 @@ export default function CustomerDashboard() {
               (24 reviews)
             </Typography>
           </Box>
-
-          <Typography variant="body2" sx={{ 
-            color: themeColors.lightText,
-            fontSize: '0.85rem',
-            fontStyle: 'italic'
-          }}>
-            By {product.artist_name}
-          </Typography>
-
           <Box sx={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -612,7 +630,7 @@ export default function CustomerDashboard() {
                     <Box key={item.id} sx={{ mb: 2, p: 2, border: '1px solid', borderColor: 'grey.200', borderRadius: 1 }}>
                       <Box sx={{ display: 'flex', gap: 2 }}>
                         <img
-                          src={item.images?.[0]?.image_url || '/api/placeholder/80/80'}
+                          src={Array.isArray(item.images) ? item.images[0] : '/api/placeholder/80/80'}
                           alt={item.name}
                           style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8 }}
                         />
