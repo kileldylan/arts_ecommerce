@@ -461,6 +461,38 @@ export default function ProductForm({ product, onSubmit, loading }) {
           </Card>
         </Grid>
         <Grid item xs={12} md={4}>
+          <Card sx={{ mt: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Product Images
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Upload high-quality images of your product. The first image will be used as the primary display image.
+              </Typography>
+              <input
+                accept="image/*"
+                style={{ display: 'none' }}
+                id="product-images"
+                type="file"
+                multiple
+                onChange={handleImageUpload}
+              />
+              <label htmlFor="product-images">
+                <Button variant="outlined" component="span" fullWidth>
+                  Upload Images
+                </Button>
+              </label>
+              <Box sx={{ mt: 2, maxHeight: 400, overflow: 'auto' }}>
+                {images.length === 0 ? (
+                  <Typography variant="body2" color="textSecondary" textAlign="center" sx={{ py: 4 }}>
+                    No images uploaded yet
+                  </Typography>
+                ) : (
+                  images.map((image, index) => renderImagePreview(image, index))
+                )}
+              </Box>
+            </CardContent>
+          </Card>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -494,38 +526,6 @@ export default function ProductForm({ product, onSubmit, loading }) {
               >
                 {loading ? 'Saving...' : (product ? 'Update Product' : 'Create Product')}
               </Button>
-            </CardContent>
-          </Card>
-          <Card sx={{ mt: 3 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Product Images
-              </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                Upload high-quality images of your product. The first image will be used as the primary display image.
-              </Typography>
-              <input
-                accept="image/*"
-                style={{ display: 'none' }}
-                id="product-images"
-                type="file"
-                multiple
-                onChange={handleImageUpload}
-              />
-              <label htmlFor="product-images">
-                <Button variant="outlined" component="span" fullWidth>
-                  Upload Images
-                </Button>
-              </label>
-              <Box sx={{ mt: 2, maxHeight: 400, overflow: 'auto' }}>
-                {images.length === 0 ? (
-                  <Typography variant="body2" color="textSecondary" textAlign="center" sx={{ py: 4 }}>
-                    No images uploaded yet
-                  </Typography>
-                ) : (
-                  images.map((image, index) => renderImagePreview(image, index))
-                )}
-              </Box>
             </CardContent>
           </Card>
         </Grid>
