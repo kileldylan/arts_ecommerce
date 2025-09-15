@@ -346,7 +346,6 @@ export default function AnalyticsDashboard() {
             subtitle={`${analytics.sales?.total_orders || '0'} orders • ${analytics.sales?.total_items_sold || '0'} items`}
             icon={<AttachMoney />}
             color={themeColors.success}
-            trend="+12.5%"
           />
         </Grid>
 
@@ -357,7 +356,6 @@ export default function AnalyticsDashboard() {
             subtitle={`${analytics.sales?.average_order_value ? `Avg: Ksh${Math.round(analytics.sales.average_order_value)}` : 'No average data'}`}
             icon={<ShoppingCart />}
             color={themeColors.primary}
-            trend="+8.2%"
           />
         </Grid>
 
@@ -368,7 +366,6 @@ export default function AnalyticsDashboard() {
             subtitle={`${analytics.customers?.new_customers_30d || '0'} new customers (30d)`}
             icon={<People />}
             color={themeColors.accent}
-            trend="+5.7%"
           />
         </Grid>
 
@@ -379,7 +376,6 @@ export default function AnalyticsDashboard() {
             subtitle={`${analytics.inventory?.low_stock || '0'} low stock • ${analytics.inventory?.out_of_stock || '0'} out of stock`}
             icon={<Inventory />}
             color={themeColors.warning}
-            trend="-2.1%"
           />
         </Grid>
       </Grid>
