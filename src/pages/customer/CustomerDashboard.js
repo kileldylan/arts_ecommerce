@@ -44,6 +44,7 @@ import { useProducts } from '../../contexts/ProductContext';
 import { useCart } from '../../contexts/CartContext';
 import Navbar from '../../components/NavBar';
 import { useNavigate } from 'react-router-dom';
+import { useWishlist } from '../../contexts/WIshlistContext';
 
 // Modern color palette
 const themeColors = {
@@ -100,7 +101,6 @@ export default function CustomerDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [filterDrawer, setFilterDrawer] = useState(false);
   const [cartDrawer, setCartDrawer] = useState(false);
-  const [wishlist, setWishlist] = useState([]);
   const { products, loading, getAllProducts } = useProducts();
   const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getCartTotal, getCartItemsCount } = useCart();
   const navigate = useNavigate();
@@ -136,190 +136,157 @@ export default function CustomerDashboard() {
     currentPage * itemsPerPage
   );
 
-  const toggleWishlist = (productId) => {
-    if (wishlist.includes(productId)) {
-      setWishlist(wishlist.filter(id => id !== productId));
-    } else {
-      setWishlist([...wishlist, productId]);
-    }
-  };
-
   const ProductCard = ({ product }) => {
-    const isWishlisted = wishlist.includes(product.id);
     const cartItem = cart.find(item => item.id === product.id);
     const imageUrl = getProductImageUrl(product);
+    const { wishlist, toggleWishlist } = useWishlist();
+    const isWishlisted = wishlist.some((p) => p.id === product.id);
 
     return (
-      <Card sx={{ 
-        height: 'auto', 
-        display: 'flex', 
-        flexDirection: 'column',
-        transition: 'all 0.3s ease-in-out',
-        border: `1px solid ${themeColors.border}`,
-        borderRadius: '12px',
-        overflow: 'hidden',
-        '&:hover': {
-          transform: 'translateY(-8px)',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-          borderColor: themeColors.accent
-        }
-      }}>
-        <Box sx={{ position: 'relative', overflow: 'hidden' }}>
-          <CardMedia
-                component="img"
-                height="250"
-                image={imageUrl || '/api/placeholder/300/250'}
-                alt={product.name}
-                sx={{ 
-                      width: '100%', 
-                      height: 120,
-                      bgcolor: 'grey.100',
-                      borderRadius: '8px 8px 0 0'
-                }}
-            />
-          <IconButton
-            sx={{
-              position: 'absolute',
-              top: 12,
-              right: 12,
-              backgroundColor: 'rgba(255,255,255,0.95)',
-              backdropFilter: 'blur(10px)',
-              '&:hover': { 
-                backgroundColor: 'white',
-                transform: 'scale(1.1)'
-              },
-              transition: 'all 0.2s ease-in-out'
-            }}
-            onClick={() => toggleWishlist(product.id)}
-          >
-            {isWishlisted ? (
-              <Favorite sx={{ color: themeColors.secondary }} />
-            ) : (
-              <FavoriteBorder sx={{ color: themeColors.text }} />
-            )}
-          </IconButton>
-          {product.is_featured && (
-            <Chip
-              label="Featured"
-              size="small"
-              sx={{ 
-                position: 'absolute', 
-                top: 12, 
-                left: 12,
-                backgroundColor: themeColors.accent,
-                color: 'white',
-                fontWeight: '600',
-                fontSize: '0.75rem'
-              }}
-            />
-          )}
-        </Box>
-
-        <CardContent sx={{ 
-          flexGrow: 1, 
-          p: 1,
+      <Card
+        sx={{
+          height: 300, 
           display: 'flex',
           flexDirection: 'column',
-          gap: 1
-        }}>
-          <Typography variant="h6" fontWeight="700" sx={{ 
-            color: themeColors.text,
-            fontSize: '1.1rem',
-            lineHeight: 1.3
-          }}>
-            {product.name}
-          </Typography>
-          
-          <Typography variant="body2" sx={{ 
-            color: themeColors.lightText,
-            fontSize: '0.9rem',
-            lineHeight: 1.4,
-            flexGrow: 1
-          }}>
-            {product.description}
-          </Typography>
+          boxShadow: 2,
+          transition: '0.2s',
+          border: `1px solid ${themeColors.border}`,
+          '&:hover': { boxShadow: 6, borderColor: themeColors.accent }
+        }}
+      >
+        {/* Image container */}
+        <Box
+          sx={{
+            height: 140,
+            backgroundColor: 'grey.100',
+            backgroundImage: `url(${imageUrl || '/api/placeholder/300/250'})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            borderRadius: '8px 8px 0 0',
+            position: 'relative'
+          }}
+        >
+    {product.is_featured && (
+      <Chip
+        label="Featured"
+        size="small"
+        sx={{
+          position: 'absolute',
+          top: 8,
+          left: 8,
+          backgroundColor: themeColors.accent,
+          color: 'white',
+          fontWeight: 600,
+          fontSize: '0.7rem'
+        }}
+      />
+    )}
+  </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Rating value={4.5} precision={0.5} size="small" readOnly />
-            <Typography variant="body2" sx={{ 
-              color: themeColors.lightText,
-              fontSize: '0.8rem',
-              ml: 0.5
-            }}>
-              (24 reviews)
-            </Typography>
-          </Box>
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            mt: 2
-          }}>
-            <Typography variant="h6" sx={{ 
-              color: themeColors.secondary,
-              fontWeight: 'bold',
-              fontSize: '1.2rem'
-            }}>
-              Ksh{parseFloat(product.price).toLocaleString()}
-            </Typography>
-            
-            {cartItem ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <IconButton 
-                  size="small" 
-                  onClick={() => updateQuantity(product.id, cartItem.quantity - 1)}
-                  sx={{
-                    backgroundColor: themeColors.primary,
-                    color: 'white',
-                    '&:hover': {
-                      backgroundColor: alpha(themeColors.primary, 0.8)
-                    }
-                  }}
-                >
-                  <Remove />
-                </IconButton>
-                <Typography variant="body1" fontWeight="600">
-                  {cartItem.quantity}
-                </Typography>
-                <IconButton 
-                  size="small" 
-                  onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
-                  sx={{
-                    backgroundColor: themeColors.primary,
-                    color: 'white',
-                    '&:hover': {
-                      backgroundColor: alpha(themeColors.primary, 0.8)
-                    }
-                  }}
-                >
-                  <Add />
-                </IconButton>
-              </Box>
-            ) : (
-              <Button
-                variant="contained"
-                size="medium"
-                onClick={() => addToCart(product)}
-                sx={{
-                  backgroundColor: themeColors.primary,
-                  color: 'white',
-                  fontWeight: '600',
-                  borderRadius: '8px',
-                  px: 2,
-                  py: 1,
-                  '&:hover': {
-                    backgroundColor: alpha(themeColors.primary, 0.9),
-                    transform: 'translateY(-2px)'
-                  },
-                  transition: 'all 0.2s ease-in-out'
-                }}
-              >
-                Add to Cart
-              </Button>
-            )}
-          </Box>
-        </CardContent>
-      </Card>
+  {/* Card body */}
+  <CardContent sx={{ flexGrow: 1, p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+    <Typography variant="subtitle1" fontWeight={600} noWrap>
+      {product.name}
+    </Typography>
+
+    <Typography
+      variant="body2"
+      sx={{
+        color: themeColors.lightText,
+        fontSize: '0.8rem',
+        lineHeight: 1.3,
+        flexGrow: 1,
+        display: '-webkit-box',
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: 'vertical',
+        overflow: 'hidden'
+      }}
+    >
+      {product.description}
+    </Typography>
+
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+      <Rating value={4.5} precision={0.5} size="small" readOnly />
+      <Typography variant="caption" sx={{ color: themeColors.lightText }}>
+        (24 reviews)
+      </Typography>
+    </Box>
+
+    <Box
+  sx={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    mt: 2,       // margin-top to separate from content above
+    gap: 2       // ensures space between price and button
+  }}
+>
+  <Typography
+    variant="h6"
+    sx={{
+      color: themeColors.secondary,
+      fontWeight: "bold",
+      fontSize: "1.1rem"
+    }}
+  >
+    Ksh{parseFloat(product.price).toLocaleString()}
+  </Typography>
+
+  {cartItem ? (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      <IconButton
+        size="small"
+        onClick={() =>
+          updateQuantity(product.id, cartItem.quantity - 1)
+        }
+        sx={{
+          backgroundColor: themeColors.primary,
+          color: "white",
+          "&:hover": { backgroundColor: alpha(themeColors.primary, 0.8) }
+        }}
+      >
+        <Remove />
+      </IconButton>
+      <Typography variant="body1" fontWeight="600">
+        {cartItem.quantity}
+      </Typography>
+      <IconButton
+        size="small"
+        onClick={() =>
+          updateQuantity(product.id, cartItem.quantity + 1)
+        }
+        sx={{
+          backgroundColor: themeColors.primary,
+          color: "white",
+          "&:hover": { backgroundColor: alpha(themeColors.primary, 0.8) }
+        }}
+      >
+        <Add />
+      </IconButton>
+    </Box>
+  ) : (
+    <Button
+      variant="contained"
+      size="small"
+      onClick={() => addToCart(product)}
+      sx={{
+        backgroundColor: themeColors.primary,
+        color: "white",
+        fontWeight: "600",
+        borderRadius: "8px",
+        px: 2,
+        py: 0.5,
+        "&:hover": { backgroundColor: alpha(themeColors.primary, 0.9) }
+      }}
+    >
+      Add to Cart
+    </Button>
+  )}
+</Box>
+
+  </CardContent>
+</Card>
+
     );
   };
 
@@ -369,7 +336,7 @@ export default function CustomerDashboard() {
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
               }}>
-                Ujamaa Collective
+                Branchi Arts & Gifts
               </Typography>
               <Typography variant="h5" sx={{ 
                 fontWeight: '300',
@@ -483,7 +450,15 @@ export default function CustomerDashboard() {
           </Card>
 
           {/* Products Grid */}
-          <Grid container spacing={3}>
+          <Grid 
+            container 
+            spacing={3} 
+            sx={{ 
+              mx: 'auto',        // centers the grid
+              px: { xs: 1, sm: 2, md: 3 },  // equal padding left/right
+              width: '100%'      // ensures full stretch
+            }}
+          >
             {paginatedProducts.map(product => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
                 <ProductCard product={product} />
@@ -630,7 +605,7 @@ export default function CustomerDashboard() {
                     <Box key={item.id} sx={{ mb: 2, p: 2, border: '1px solid', borderColor: 'grey.200', borderRadius: 1 }}>
                       <Box sx={{ display: 'flex', gap: 2 }}>
                         <img
-                          src={Array.isArray(item.images) ? item.images[0] : '/api/placeholder/80/80'}
+                          src={getProductImageUrl(item) || '/api/placeholder/80/80'}
                           alt={item.name}
                           style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8 }}
                         />

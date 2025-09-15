@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   Container, Typography, Box, Card, CardContent, TextField, Button, Avatar,
-  Grid, Chip, Divider
+  Grid, Divider
 } from '@mui/material';
 import { Edit, Save, CameraAlt } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import Navbar from '../../components/NavBar';
 
-export default function ArtistProfile() {
+export default function CustomerProfile() {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState(null);
@@ -23,15 +23,6 @@ export default function ArtistProfile() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
-
-        // Backend already sends social_media as object
-        if (data.social_media) {
-          data.website = data.social_media.website;
-          data.instagram = data.social_media.instagram;
-          data.facebook = data.social_media.facebook;
-          data.twitter = data.social_media.twitter;
-        }
-
         setProfileData(data);
       } catch (error) {
         console.error('Error fetching profile:', error);
@@ -39,37 +30,25 @@ export default function ArtistProfile() {
         setLoading(false);
       }
     };
-
     if (user) fetchProfile();
   }, [user, token]);
 
-  const handleAvatarChange = (e) => {
-    setAvatarFile(e.target.files[0]);
-  };
+  const handleAvatarChange = (e) => setAvatarFile(e.target.files[0]);
 
   const handleSave = async () => {
     const formData = new FormData();
     formData.append('name', profileData.name || user?.name);
-    formData.append('bio', profileData.bio);
-    formData.append('specialty', profileData.specialty);
-    formData.append('website', profileData.website);
-    formData.append('instagram', profileData.instagram);
-    formData.append('facebook', profileData.facebook);
-    formData.append('twitter', profileData.twitter);
-
-    if (avatarFile) {
-      formData.append('avatar', avatarFile);
-    }
+    formData.append('phone', profileData.phone || '');
+    if (avatarFile) formData.append('avatar', avatarFile);
 
     try {
-      const response = await fetch('http://localhost:5000/api/users/profile', {
+      const res = await fetch('http://localhost:5000/api/users/profile', {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+        body: formData
       });
-
-      const data = await response.json();
-      if (response.ok) {
+      const data = await res.json();
+      if (res.ok) {
         setProfileData((prev) => ({ ...prev, ...data.user }));
         setIsEditing(false);
         alert('Profile updated successfully!');
@@ -88,7 +67,7 @@ export default function ArtistProfile() {
       <Navbar />
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Typography variant="h3" fontWeight="bold" gutterBottom>
-          Artist Profile
+          My Profile
         </Typography>
 
         <Grid container spacing={4}>
@@ -112,36 +91,10 @@ export default function ArtistProfile() {
                   </Button>
                 )}
                 <Typography variant="h6">{profileData.name}</Typography>
-                <Chip label={profileData.specialty} color="primary" sx={{ mt: 1 }} />
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                  Member since {new Date(profileData.created_at).toLocaleDateString()}
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  {profileData.email}
                 </Typography>
               </CardContent>
-            </Card>
-
-            {/* Social Links */}
-            <Card sx={{ mt: 3, p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Social Links
-              </Typography>
-              {['website', 'instagram', 'facebook', 'twitter'].map((field) =>
-                isEditing ? (
-                  <TextField
-                    key={field}
-                    fullWidth
-                    label={field.charAt(0).toUpperCase() + field.slice(1)}
-                    value={profileData[field] || ''}
-                    onChange={(e) => setProfileData({ ...profileData, [field]: e.target.value })}
-                    sx={{ mb: 2 }}
-                  />
-                ) : (
-                  profileData[field] && (
-                    <Typography key={field} variant="body2" sx={{ mb: 1 }}>
-                      {field}: {profileData[field]}
-                    </Typography>
-                  )
-                )
-              )}
             </Card>
           </Grid>
 
@@ -149,7 +102,7 @@ export default function ArtistProfile() {
           <Grid item xs={12} md={8}>
             <Card sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-                <Typography variant="h5">Profile Information</Typography>
+                <Typography variant="h5">Account Information</Typography>
                 {isEditing ? (
                   <Button startIcon={<Save />} variant="contained" onClick={handleSave}>
                     Save Changes
@@ -162,50 +115,33 @@ export default function ArtistProfile() {
               </Box>
               <Divider sx={{ mb: 3 }} />
 
-              {/* Bio */}
-              <Typography variant="subtitle2">Bio</Typography>
+              {/* Name */}
+              <Typography variant="subtitle2">Name</Typography>
               {isEditing ? (
                 <TextField
                   fullWidth
-                  multiline
-                  rows={4}
-                  value={profileData.bio || ''}
-                  onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
+                  value={profileData.name || ''}
+                  onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
                   sx={{ mb: 3 }}
                 />
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  {profileData.bio || 'No bio yet.'}
+                  {profileData.name}
                 </Typography>
               )}
 
-              {/* Portfolio */}
-              <Typography variant="subtitle2">Portfolio</Typography>
+              {/* Phone */}
+              <Typography variant="subtitle2">Phone</Typography>
               {isEditing ? (
                 <TextField
                   fullWidth
-                  value={profileData.portfolio || ''}
-                  onChange={(e) => setProfileData({ ...profileData, portfolio: e.target.value })}
+                  value={profileData.phone || ''}
+                  onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                   sx={{ mb: 3 }}
                 />
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  {profileData.portfolio || 'No portfolio link.'}
-                </Typography>
-              )}
-
-              {/* Specialty */}
-              <Typography variant="subtitle2">Specialty</Typography>
-              {isEditing ? (
-                <TextField
-                  fullWidth
-                  value={profileData.specialty || ''}
-                  onChange={(e) => setProfileData({ ...profileData, specialty: e.target.value })}
-                  sx={{ mb: 3 }}
-                />
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  {profileData.specialty}
+                  {profileData.phone || 'Not provided'}
                 </Typography>
               )}
             </Card>

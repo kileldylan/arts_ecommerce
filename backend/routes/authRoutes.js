@@ -17,11 +17,7 @@ router.get('/google/callback',
     failureRedirect: '/login',
     session: false 
   }),
-  (req, res) => {
-    // Successful authentication
-    const token = generateToken(req.user); // Your token generation function
-    res.redirect(`http://localhost:3000/auth/success?token=${token}`);
-  }
+  oauthSuccess
 );
 
 // GitHub OAuth routes

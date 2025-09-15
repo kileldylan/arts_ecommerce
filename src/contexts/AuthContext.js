@@ -138,7 +138,8 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
-    loading
+    loading,
+    fetchUserProfile
   };
 
   return (

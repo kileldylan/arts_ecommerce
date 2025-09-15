@@ -90,7 +90,7 @@ export default function Register() {
     const result = await register(userData);
     
     if (result.success) {
-      navigate(userType === 'admin' ? '/admin' : '/dashboard');
+      navigate(userType === 'admin' ? '/admin' : userType === 'artist' ? '/artist/profile' : '/dashboard');
     } else {
       setError(result.error);
     }
@@ -322,7 +322,7 @@ export default function Register() {
         <Card elevation={3} sx={{ width: '100%' }}>
           <CardContent sx={{ p: 4 }}>
             <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700, textAlign: 'center', color: 'primary.main' }}>
-              Join Ujamaa Collective
+              Join Branchi Arts & Gifts
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mb: 3 }}>
               Create your account in a few simple steps

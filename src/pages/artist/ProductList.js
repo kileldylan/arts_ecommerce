@@ -10,7 +10,6 @@ import {
   Grid,
   Chip,
   IconButton,
-  Avatar,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -20,13 +19,7 @@ import {
   Snackbar,
   alpha
 } from '@mui/material';
-import {
-  Add,
-  Edit,
-  Delete,
-  Visibility,
-  VisibilityOff
-} from '@mui/icons-material';
+import { Add, Edit, Delete, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../../contexts/ProductContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -46,37 +39,21 @@ const themeColors = {
   border: '#ECF0F1'
 };
 
-/**
- * Get a normalized full image URL for the product.
- * Accepts either:
- *  - product.images = ['uploads/foo.jpg'] (array of strings)
- *  - product.images = ['/uploads/foo.jpg']
- *  - product.images = [{ image_url: 'uploads/foo.jpg' }] (array of objects)
- *
- * Returns absolute URL like "http://localhost:5000/uploads/foo.jpg" or undefined.
- */
 function getFirstImageUrl(product) {
   if (!product || !product.images || product.images.length === 0) return undefined;
-
   const first = product.images[0];
-
-  // If it's an object with common keys:
   if (typeof first === 'object' && first !== null) {
-    // try common property names
     const candidate = first.image_url || first.url || first.path || first.src || first;
     if (typeof candidate === 'string' && candidate.length > 0) {
-      const normalized = candidate.replace(/^\/?/, ''); // strip leading slash if present
+      const normalized = candidate.replace(/^\/?/, '');
       return `${STATIC_BASE_URL}/${normalized}`;
     }
     return undefined;
   }
-
-  // If it's a string
   if (typeof first === 'string') {
-    const normalized = first.replace(/^\/?/, ''); // strip leading slash if present
+    const normalized = first.replace(/^\/?/, '');
     return `${STATIC_BASE_URL}/${normalized}`;
   }
-
   return undefined;
 }
 
@@ -114,14 +91,6 @@ export default function ProductList() {
     }
   };
 
-  const handleCloseError = () => {
-    clearError();
-  };
-
-  const handleCloseSuccess = () => {
-    setSuccessMessage('');
-  };
-
   if (loading && artistProducts.length === 0) {
     return (
       <>
@@ -136,14 +105,14 @@ export default function ProductList() {
   return (
     <>
       <Navbar />
-      <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Container maxWidth="xl" sx={{ py: 3 }}>
         {/* Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Box>
-            <Typography variant="h3" component="h1" fontWeight="bold" gutterBottom>
+            <Typography variant="h4" fontWeight="bold" gutterBottom>
               My Products
             </Typography>
-            <Typography variant="h6" color="text.secondary">
+            <Typography variant="body1" color="text.secondary">
               Manage your artwork listings
             </Typography>
           </Box>
@@ -152,15 +121,11 @@ export default function ProductList() {
             startIcon={<Add />}
             onClick={() => navigate(`/artist/products/new`)}
             sx={{
-              py: 1.5,
-              fontSize: '0.95rem',
-              fontFamily: 'Roboto, sans-serif',
+              py: 1,
+              fontSize: '0.85rem',
               borderRadius: '8px',
               backgroundColor: themeColors.primary,
-              '&:hover': {
-                backgroundColor: alpha(themeColors.primary, 0.9),
-                transform: 'translateY(-2px)'
-              },
+              '&:hover': { backgroundColor: alpha(themeColors.primary, 0.9), transform: 'translateY(-2px)' },
               transition: 'all 0.2s ease-in-out'
             }}
           >
@@ -169,21 +134,21 @@ export default function ProductList() {
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={handleCloseError}>
+          <Alert severity="error" sx={{ mb: 3 }} onClose={clearError}>
             {error}
           </Alert>
         )}
 
         {/* Products Grid */}
-        <Grid container spacing={3}>
+        <Grid container spacing={2}>
           {artistProducts.length === 0 ? (
             <Grid item xs={12}>
               <Card>
-                <CardContent sx={{ textAlign: 'center', py: 8 }}>
+                <CardContent sx={{ textAlign: 'center', py: 6 }}>
                   <Typography variant="h6" color="text.secondary" gutterBottom>
                     No products yet
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     Start by creating your first artwork listing
                   </Typography>
                   <Button
@@ -198,154 +163,106 @@ export default function ProductList() {
             </Grid>
           ) : (
             artistProducts.map((product) => {
-              // Debug line you can enable during development:
-              // console.log('product.images for product', product.id, product.images);
-
               const imageUrl = getFirstImageUrl(product);
-
               return (
-              <Grid item xs={12} sm={6} md={4} key={product.id}>
-                <Card sx={{ 
-                  height: 'auto', 
-                  display: 'flex', 
-                  flexDirection: 'column',
-                  boxShadow: 2,
-                  transition: 'box-shadow 0.2s ease-in-out',
-                  '&:hover': {
-                    boxShadow: 6
-                  }
-                }}>
-                  <Avatar
-                    variant="rounded"
-                    src={imageUrl || undefined}
-                    sx={{ 
-                      width: '100%', 
-                      height: 120,
-                      bgcolor: 'grey.100',
-                      borderRadius: '8px 8px 0 0'
+                <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
+                  <Card
+                    sx={{
+                      height: 300,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      boxShadow: 2,
+                      transition: '0.2s',
+                      '&:hover': { boxShadow: 6 }
                     }}
-                  />
-                  <CardContent sx={{ 
-                    flexGrow: 1, 
-                    p: 1, 
-                    '&:last-child': {
-                      pb: 1
-                    }
-                  }}>
-                    <Typography variant="h6" gutterBottom sx={{ 
-                      fontSize: '0.95rem', 
-                      fontWeight: 600, 
-                      mb: 0.5,
-                      lineHeight: 1.2
-                    }}>
-                      {product.name}
-                    </Typography>
-                    <Typography 
-                      variant="body2" 
-                      color="text.secondary" 
-                      sx={{ 
-                        mb: 1,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        fontSize: '0.8rem',
-                        lineHeight: 1.2
+                  >
+                    {/* Image container */}
+                    <Box
+                      sx={{
+                        height: 140,
+                        backgroundColor: 'grey.100',
+                        backgroundImage: imageUrl ? `url(${imageUrl})` : 'none',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        borderRadius: '8px 8px 0 0'
                       }}
-                    >
-                      {product.description?.substring(0, 60)}...
-                    </Typography>
-                    <Box sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center', 
-                      mb: 1 
-                    }}>
-                      <Typography variant="h6" color="primary" sx={{ 
-                        fontSize: '1rem', 
-                        fontWeight: 700 
-                      }}>
-                        Ksh{product.price}
+                    />
+                    <CardContent sx={{ flexGrow: 1, p: 1.5 }}>
+                      <Typography variant="subtitle1" fontWeight={600} noWrap>
+                        {product.name}
                       </Typography>
-                      <Chip
-                        size="small"
-                        label={product.is_published ? 'Published' : 'Draft'}
-                        color={product.is_published ? 'success' : 'default'}
-                        sx={{ 
-                          height: 20, 
-                          fontSize: '0.7rem',
-                          '& .MuiChip-label': {
-                            px: 0.5
-                          }
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          mb: 1,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          fontSize: '0.8rem'
                         }}
-                      />
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem' }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                        Stock:
+                      >
+                        {product.description}
                       </Typography>
-                      <Typography variant="caption" fontWeight="medium" sx={{ fontSize: '0.7rem' }}>
-                        {product.quantity}
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                  <Box sx={{ p: 1, pt: 0 }}>
-                    <Button
-                      fullWidth
-                      size="small"
-                      startIcon={<Edit sx={{ fontSize: 16 }} />}
-                      onClick={() => navigate(`/artist/products/edit/${product.id}`)}
-                      sx={{ 
-                        mb: 0.5,
-                        fontSize: '0.75rem',
-                        py: 0.25,
-                        minHeight: 'auto'
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body1" fontWeight={700}>
+                          Ksh{product.price}
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={product.is_published ? 'Published' : 'Draft'}
+                          color={product.is_published ? 'success' : 'default'}
+                        />
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem' }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Stock:
+                        </Typography>
+                        <Typography variant="caption" fontWeight="medium">
+                          {product.quantity}
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                    <Box sx={{ p: 1, pt: 0 }}>
                       <Button
                         fullWidth
                         size="small"
-                        variant="outlined"
-                        startIcon={product.is_published ? 
-                          <VisibilityOff sx={{ fontSize: 16 }} /> : 
-                          <Visibility sx={{ fontSize: 16 }} />
-                        }
-                        onClick={() => handleTogglePublish(product)}
-                        sx={{ 
-                          fontSize: '0.7rem',
-                          py: 0.25,
-                          minHeight: 'auto'
-                        }}
+                        startIcon={<Edit sx={{ fontSize: 16 }} />}
+                        onClick={() => navigate(`/artist/products/edit/${product.id}`)}
+                        sx={{ mb: 0.5, fontSize: '0.75rem', py: 0.25 }}
                       >
-                        {product.is_published ? 'Unpublish' : 'Publish'}
+                        Edit
                       </Button>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => setDeleteDialog(product)}
-                        sx={{ 
-                          width: 32, 
-                          height: 32,
-                          '& svg': {
-                            fontSize: 18
-                          }
-                        }}
-                      >
-                        <Delete />
-                      </IconButton>
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Button
+                          fullWidth
+                          size="small"
+                          variant="outlined"
+                          startIcon={product.is_published ? <VisibilityOff sx={{ fontSize: 16 }} /> : <Visibility sx={{ fontSize: 16 }} />}
+                          onClick={() => handleTogglePublish(product)}
+                          sx={{ fontSize: '0.7rem', py: 0.25 }}
+                        >
+                          {product.is_published ? 'Unpublish' : 'Publish'}
+                        </Button>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => setDeleteDialog(product)}
+                          sx={{ width: 30, height: 30 }}
+                        >
+                          <Delete sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Box>
                     </Box>
-                  </Box>
-                </Card>
-              </Grid>
+                  </Card>
+                </Grid>
               );
             })
           )}
         </Grid>
 
-        {/* Delete Confirmation Dialog */}
+        {/* Delete Dialog */}
         <Dialog open={!!deleteDialog} onClose={() => setDeleteDialog(null)}>
           <DialogTitle>Delete Product</DialogTitle>
           <DialogContent>
@@ -364,7 +281,7 @@ export default function ProductList() {
         <Snackbar
           open={!!successMessage}
           autoHideDuration={3000}
-          onClose={handleCloseSuccess}
+          onClose={() => setSuccessMessage('')}
           message={successMessage}
         />
       </Container>

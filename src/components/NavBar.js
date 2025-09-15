@@ -1,4 +1,3 @@
-// src/components/layout/Navbar.js
 import React, { useState } from 'react';
 import {
   AppBar,
@@ -17,7 +16,6 @@ import {
   ListItemIcon,
   useMediaQuery,
   useTheme,
-  Badge,
   alpha
 } from '@mui/material';
 import {
@@ -55,13 +53,8 @@ export default function Navbar() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [mobileDrawer, setMobileDrawer] = useState(false);
 
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
+  const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
 
   const handleLogout = () => {
     logout();
@@ -107,7 +100,6 @@ export default function Navbar() {
       default:
         return [
           ...commonItems,
-          { label: 'Wishlist', path: '/wishlist', icon: <Favorite /> },
           { label: 'Orders', path: '/customer/orders', icon: <Store /> },
         ];
     }
@@ -133,7 +125,7 @@ export default function Navbar() {
         }}
         onClick={() => navigate('/')}
       >
-        Ujamaa Collective
+        Branchi Arts & Gifts
       </Typography>
       
       <Box sx={{ display: 'flex', gap: 1 }}>
@@ -291,7 +283,13 @@ export default function Navbar() {
               }}
             >
               <MenuItem 
-                onClick={() => handleNavigation('/artist/profile')}
+                onClick={() =>
+                  handleNavigation(
+                    user.user_type === 'artist'
+                      ? '/artist/profile'
+                      : '/customer/profile'
+                  )
+                }
                 sx={{
                   '&:hover': {
                     backgroundColor: alpha('#FFFFFF', 0.1)

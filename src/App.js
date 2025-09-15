@@ -23,6 +23,9 @@ import OrderDetail from './pages/OrderDetail';
 import Checkout from './pages/customer/Checkout';
 import { CartProvider } from './contexts/CartContext';
 import CRMDashboard from './pages/artist/CRMDashboard';
+import CustomerProfile from './pages/customer/CustomerProfile';
+import { WishlistProvider } from './contexts/WIshlistContext';
+import WishlistPage from './pages/customer/WishlistPage';
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -146,8 +149,25 @@ function AppContent() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/artist/analytics" 
+            element={
+              <ProtectedRoute>
+                <Analytics />
+              </ProtectedRoute>
+            } 
+          />
 
           {/* Customer Routes */}
+            <Route 
+            path="/customer/wishist" 
+            element={
+              <ProtectedRoute>
+                <WishlistPage />
+              </ProtectedRoute>
+            } 
+          />
+
           <Route 
             path="/customer/orders" 
             element={
@@ -176,10 +196,10 @@ function AppContent() {
             } 
           />
           <Route 
-            path="/artist/analytics" 
+            path="/customer/profile" 
             element={
               <ProtectedRoute>
-                <Analytics />
+                <CustomerProfile />
               </ProtectedRoute>
             } 
           />
@@ -197,9 +217,11 @@ function App() {
         <ProductProvider>
           <OrderProvider>
             <CartProvider>
+              <WishlistProvider>
           <Router>
             <AppContent />
           </Router>
+              </WishlistProvider>
             </CartProvider>
           </OrderProvider>
         </ProductProvider>

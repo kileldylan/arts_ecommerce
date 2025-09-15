@@ -130,13 +130,22 @@ exports.login = (req, res) => {
 exports.getMe = (req, res) => {
   User.findById(req.user.id, (err, users) => {
     if (err) {
-      return res.status(500).json({ message: 'Server error' });
+      return res.status(500).json({ message: "Server error" });
     }
-    
+
     if (users.length === 0) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
-    
-    res.json(users[0]);
+
+    const user = users[0];
+
+    // Ensure avatar has a full URL
+    if (user.avatar) {
+      if (!user.avatar.startsWith("http")) {
+        user.avatar = `${process.env.SERVER_URL || "http://localhost:5000"}/uploads/${user.avatar}`;
+      }
+    }
+
+    res.json(user);
   });
 };

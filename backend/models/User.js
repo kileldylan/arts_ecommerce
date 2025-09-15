@@ -91,20 +91,28 @@ const User = {
   },
 
   // Update user profile
-  updateProfile: (userId, userData, callback) => {
-    const { name, phone, bio, specialty, portfolio, socialMedia } = userData;
-    
-    const query = `
-      UPDATE users 
-      SET name = ?, phone = ?, bio = ?, specialty = ?, portfolio = ?, social_media = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `;
-    
-    db.query(query, [name, phone, bio, specialty, portfolio, socialMedia, userId], (err, results) => {
-      if (err) return callback(err);
-      callback(null, results);
-    });
+  // backend/models/User.js
+updateProfile: (userId, userData, callback) => {
+  const { name, phone, bio, specialty, portfolio, social_media, avatar } = userData;
+
+  let query = `
+    UPDATE users 
+    SET name = ?, phone = ?, bio = ?, specialty = ?, portfolio = ?, social_media = ?, updated_at = CURRENT_TIMESTAMP
+  `;
+  const values = [name, phone, bio, specialty, portfolio, social_media];
+
+  if (avatar) {
+    query += `, avatar = ?`;
+    values.push(avatar);
   }
-};
+
+  query += ` WHERE id = ?`;
+  values.push(userId);
+
+  db.query(query, values, (err, results) => {
+    if (err) return callback(err);
+    callback(null, results);
+  });
+}}
 
 module.exports = User;

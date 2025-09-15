@@ -44,7 +44,7 @@ export default function Login() {
         <Card elevation={3}>
           <CardContent sx={{ p: 4 }}>
             <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700, textAlign: 'center', color: 'primary.main' }}>
-              Ujamaa Collective
+              Branchi Arts & Gifts
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mb: 3 }}>
               Sign in to your account
