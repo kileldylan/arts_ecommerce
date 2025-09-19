@@ -10,7 +10,7 @@ const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const analyticsRoutes = require('./routes/analytics')
 const crmRoutes = require('./routes/crmRoutes')
-const wishlistRoutes = require('./routes/wishlistRoutes')
+const mpesaRoutes = require('./routes/mpesa')
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -29,8 +29,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/crm', crmRoutes);
-app.use("/api/wishlist", wishlistRoutes);
-
+app.use('/api/mpesa', mpesaRoutes);
 // Basic route
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to Ujamaa Collective API' });

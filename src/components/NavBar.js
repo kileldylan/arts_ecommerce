@@ -225,7 +225,7 @@ export default function Navbar() {
           WebkitTextFillColor: 'transparent'
         }}
       >
-        Ujamaa Collective
+        Branchi Arts & Gifts
       </Typography>
     </>
   );

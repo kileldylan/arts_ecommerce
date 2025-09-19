@@ -52,21 +52,20 @@ export function OrderProvider({ children }) {
     }
   }, []);
 
-  const createOrder = useCallback(async (orderData) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await api.post('/orders', orderData);
-      return response.data;
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Failed to create order';
-      setError(errorMessage);
-      console.error('Error creating order:', err);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+const createOrder = useCallback(async (orderData) => {
+  setLoading(true);
+  setError(null);
+  try {
+    const response = await api.post('/orders', orderData);
+    return response.data.order;   // ✅ return only the order
+  } catch (err) {
+    const errorMessage = err.response?.data?.message || 'Failed to create order';
+    setError(errorMessage);
+    return null;
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   const updateOrderStatus = useCallback(async (orderId, status, note) => {
     setLoading(true);

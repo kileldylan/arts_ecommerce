@@ -16,21 +16,12 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in on initial load
-    // Use sessionStorage for tab isolation, fallback to localStorage
     const token = sessionStorage.getItem('token') || localStorage.getItem('token');
     const savedUser = sessionStorage.getItem('user') || localStorage.getItem('user');
     
     if (token && savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-        
-        // Verify token is still valid with backend
-        fetchUserProfile(token);
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-        clearAuthData();
-      }
+      // Don't set user immediately, wait for verification
+      fetchUserProfile(token);
     } else {
       setLoading(false);
     }

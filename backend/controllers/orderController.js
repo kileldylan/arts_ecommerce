@@ -75,6 +75,7 @@ exports.createOrder = (req, res) => {
       }
 
       res.status(201).json({
+        success: true,
         message: 'Order created successfully',
         order: order
       });
