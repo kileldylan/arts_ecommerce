@@ -1,5 +1,6 @@
+// backend/controllers/mpesaController.js
 const axios = require('axios');
-const db = require('../config/db');
+const supabase = require('../config/supabase');
 const { generateTimestamp, formatPhoneNumber } = require('../utils/mpesaUtils');
 
 const MPESA_CONFIG = {
@@ -85,28 +86,46 @@ exports.initiateSTKPush = async (req, res) => {
       });
     }
 
-    // ✅ Insert transaction (no CAST)
-    db.query(
-      `INSERT INTO transactions 
-        (order_id, transaction_ref, amount, payment_method, status, payment_details) 
-       VALUES (?, ?, ?, 'mpesa', 'pending', ?)`,
-      [orderId, response.data.CheckoutRequestID, amount, JSON.stringify(requestData)],
-      (err, result) => {
-        if (err) {
-          console.error('Error inserting transaction:', err);
-          return res.status(500).json({ success: false, message: 'Database error' });
-        }
+    // ✅ Insert transaction using Supabase
+    const { data: transaction, error: transactionError } = await supabase
+      .from('transactions')
+      .insert([{
+        order_id: orderId,
+        transaction_ref: response.data.CheckoutRequestID,
+        amount: amount,
+        payment_method: 'mpesa',
+        status: 'pending',
+        payment_details: requestData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
 
-        db.query('UPDATE orders SET payment_status = ? WHERE id = ?', ['pending', orderId]);
+    if (transactionError) {
+      console.error('Error inserting transaction:', transactionError);
+      return res.status(500).json({ success: false, message: 'Database error' });
+    }
 
-        res.json({
-          success: true,
-          message: 'STK push initiated successfully',
-          data: response.data,
-          transactionId: result.insertId
-        });
-      }
-    );
+    // Update order payment status
+    const { error: orderError } = await supabase
+      .from('orders')
+      .update({ 
+        payment_status: 'pending',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId);
+
+    if (orderError) {
+      console.error('Error updating order:', orderError);
+    }
+
+    res.json({
+      success: true,
+      message: 'STK push initiated successfully',
+      data: response.data,
+      transactionId: transaction.id
+    });
   } catch (error) {
     console.error('Error initiating STK push:', error.response?.data || error.message);
     res.status(500).json({
@@ -118,7 +137,7 @@ exports.initiateSTKPush = async (req, res) => {
 };
 
 // Callback handler
-exports.mpesaCallback = (req, res) => {
+exports.mpesaCallback = async (req, res) => {
   try {
     const callbackData = req.body;
     const stkCallback = callbackData.Body.stkCallback;
@@ -137,29 +156,40 @@ exports.mpesaCallback = (req, res) => {
         amountPaid: amount
       };
 
-      db.query(
-        `UPDATE transactions 
-         SET status = 'completed',
-             payment_details = ?
-         WHERE transaction_ref = ?`,
-        [JSON.stringify(extraDetails), checkoutRequestId]
-      );
+      // Update transaction status
+      const { data: transaction, error: transactionError } = await supabase
+        .from('transactions')
+        .update({
+          status: 'completed',
+          payment_details: extraDetails,
+          updated_at: new Date().toISOString()
+        })
+        .eq('transaction_ref', checkoutRequestId)
+        .select('order_id')
+        .single();
 
-      db.query(
-        'SELECT order_id FROM transactions WHERE transaction_ref = ?',
-        [checkoutRequestId],
-        (err, rows) => {
-          if (!err && rows.length > 0) {
-            const orderId = rows[0].order_id;
-            db.query('UPDATE orders SET payment_status = "paid", payment_date = NOW() WHERE id = ?', [orderId]);
-            db.query(
-              `INSERT INTO order_status_history (order_id, status, note, created_by) 
-               VALUES (?, 'confirmed', ?, 1)`,
-              [orderId, `Payment received via M-Pesa. Receipt: ${mpesaReceiptNumber}`]
-            );
-          }
-        }
-      );
+      if (!transactionError && transaction) {
+        // Update order payment status
+        await supabase
+          .from('orders')
+          .update({
+            payment_status: 'paid',
+            payment_date: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', transaction.order_id);
+
+        // Add order status history
+        await supabase
+          .from('order_status_history')
+          .insert([{
+            order_id: transaction.order_id,
+            status: 'confirmed',
+            note: `Payment received via M-Pesa. Receipt: ${mpesaReceiptNumber}`,
+            created_by: 1, // System user
+            created_at: new Date().toISOString()
+          }]);
+      }
     } else {
       // Failed payment
       const checkoutRequestId = stkCallback.CheckoutRequestID;
@@ -167,18 +197,28 @@ exports.mpesaCallback = (req, res) => {
 
       const failDetails = { failureReason: resultDesc };
 
-      db.query(
-        `UPDATE transactions 
-         SET status = 'failed', payment_details = ?
-         WHERE transaction_ref = ?`,
-        [JSON.stringify(failDetails), checkoutRequestId]
-      );
+      // Update transaction status to failed
+      const { data: transaction, error: transactionError } = await supabase
+        .from('transactions')
+        .update({
+          status: 'failed',
+          payment_details: failDetails,
+          updated_at: new Date().toISOString()
+        })
+        .eq('transaction_ref', checkoutRequestId)
+        .select('order_id')
+        .single();
 
-      db.query('SELECT order_id FROM transactions WHERE transaction_ref = ?', [checkoutRequestId], (err, rows) => {
-        if (!err && rows.length > 0) {
-          db.query('UPDATE orders SET payment_status = "failed" WHERE id = ?', [rows[0].order_id]);
-        }
-      });
+      if (!transactionError && transaction) {
+        // Update order payment status to failed
+        await supabase
+          .from('orders')
+          .update({
+            payment_status: 'failed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', transaction.order_id);
+      }
     }
 
     res.json({ ResultCode: 0, ResultDesc: 'Callback processed successfully' });
@@ -189,35 +229,58 @@ exports.mpesaCallback = (req, res) => {
 };
 
 // Check payment status
-exports.checkPaymentStatus = (req, res) => {
-  const { orderId } = req.params;
+exports.checkPaymentStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
 
-  db.query(
-    `SELECT o.payment_status, t.status as transaction_status, t.transaction_ref, 
-            t.payment_details->>'$.mpesaReceiptNumber' as mpesa_receipt
-     FROM orders o
-     LEFT JOIN transactions t ON o.id = t.order_id
-     WHERE o.id = ?
-     ORDER BY t.created_at DESC
-     LIMIT 1`,
-    [orderId],
-    (err, rows) => {
-      if (err) {
-        console.error('Error checking payment status:', err);
-        return res.status(500).json({ success: false, message: 'Failed to check payment status' });
-      }
-      if (rows.length === 0) {
-        return res.status(404).json({ success: false, message: 'Order not found' });
-      }
+    // Get order and latest transaction using Supabase
+    const { data: orders, error: orderError } = await supabase
+      .from('orders')
+      .select(`
+        payment_status,
+        transactions (
+          status,
+          transaction_ref,
+          payment_details
+        )
+      `)
+      .eq('id', orderId)
+      .order('created_at', { foreignTable: 'transactions', ascending: false })
+      .limit(1);
 
-      const order = rows[0];
-      res.json({
-        success: true,
-        paymentStatus: order.payment_status,
-        transactionStatus: order.transaction_status,
-        mpesaReceiptNumber: order.mpesa_receipt,
-        transactionRef: order.transaction_ref
-      });
+    if (orderError) {
+      console.error('Error checking payment status:', orderError);
+      return res.status(500).json({ success: false, message: 'Failed to check payment status' });
     }
-  );
+
+    if (!orders || orders.length === 0) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const order = orders[0];
+    const latestTransaction = order.transactions && order.transactions.length > 0 ? order.transactions[0] : null;
+
+    let mpesaReceiptNumber = null;
+    if (latestTransaction && latestTransaction.payment_details) {
+      try {
+        const paymentDetails = typeof latestTransaction.payment_details === 'string' 
+          ? JSON.parse(latestTransaction.payment_details) 
+          : latestTransaction.payment_details;
+        mpesaReceiptNumber = paymentDetails.mpesaReceiptNumber;
+      } catch (e) {
+        console.error('Error parsing payment details:', e);
+      }
+    }
+
+    res.json({
+      success: true,
+      paymentStatus: order.payment_status,
+      transactionStatus: latestTransaction ? latestTransaction.status : null,
+      mpesaReceiptNumber: mpesaReceiptNumber,
+      transactionRef: latestTransaction ? latestTransaction.transaction_ref : null
+    });
+  } catch (error) {
+    console.error('Check payment status error:', error);
+    res.status(500).json({ success: false, message: 'Failed to check payment status' });
+  }
 };

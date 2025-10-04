@@ -1,6 +1,7 @@
 // backend/controllers/authController.js
-const User = require('../models/User');
+const supabase = require('../config/supabase');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
@@ -12,10 +13,7 @@ exports.oauthSuccess = (req, res) => {
     return res.redirect(`${process.env.CLIENT_URL}/login?error=oauth_failed`);
   }
   
-  // Generate token
   const token = generateToken(req.user.id);
-  
-  // Redirect to frontend with token
   res.redirect(`${process.env.CLIENT_URL}/oauth-success?token=${token}&user=${encodeURIComponent(JSON.stringify(req.user))}`);
 };
 
@@ -24,116 +22,148 @@ exports.oauthFailure = (req, res) => {
   res.redirect(`${process.env.CLIENT_URL}/login?error=oauth_failed`);
 };
 
-exports.register = (req, res) => {
-  const { name, email, password, userType, phone, bio, specialty, portfolio, socialMedia } = req.body;
+exports.register = async (req, res) => {
+  try {
+    const { name, email, password, userType, phone, bio, specialty, portfolio, socialMedia } = req.body;
 
-  // Validate required fields
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: 'Please provide name, email, and password' });
-  }
-
-  // Check if admin registration requires invite code
-  if (userType === 'admin') {
-    const { inviteCode } = req.body;
-    if (inviteCode !== process.env.ADMIN_INVITE_CODE) {
-      return res.status(400).json({ message: 'Invalid admin invite code' });
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Please provide name, email, and password' });
     }
-  }
 
-  // Check if user already exists
-  User.findByEmail(email, (err, users) => {
-    if (err) {
+    // Check if admin registration requires invite code
+    if (userType === 'admin') {
+      const { inviteCode } = req.body;
+      if (inviteCode !== process.env.ADMIN_INVITE_CODE) {
+        return res.status(400).json({ message: 'Invalid admin invite code' });
+      }
+    }
+
+    // Check if user already exists
+    const { data: existingUsers, error: checkError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .limit(1);
+
+    if (checkError) {
       return res.status(500).json({ message: 'Server error' });
     }
 
-    if (users.length > 0) {
+    if (existingUsers && existingUsers.length > 0) {
       return res.status(400).json({ message: 'User already exists with this email' });
     }
+
+    // Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Create new user
     const userData = {
       name,
       email,
-      password,
-      userType: userType || 'customer',
-      phone,
-      bio,
-      specialty,
-      portfolio,
-      socialMedia
+      password: hashedPassword,
+      user_type: userType || 'customer',
+      phone: phone || null,
+      bio: bio || null,
+      specialty: specialty || null,
+      portfolio: portfolio || null,
+      social_media: socialMedia ? JSON.stringify(socialMedia) : null,
+      is_verified: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    User.create(userData, (err, user) => {
-      if (err) {
-        return res.status(500).json({ message: 'Error creating user' });
-      }
+    const { data: user, error: createError } = await supabase
+      .from('users')
+      .insert([userData])
+      .select()
+      .single();
 
-      // Remove password from response
-      const { password: _, ...userWithoutPassword } = user;
+    if (createError) {
+      return res.status(500).json({ message: 'Error creating user' });
+    }
 
-      // Generate token
-      const token = generateToken(user.id);
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = user;
 
-      res.status(201).json({
-        message: 'User created successfully',
-        token,
-        user: userWithoutPassword
-      });
+    // Generate token
+    const token = generateToken(user.id);
+
+    res.status(201).json({
+      message: 'User created successfully',
+      token,
+      user: userWithoutPassword
     });
-  });
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 };
 
-exports.login = (req, res) => {
-  const { email, password } = req.body;
+exports.login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ message: 'Please provide email and password' });
-  }
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Please provide email and password' });
+    }
 
-  // Find user by email
-  User.findByEmail(email, (err, users) => {
-    if (err) {
+    // Find user by email
+    const { data: users, error: findError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .limit(1);
+
+    if (findError) {
       return res.status(500).json({ message: 'Server error' });
     }
 
-    if (users.length === 0) {
+    if (!users || users.length === 0) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     const user = users[0];
 
     // Check password
-    User.comparePassword(password, user.password, (err, isMatch) => {
-      if (err) {
-        return res.status(500).json({ message: 'Server error' });
-      }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
 
-      if (!isMatch) {
-        return res.status(400).json({ message: 'Invalid credentials' });
-      }
+    // Generate token
+    const token = generateToken(user.id);
 
-      // Generate token
-      const token = generateToken(user.id);
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = user;
 
-      // Remove password from response
-      const { password: _, ...userWithoutPassword } = user;
-
-      res.json({
-        message: 'Login successful',
-        token,
-        user: userWithoutPassword
-      });
+    res.json({
+      message: 'Login successful',
+      token,
+      user: userWithoutPassword
     });
-  });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 };
 
-exports.getMe = (req, res) => {
-  User.findById(req.user.id, (err, users) => {
-    if (err) {
+exports.getMe = async (req, res) => {
+  try {
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', req.user.id)
+      .limit(1);
+
+    if (error) {
       return res.status(500).json({ message: "Server error" });
     }
 
-    if (users.length === 0) {
+    if (!users || users.length === 0) {
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -147,5 +177,8 @@ exports.getMe = (req, res) => {
     }
 
     res.json(user);
-  });
+  } catch (error) {
+    console.error('Get me error:', error);
+    res.status(500).json({ message: "Server error" });
+  }
 };

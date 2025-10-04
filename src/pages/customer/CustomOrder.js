@@ -43,7 +43,7 @@ const paymentStatusConfig = {
   refunded: { label: 'Refunded', color: 'default' }
 };
 
-export default function CustomerOrders() {
+export default function CustomOrder() {
   const [tabValue, setTabValue] = useState('all');
   const { orders, loading, getOrders } = useOrders();
   const { user } = useAuth();

@@ -4,6 +4,10 @@ const router = express.Router();
 const passport = require('../config/passport');
 const { register, login, getMe, oauthSuccess, oauthFailure } = require('../controllers/authController');
 const { auth } = require('../middleware/auth');
+const { authLimiter } = require('../middleware/security');
+
+// Apply rate limiting to auth routes
+router.use(authLimiter);
 
 // Local auth routes
 router.post('/register', register);

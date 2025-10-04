@@ -1,36 +1,35 @@
+// backend/routes/productRoutes.js
 const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');
-const { upload, handleMulterError } = require('../config/multer'); // Fixed import
-const {auth} = require('../middleware/auth');
+const { upload, handleMulterError } = require('../config/multer');
+const { auth } = require('../middleware/auth');
+const { cacheMiddleware } = require('../middleware/cache');
 
-// Create product with image upload - FIXED middleware order
+// Public routes (with caching)
+router.get('/all', cacheMiddleware(600), productController.getAllProducts); // Cache for 10 minutes
+router.get('/:id', cacheMiddleware(600), productController.getProduct); // Cache for 10 minutes
+router.get('/artist/:artistId', cacheMiddleware(300), productController.getArtistProducts); // Cache for 5 minutes
+
+// Protected routes
+router.use(auth);
+
+// Create product with image upload
 router.post('/', 
-  auth, 
-  upload.array('images', 5), // Handle up to 5 files
-  handleMulterError, // Add error handling
+  upload.array('images', 5),
+  handleMulterError,
   productController.createProduct
 );
 
 // Update product with image upload
 router.put('/:id', 
-  auth, 
   upload.array('images', 5),
   handleMulterError,
   productController.updateProduct
 );
 
 // Delete product
-router.delete('/:id', auth, productController.deleteProduct);
-
-// Get all products
-router.get('/all', auth, productController.getAllProducts);
-
-// Get artist products
-router.get('/artist/:artistId', auth, productController.getArtistProducts);
-
-// Get single product
-router.get('/:id', auth, productController.getProduct);
+router.delete('/:id', productController.deleteProduct);
 
 // Test upload endpoint
 router.post('/test-upload',

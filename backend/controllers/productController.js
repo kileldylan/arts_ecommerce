@@ -1,6 +1,6 @@
-const Product = require('../models/Product');
-const fs = require('fs');
-const path = require('path');
+// backend/controllers/productController.js
+const supabase = require('../config/supabase');
+const { clearCache } = require('../middleware/cache'); // We'll create this
 
 const normalizeProduct = (product) => {
   if (product.images && typeof product.images === 'string') {
@@ -14,41 +14,96 @@ const normalizeProduct = (product) => {
 };
 
 // Get all products
-exports.getAllProducts = (req, res) => {
-  const filters = { ...req.query };
-  Product.findAll(filters, (err, products) => {
-    if (err) {
-      return res.status(500).json({ message: 'Server error', error: err.message });
+exports.getAllProducts = async (req, res) => {
+  try {
+    const filters = { ...req.query };
+    
+    let query = supabase
+      .from('products')
+      .select('*, categories(name)');
+
+    // Apply filters
+    if (filters.category_id) {
+      query = query.eq('category_id', filters.category_id);
     }
+    if (filters.artist_id) {
+      query = query.eq('artist_id', filters.artist_id);
+    }
+    if (filters.is_published !== undefined) {
+      query = query.eq('is_published', filters.is_published === 'true');
+    }
+    if (filters.is_featured !== undefined) {
+      query = query.eq('is_featured', filters.is_featured === 'true');
+    }
+
+    const { data: products, error } = await query;
+
+    if (error) {
+      return res.status(500).json({ message: 'Server error', error: error.message });
+    }
+
     res.json(products.map(normalizeProduct));
-  });
+  } catch (error) {
+    console.error('Get products error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
 // Get single product
-exports.getProduct = (req, res) => {
-  const productId = req.params.id;
-  Product.findById(productId, (err, products) => {
-    if (err) {
-      return res.status(500).json({ message: 'Server error', error: err.message });
+exports.getProduct = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    
+    const { data: products, error } = await supabase
+      .from('products')
+      .select('*, categories(name)')
+      .eq('id', productId)
+      .limit(1);
+
+    if (error) {
+      return res.status(500).json({ message: 'Server error', error: error.message });
     }
-    if (products.length === 0) {
+
+    if (!products || products.length === 0) {
       return res.status(404).json({ message: 'Product not found' });
     }
+
     res.json(normalizeProduct(products[0]));
-  });
+  } catch (error) {
+    console.error('Get product error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
 // Get products by artist
-exports.getArtistProducts = (req, res) => {
-  const artistId = req.params.artistId || req.user.id;
-  const filters = { artist_id: artistId, ...req.query };
-  Product.findAll(filters, (err, products) => {
-    if (err) return res.status(500).json({ message: 'Server error', error: err.message });
+exports.getArtistProducts = async (req, res) => {
+  try {
+    const artistId = req.params.artistId || req.user.id;
+    const filters = { artist_id: artistId, ...req.query };
+    
+    let query = supabase
+      .from('products')
+      .select('*, categories(name)')
+      .eq('artist_id', artistId);
+
+    if (filters.is_published !== undefined) {
+      query = query.eq('is_published', filters.is_published === 'true');
+    }
+
+    const { data: products, error } = await query;
+
+    if (error) {
+      return res.status(500).json({ message: 'Server error', error: error.message });
+    }
+
     res.json(products.map(normalizeProduct));
-  });
+  } catch (error) {
+    console.error('Get artist products error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
-// Helper function to parse boolean values from form data
+// Helper functions
 const parseBoolean = (value) => {
   if (value === 'true' || value === true) return true;
   if (value === 'false' || value === false) return false;
@@ -57,29 +112,21 @@ const parseBoolean = (value) => {
   return Boolean(value);
 };
 
-// Helper function to parse number values
 const parseNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null;
   const num = parseFloat(value);
   return isNaN(num) ? null : num;
 };
 
-exports.createProduct = (req, res) => {
+// Create product
+exports.createProduct = async (req, res) => {
   try {
     console.log('=== CREATE PRODUCT DEBUG ===');
-    console.log('Request headers:', req.headers);
     console.log('Request body:', req.body);
-    console.log('Request files:', req.files ? req.files.map(f => ({ name: f.originalname, size: f.size })) : 'No files');
-    console.log('Authenticated user:', req.user); // Debug user
+    console.log('Authenticated user:', req.user);
 
     // Validate authentication
     if (!req.user || !req.user.id) {
-      // Clean up uploaded files
-      if (req.files && req.files.length > 0) {
-        req.files.forEach(file => {
-          if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-        });
-      }
       return res.status(401).json({ message: 'Authentication required: user ID missing' });
     }
 
@@ -92,19 +139,13 @@ exports.createProduct = (req, res) => {
     } = req.body;
 
     if (!name || !description || !price || !category_id) {
-      // Clean up uploaded files
-      if (req.files && req.files.length > 0) {
-        req.files.forEach(file => {
-          if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-        });
-      }
       return res.status(400).json({
         message: 'Missing required fields: name, description, price, or category_id',
       });
     }
 
-    // Collect uploaded files
-    const imagePaths = req.files ? req.files.map((file) => `/uploads/${file.filename}`) : [];
+    // For Supabase, we'll handle file uploads separately
+    const imagePaths = []; // We'll implement Supabase Storage later
 
     const productData = {
       name,
@@ -113,8 +154,9 @@ exports.createProduct = (req, res) => {
       compare_price: parseNumber(compare_price),
       cost_per_item: parseNumber(cost_per_item),
       category_id: parseInt(category_id),
-      artist_id: req.user.id, // ✅ Use authenticated user's ID
-      sku: sku === '' || sku === undefined || sku === null ? null : sku,      barcode: barcode || '',
+      artist_id: req.user.id,
+      sku: sku === '' || sku === undefined || sku === null ? null : sku,
+      barcode: barcode || '',
       quantity: parseInt(quantity) || 0,
       allow_out_of_stock_purchases: parseBoolean(allow_out_of_stock_purchases),
       weight: parseNumber(weight),
@@ -129,36 +171,36 @@ exports.createProduct = (req, res) => {
       seo_description: seo_description || '',
       slug,
       images: imagePaths,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    console.log('Product data for DB:', productData);
+    console.log('Product data for Supabase:', productData);
 
-    Product.create(productData, (err, product) => {
-      if (err) {
-        // Clean up uploaded files on DB error
-        if (req.files && req.files.length > 0) {
-          req.files.forEach(file => {
-            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-          });
-        }
-        return res.status(500).json({ error: err.message });
-      }
-      res.status(201).json(product);
-    });
-  } catch (error) {
-    // Clean up uploaded files on unexpected error
-    if (req.files && req.files.length > 0) {
-      req.files.forEach(file => {
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      });
+    const { data: product, error } = await supabase
+      .from('products')
+      .insert([productData])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({ error: error.message });
     }
+
+    // Clear cache for products
+    await clearCache('cache:/api/products*');
+
+    res.status(201).json(product);
+
+  } catch (error) {
     console.error('Unexpected error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
 // Update Product
-exports.updateProduct = (req, res) => {
+exports.updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -169,40 +211,103 @@ exports.updateProduct = (req, res) => {
       requires_shipping, seo_title, seo_description, slug
     } = req.body;
 
-    const imagePaths = req.files ? req.files.map((file) => `/uploads/${file.filename}`) : [];
+    // For now, handle images the same way (we'll update for Supabase Storage)
+    const imagePaths = [];
 
     const updatedData = {
-      name, description, price, compare_price, cost_per_item, category_id,
-      artist_id, sku, barcode, quantity, allow_out_of_stock_purchases,
-      weight, length, width, height, is_published, is_featured, is_digital,
-      requires_shipping, seo_title, seo_description, slug,
-      images: imagePaths.length > 0 ? imagePaths : undefined // ✅ only if new images
+      name,
+      description,
+      price: parseNumber(price),
+      compare_price: parseNumber(compare_price),
+      cost_per_item: parseNumber(cost_per_item),
+      category_id: parseInt(category_id),
+      artist_id: parseInt(artist_id),
+      sku,
+      barcode,
+      quantity: parseInt(quantity) || 0,
+      allow_out_of_stock_purchases: parseBoolean(allow_out_of_stock_purchases),
+      weight: parseNumber(weight),
+      length: parseNumber(length),
+      width: parseNumber(width),
+      height: parseNumber(height),
+      is_published: parseBoolean(is_published),
+      is_featured: parseBoolean(is_featured),
+      is_digital: parseBoolean(is_digital),
+      requires_shipping: parseBoolean(requires_shipping),
+      seo_title,
+      seo_description,
+      slug,
+      updated_at: new Date().toISOString()
     };
 
-    Product.update(id, updatedData, (err, product) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.status(200).json(product);
-    });
+    // Only update images if new ones are provided
+    if (imagePaths.length > 0) {
+      updatedData.images = imagePaths;
+    }
+
+    const { data: product, error } = await supabase
+      .from('products')
+      .update(updatedData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    // Clear cache
+    await clearCache('cache:/api/products*');
+    await clearCache(`cache:/api/products/${id}`);
+
+    res.status(200).json(product);
   } catch (error) {
+    console.error('Update product error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// Delete product (unchanged, already good with deleteOldImages in model)
-exports.deleteProduct = (req, res) => {
-  const productId = req.params.id;
-  Product.findById(productId, (err, products) => {
-    if (err) return res.status(500).json({ message: 'Server error', error: err.message });
-    if (products.length === 0) return res.status(404).json({ message: 'Product not found' });
+// Delete product
+exports.deleteProduct = async (req, res) => {
+  try {
+    const productId = req.params.id;
+
+    // First check if product exists and user has permission
+    const { data: products, error: findError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', productId)
+      .limit(1);
+
+    if (findError) {
+      return res.status(500).json({ message: 'Server error', error: findError.message });
+    }
+
+    if (!products || products.length === 0) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
 
     const product = products[0];
     if (product.artist_id !== req.user.id) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    Product.delete(productId, (err, results) => {
-      if (err) return res.status(500).json({ message: 'Server error', error: err.message });
-      res.json({ message: 'Product deleted successfully', affectedRows: results.affectedRows });
-    });
-  });
+    // Delete the product
+    const { error: deleteError } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', productId);
+
+    if (deleteError) {
+      return res.status(500).json({ message: 'Server error', error: deleteError.message });
+    }
+
+    // Clear cache
+    await clearCache('cache:/api/products*');
+
+    res.json({ message: 'Product deleted successfully' });
+  } catch (error) {
+    console.error('Delete product error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
