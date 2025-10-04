@@ -92,6 +92,32 @@ exports.getCustomerDetails = async (req, res) => {
   }
 };
 
+exports.getCustomerSegmentation = async (req, res) => {
+  try {
+    const artistId = req.user.id;
+
+    // This would need to be implemented with Supabase
+    // For now, return a placeholder
+    res.json({
+      success: true,
+      data: {
+        segments: [
+          { segment: 'VIP Customers', count: 0, revenue: 0 },
+          { segment: 'Regular Customers', count: 0, revenue: 0 },
+          { segment: 'New Customers', count: 0, revenue: 0 }
+        ],
+        message: 'Customer segmentation - implement with Supabase'
+      }
+    });
+  } catch (error) {
+    console.error('Segmentation Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch customer segmentation'
+    });
+  }
+};
+
 exports.getCustomerAnalytics = async (req, res) => {
   try {
     const artistId = req.user.id;

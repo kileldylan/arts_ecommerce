@@ -1,4 +1,4 @@
-// backend/routes/crm.js
+// backend/routes/crmRoutes.js
 const express = require('express');
 const router = express.Router();
 const crmController = require('../controllers/crmController');
