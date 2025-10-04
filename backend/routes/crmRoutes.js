@@ -16,9 +16,6 @@ router.put('/customers/:customerId/notes', auth, crmController.updateCustomerNot
 // Analytics (cache for 10 minutes)
 router.get('/analytics', auth, cacheMiddleware(600), crmController.getCustomerAnalytics);
 
-// Customer LTV analysis (cache for 15 minutes)
-router.get('/customer-ltv', auth, cacheMiddleware(900), crmController.getCustomerLTV);
-
 // Customer segmentation (cache for 15 minutes)
 router.get('/segmentation', auth, cacheMiddleware(900), crmController.getCustomerSegmentation);
 
