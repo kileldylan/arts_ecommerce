@@ -44,10 +44,12 @@ const authLimiter = rateLimit({
 });
 
 // Slow down after certain requests
+// Slow down after certain requests - FIXED VERSION
 const speedLimiter = slowDown({
   windowMs: 1 * 60 * 1000, // 1 minute
   delayAfter: 50, // allow 50 requests per minute
-  delayMs: 500 // then add 500ms delay per request
+  delayMs: 500, // then add 500ms delay per request
+  validate: { delayMs: false } // This disables the warning
 });
 
 module.exports = {

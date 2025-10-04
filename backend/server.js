@@ -12,12 +12,12 @@ const { requestLogger } = require('./middleware/logging');
 const sanitizeInput = require('./middleware/sanitize');
 
 // Import routes
-const authRoutes = require('./routes/auth');
+const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/usersRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const analyticsRoutes = require('./routes/analytics');
-const crmRoutes = require('./routes/crm');
+const crmRoutes = require('./routes/crmRoutes');
 const mpesaRoutes = require('./routes/mpesa');
 const healthRoutes = require('./routes/health');
 
