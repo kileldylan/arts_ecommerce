@@ -27,7 +27,6 @@ const userRoutes = require('./routes/usersRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const analyticsRoutes = require('./routes/analytics');
-const crmRoutes = require('./routes/crmRoutes');
 const mpesaRoutes = require('./routes/mpesa');
 const healthRoutes = require('./routes/health');
 
@@ -115,7 +114,6 @@ app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/analytics', analyticsRoutes);
-app.use('/api/crm', crmRoutes);
 app.use('/api/mpesa', mpesaRoutes);
 
 // ======================= ROOT ROUTE =======================
