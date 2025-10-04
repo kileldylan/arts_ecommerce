@@ -89,7 +89,8 @@ app.use(express.urlencoded({
   limit: '5mb' // Reduced from 10mb
 }));
 
-// ======================= LOGGING & SANITIZATION =======================
+// ========Removed crmroute
+// =============== LOGGING & SANITIZATION =======================
 // Only use detailed logging in development
 if (process.env.NODE_ENV === 'development') {
   app.use(requestLogger);
