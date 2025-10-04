@@ -2,66 +2,124 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
-  Typography,
+  Grid,
   Box,
   Card,
   CardContent,
+  Typography,
   Chip,
-  Grid,
+  Divider,
+  List,
+  ListItem,
   Button,
   Avatar,
-  Divider,
   Stepper,
   Step,
   StepLabel,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
   CircularProgress,
+  Stack
 } from '@mui/material';
 import {
-  ShoppingBag,
-  LocalShipping,
-  CheckCircle,
-  Pending,
+  ArrowBack,
   Person,
   LocationOn,
   Payment,
-  ArrowBack
+  CheckCircle,
+  Pending,
+  LocalShipping,
+  CalendarToday,
+  Receipt,
+  TrackChanges
 } from '@mui/icons-material';
 import { useOrders } from '../contexts/OrderContext';
 import { useAuth } from '../contexts/AuthContext';
 
+// Enhanced color palette
 const themeColors = {
-  primary: '#2C3E50',
-  accent: '#F39C12',
-  background: '#FAFAFA',
-  border: '#ECF0F1'
+  primary: '#2563eb',
+  secondary: '#7c3aed',
+  success: '#059669',
+  warning: '#d97706',
+  error: '#dc2626',
+  background: '#f8fafc',
+  surface: '#ffffff',
+  textPrimary: '#1e293b',
+  textSecondary: '#64748b',
+  border: '#e2e8f0',
+  accent: '#f59e0b'
 };
 
-const statusSteps = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
 const statusConfig = {
   pending: { label: 'Pending', color: 'warning', icon: <Pending /> },
-  confirmed: { label: 'Confirmed', color: 'info', icon: <CheckCircle /> },
+  confirmed: { label: 'Confirmed', color: 'primary', icon: <CheckCircle /> },
   processing: { label: 'Processing', color: 'primary', icon: <LocalShipping /> },
   shipped: { label: 'Shipped', color: 'secondary', icon: <LocalShipping /> },
   delivered: { label: 'Delivered', color: 'success', icon: <CheckCircle /> },
-  cancelled: { label: 'Cancelled', color: 'error', icon: <Pending /> },
-  refunded: { label: 'Refunded', color: 'default', icon: <CheckCircle /> }
 };
 
-const paymentStatusConfig = {
+const paymentConfig = {
   pending: { label: 'Pending', color: 'warning' },
   paid: { label: 'Paid', color: 'success' },
   failed: { label: 'Failed', color: 'error' },
-  refunded: { label: 'Refunded', color: 'default' }
+  refunded: { label: 'Refunded', color: 'default' },
 };
+
+// Status Badge Component
+const StatusBadge = ({ status, paymentStatus }) => (
+  <Stack direction="row" spacing={1} alignItems="center">
+    <Chip
+      icon={statusConfig[status]?.icon}
+      label={statusConfig[status]?.label}
+      color={statusConfig[status]?.color}
+      variant="filled"
+      sx={{ 
+        fontWeight: 600, 
+        fontSize: '0.875rem',
+        height: 32
+      }}
+    />
+    <Chip
+      label={paymentConfig[paymentStatus]?.label}
+      color={paymentConfig[paymentStatus]?.color}
+      variant="outlined"
+      sx={{ 
+        fontWeight: 600, 
+        fontSize: '0.875rem',
+        height: 32
+      }}
+    />
+  </Stack>
+);
+
+// Info Card Component
+const InfoCard = ({ title, icon, children, sx = {} }) => (
+  <Card sx={{ 
+    borderRadius: 2, 
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+    border: `1px solid ${themeColors.border}`,
+    height: '100%',
+    ...sx 
+  }}>
+    <CardContent sx={{ p: 3 }}>
+      <Typography 
+        variant="h6" 
+        fontWeight={600} 
+        gutterBottom 
+        color={themeColors.textPrimary}
+        sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}
+      >
+        {icon}
+        {title}
+      </Typography>
+      {children}
+    </CardContent>
+  </Card>
+);
 
 export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getOrder, getOrderHistory, updateOrderStatus, loading } = useOrders();
+  const { getOrder, getOrderHistory, loading } = useOrders();
   const { user } = useAuth();
   const [order, setOrder] = useState(null);
   const [history, setHistory] = useState([]);
@@ -82,229 +140,270 @@ export default function OrderDetail() {
 
   const getActiveStep = () => {
     if (!order) return 0;
-    return statusSteps.indexOf(order.status);
+    return ['pending', 'confirmed', 'processing', 'shipped', 'delivered'].indexOf(order.status);
   };
 
   if (loading || !order) {
     return (
-      <>
-        <Container maxWidth="lg" sx={{ py: 6, textAlign: 'center' }}>
-          <CircularProgress />
-          <Typography variant="body1" sx={{ mt: 2 }}>
+      <Container maxWidth="xl" sx={{ py: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <Stack alignItems="center" spacing={2}>
+          <CircularProgress sx={{ color: themeColors.primary }} size={40} />
+          <Typography variant="h6" color={themeColors.textSecondary}>
             Loading order details...
           </Typography>
-        </Container>
-      </>
+        </Stack>
+      </Container>
     );
   }
 
   return (
-    <>
-      <Container maxWidth="lg" sx={{ py: 6 }}>
+    <Container maxWidth="xl" sx={{ py: 4 }}>
+      {/* Header Section */}
+      <Stack spacing={3} sx={{ mb: 4 }}>
         <Button
           startIcon={<ArrowBack />}
           onClick={() => navigate(-1)}
-          sx={{ mb: 3, color: themeColors.primary, fontWeight: 500 }}
+          sx={{
+            alignSelf: 'flex-start',
+            color: themeColors.textSecondary,
+            '&:hover': {
+              backgroundColor: themeColors.background,
+              color: themeColors.textPrimary
+            },
+            px: 2,
+            py: 1
+          }}
         >
-          Back
+          Back to Orders
         </Button>
 
-        <Grid container spacing={4}>
-          {/* Order Summary */}
-          <Grid item xs={12}>
-            <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
-              <CardContent>
-                <Grid container spacing={3} alignItems="center">
-                  <Grid item xs={12} md={6}>
-                    <Typography variant="h5" fontWeight="700" gutterBottom>
-                      Order #{order.order_number}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Placed on {new Date(order.created_at).toLocaleDateString()}
-                    </Typography>
-                  </Grid>
-
-                  <Grid item xs={12} md={6} sx={{ textAlign: { md: 'right' } }}>
-                    <Chip
-                      icon={statusConfig[order.status].icon}
-                      label={statusConfig[order.status].label}
-                      color={statusConfig[order.status].color}
-                      sx={{ mb: 1, fontWeight: '600' }}
-                    />
-                    <br />
-                    <Chip
-                      label={paymentStatusConfig[order.payment_status].label}
-                      color={paymentStatusConfig[order.payment_status].color}
-                      variant="outlined"
-                      sx={{ fontWeight: '600' }}
-                    />
-                  </Grid>
-                </Grid>
-
-                <Stepper activeStep={getActiveStep()} sx={{ mt: 4 }}>
-                  {statusSteps.map((step) => (
-                    <Step key={step}>
-                      <StepLabel>{statusConfig[step].label}</StepLabel>
-                    </Step>
-                  ))}
-                </Stepper>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Order Items */}
-          <Grid item xs={12} md={8}>
-            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="600" gutterBottom>
-                  Order Items ({order.items.length})
-                </Typography>
-                <List>
-                  {order.items.map((item, index) => (
-                    <ListItem key={index} divider={index < order.items.length - 1}>
-                      <ListItemIcon>
-                        <Avatar
-                          src={item.product_images?.[0]?.image_url}
-                          sx={{ width: 60, height: 60 }}
-                          variant="rounded"
-                        >
-                          <ShoppingBag />
-                        </Avatar>
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={<Typography fontWeight="600">{item.product_name}</Typography>}
-                        secondary={
-                          <Box>
-                            <Typography variant="body2">Qty: {item.quantity}</Typography>
-                            <Typography variant="body2">Price: ${item.product_price}</Typography>
-                            {item.variant_name && (
-                              <Typography variant="body2">Variant: {item.variant_name}</Typography>
-                            )}
-                          </Box>
-                        }
-                      />
-                      <Typography variant="h6" color={themeColors.primary}>
-                        ${item.total_price}
+        {/* Order Header Card */}
+        <Card sx={{ 
+          borderRadius: 2, 
+          background: `linear-gradient(135deg, ${themeColors.primary}15, ${themeColors.secondary}15)`,
+          border: `1px solid ${themeColors.border}`,
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+        }}>
+          <CardContent sx={{ p: 4 }}>
+            <Grid container spacing={3} alignItems="center">
+              <Grid item xs={12} md={6}>
+                <Stack spacing={1}>
+                  <Typography variant="h3" fontWeight={700} color={themeColors.textPrimary}>
+                    Order #{order.order_number}
+                  </Typography>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Stack direction="row" spacing={1} alignItems="center" color={themeColors.textSecondary}>
+                      <CalendarToday sx={{ fontSize: 20 }} />
+                      <Typography variant="body1">
+                        {new Date(order.created_at).toLocaleDateString('en-US', { 
+                          weekday: 'long', 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
                       </Typography>
-                    </ListItem>
-                  ))}
-                </List>
+                    </Stack>
+                  </Stack>
+                </Stack>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Stack alignItems={{ md: 'flex-end' }} spacing={2}>
+                  <StatusBadge status={order.status} paymentStatus={order.payment_status} />
+                </Stack>
+              </Grid>
+            </Grid>
 
-                <Divider sx={{ my: 2 }} />
+            {/* Progress Stepper */}
+            <Box sx={{ mt: 4 }}>
+              <Stepper activeStep={getActiveStep()} alternativeLabel>
+                {['Order Placed', 'Confirmed', 'Processing', 'Shipped', 'Delivered'].map((label, index) => (
+                  <Step key={label}>
+                    <StepLabel
+                      sx={{
+                        '& .MuiStepLabel-label': { 
+                          fontSize: '0.875rem', 
+                          fontWeight: 500,
+                          color: themeColors.textSecondary
+                        },
+                        '& .Mui-active .MuiStepLabel-label': { 
+                          color: themeColors.primary,
+                          fontWeight: 600
+                        },
+                        '& .Mui-completed .MuiStepLabel-label': { 
+                          color: themeColors.success,
+                          fontWeight: 600
+                        },
+                      }}
+                    >
+                      {label}
+                    </StepLabel>
+                  </Step>
+                ))}
+              </Stepper>
+            </Box>
+          </CardContent>
+        </Card>
+      </Stack>
 
-                <Grid container spacing={1}>
-                  <Grid item xs={6}><Typography>Subtotal</Typography></Grid>
-                  <Grid item xs={6} textAlign="right"><Typography>${order.subtotal}</Typography></Grid>
-                  <Grid item xs={6}><Typography>Shipping</Typography></Grid>
-                  <Grid item xs={6} textAlign="right"><Typography>${order.shipping_amount}</Typography></Grid>
-                  <Grid item xs={6}><Typography>Tax</Typography></Grid>
-                  <Grid item xs={6} textAlign="right"><Typography>${order.tax_amount}</Typography></Grid>
-                  <Grid item xs={6}><Typography>Discount</Typography></Grid>
-                  <Grid item xs={6} textAlign="right"><Typography>- ${order.discount_amount}</Typography></Grid>
-                  <Grid item xs={6}><Typography fontWeight="700">Total</Typography></Grid>
-                  <Grid item xs={6} textAlign="right"><Typography fontWeight="700">${order.total_amount}</Typography></Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Order Details */}
-          <Grid item xs={12} md={4}>
-            <Card sx={{ mb: 3, borderRadius: 3, boxShadow: 2 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="600" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Person sx={{ mr: 1 }} /> Customer
+      {/* Order Summary Section - Horizontal Layout */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={3}>
+          <InfoCard title="Order Summary" icon={<Receipt />}>
+            <Stack spacing={2}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color={themeColors.textSecondary}>
+                  Subtotal:
                 </Typography>
-                <Typography variant="body2">{order.customer_name}</Typography>
-                <Typography variant="body2" color="text.secondary">{order.customer_email}</Typography>
-                {order.customer_phone && (
-                  <Typography variant="body2" color="text.secondary">{order.customer_phone}</Typography>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card sx={{ mb: 3, borderRadius: 3, boxShadow: 2 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="600" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                  <LocationOn sx={{ mr: 1 }} /> Shipping
+                <Typography variant="body1" fontWeight={600} color={themeColors.textPrimary}>
+                  Ksh {order.subtotal}
                 </Typography>
-                <Typography variant="body2">{order.shipping_address.street}</Typography>
-                <Typography variant="body2">
-                  {order.shipping_address.city}, {order.shipping_address.state}
+              </Stack>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color={themeColors.textSecondary}>
+                  Shipping:
                 </Typography>
-                <Typography variant="body2">{order.shipping_address.country}</Typography>
-                <Typography variant="body2">{order.shipping_address.postal_code}</Typography>
-              </CardContent>
-            </Card>
-
-            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="600" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Payment sx={{ mr: 1 }} /> Payment
+                <Typography variant="body1" fontWeight={600} color={themeColors.textPrimary}>
+                  Ksh {order.shipping_amount}
                 </Typography>
-                <Typography variant="body2" textTransform="capitalize">
-                  {order.payment_method.replace('_', ' ')}
+              </Stack>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color={themeColors.textSecondary}>
+                  Tax:
                 </Typography>
-                <Chip
-                  label={paymentStatusConfig[order.payment_status].label}
-                  color={paymentStatusConfig[order.payment_status].color}
-                  size="small"
-                  sx={{ mt: 1, fontWeight: '600' }}
-                />
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Status History */}
-          <Grid item xs={12}>
-            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="600" gutterBottom>
-                  Status History
+                <Typography variant="body1" fontWeight={600} color={themeColors.textPrimary}>
+                  Ksh {order.tax_amount}
                 </Typography>
-                <List>
-                  {history.map((record, index) => (
-                    <ListItem key={index} divider={index < history.length - 1}>
-                      <ListItemIcon>
-                        <Avatar sx={{ bgcolor: themeColors.accent }}>
-                          {statusConfig[record.status].icon}
-                        </Avatar>
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Chip
-                              label={statusConfig[record.status].label}
-                              color={statusConfig[record.status].color}
-                              size="small"
-                              sx={{ fontWeight: '600' }}
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                              by {record.created_by_name}
-                            </Typography>
-                          </Box>
-                        }
-                        secondary={
-                          <Box>
-                            <Typography variant="body2">
-                              {new Date(record.created_at).toLocaleString()}
-                            </Typography>
-                            {record.note && (
-                              <Typography variant="body2" color="text.secondary">
-                                Note: {record.note}
-                              </Typography>
-                            )}
-                          </Box>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color={themeColors.textSecondary}>
+                  Discount:
+                </Typography>
+                <Typography variant="body1" fontWeight={600} color={themeColors.error}>
+                  - Ksh {order.discount_amount}
+                </Typography>
+              </Stack>
+              <Divider sx={{ borderColor: themeColors.border }} />
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="h6" fontWeight={700} color={themeColors.textPrimary}>
+                  Total:
+                </Typography>
+                <Typography variant="h6" fontWeight={700} color={themeColors.primary}>
+                  Ksh {order.total_amount}
+                </Typography>
+              </Stack>
+            </Stack>
+          </InfoCard>
         </Grid>
-      </Container>
-    </>
+
+        <Grid item xs={12} md={3}>
+          <InfoCard title="Customer Information" icon={<Person />}>
+            <Stack spacing={1}>
+              <Typography variant="body1" fontWeight={600} color={themeColors.textPrimary}>
+                {order.customer_name}
+              </Typography>
+              <Typography variant="body2" color={themeColors.textSecondary}>
+                {order.customer_email}
+              </Typography>
+              {order.customer_phone && (
+                <Typography variant="body2" color={themeColors.textSecondary}>
+                  {order.customer_phone}
+                </Typography>
+              )}
+            </Stack>
+          </InfoCard>
+        </Grid>
+
+        <Grid item xs={12} md={3}>
+          <InfoCard title="Shipping Address" icon={<LocationOn />}>
+            <Stack spacing={1}>
+              <Typography variant="body1" fontWeight={600} color={themeColors.textPrimary}>
+                {order.shipping_address.street}
+              </Typography>
+              <Typography variant="body2" color={themeColors.textSecondary}>
+                {order.shipping_address.city}, {order.shipping_address.state}
+              </Typography>
+              <Typography variant="body2" color={themeColors.textSecondary}>
+                {order.shipping_address.country}
+              </Typography>
+              <Typography variant="body2" color={themeColors.textSecondary}>
+                {order.shipping_address.postal_code}
+              </Typography>
+            </Stack>
+          </InfoCard>
+        </Grid>
+
+        <Grid item xs={12} md={3}>
+          <InfoCard title="Payment Information" icon={<Payment />}>
+            <Stack spacing={1}>
+              <Typography variant="body1" fontWeight={600} color={themeColors.textPrimary} textTransform="capitalize">
+                {order.payment_method.replace('_', ' ')}
+              </Typography>
+              <Chip
+                label={paymentConfig[order.payment_status]?.label}
+                color={paymentConfig[order.payment_status]?.color}
+                size="small"
+                sx={{ 
+                  fontWeight: 600,
+                  alignSelf: 'flex-start'
+                }}
+              />
+            </Stack>
+          </InfoCard>
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={3}>
+        {/* Right Column - Status History */}
+        <Grid item xs={12} lg={4}>
+          <InfoCard 
+            title="Status History" 
+            icon={<TrackChanges />}
+          >
+            <List sx={{ py: 0 }}>
+              {history.map((record, index) => (
+                <React.Fragment key={index}>
+                  <ListItem sx={{ px: 0, py: 2 }}>
+                    <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ width: '100%' }}>
+                      <Avatar sx={{ 
+                        bgcolor: themeColors.primary, 
+                        width: 40, 
+                        height: 40,
+                        mt: 0.5 
+                      }}>
+                        {statusConfig[record.status]?.icon}
+                      </Avatar>
+                      <Box sx={{ flex: 1 }}>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                          <Chip
+                            label={statusConfig[record.status]?.label}
+                            color={statusConfig[record.status]?.color}
+                            size="small"
+                            sx={{ fontWeight: 600 }}
+                          />
+                          <Typography variant="body2" color={themeColors.textSecondary}>
+                            by {record.created_by_name}
+                          </Typography>
+                        </Stack>
+                        <Typography variant="body2" color={themeColors.textSecondary} sx={{ mb: 0.5 }}>
+                          {new Date(record.created_at).toLocaleString()}
+                        </Typography>
+                        {record.note && (
+                          <Typography variant="body2" color={themeColors.textPrimary} sx={{ fontStyle: 'italic' }}>
+                            {record.note}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Stack>
+                  </ListItem>
+                  {index < history.length - 1 && (
+                    <Divider sx={{ borderColor: themeColors.border }} />
+                  )}
+                </React.Fragment>
+              ))}
+            </List>
+          </InfoCard>
+        </Grid>
+      </Grid>
+    </Container>
   );
 }

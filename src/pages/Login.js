@@ -6,7 +6,7 @@ import {
   Card, CardContent, TextField, Button, Typography, Box,
   Divider, Alert, Container, FormControl
 } from '@mui/material';
-import { Google, GitHub } from '@mui/icons-material';
+import { Google } from '@mui/icons-material';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -107,15 +107,6 @@ export default function Login() {
                 onClick={() => window.location.href = 'http://localhost:5000/api/auth/google'}
                 >
                 Google
-                </Button>
-                <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<GitHub />}
-                sx={{ py: 1.5 }}
-                onClick={() => window.location.href = 'http://localhost:5000/api/auth/github'}
-                >
-                GitHub
                 </Button>
               </Box>
               

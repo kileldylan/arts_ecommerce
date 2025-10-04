@@ -66,7 +66,7 @@ export default function Navbar() {
   };
 
   const getNavItems = () => {
-    const commonItems = [{ label: 'Dashboard', path: '/customer/dashboard', icon: <Dashboard /> }];
+    const commonItems = [{ label: 'Dashboard', path: '/dashboard', icon: <Dashboard /> }];
 
     if (loading || !user) {
       return commonItems; // Return minimal items during loading or if no user

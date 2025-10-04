@@ -8,7 +8,7 @@ import {
   FormLabel, Stepper, Step, StepLabel, Grid,
   InputAdornment, IconButton, OutlinedInput, InputLabel
 } from '@mui/material';
-import { Visibility, VisibilityOff, Google, GitHub } from '@mui/icons-material';
+import { Visibility, VisibilityOff, Google } from '@mui/icons-material';
 
 const steps = ['Account Type', 'Basic Information', 'Additional Details'];
 
@@ -98,10 +98,6 @@ export default function Register() {
     setLoading(false);
   };
 
-  const handleSocialLogin = (provider) => {
-    alert(`${provider} registration will be implemented in Phase 3`);
-  };
-
   const renderStepContent = (step) => {
     switch (step) {
       case 0:
@@ -129,18 +125,6 @@ export default function Register() {
                     <Typography variant="body1" fontWeight="bold">Artist/Creator</Typography>
                     <Typography variant="body2" color="text.secondary">
                       Sell your creations and grow your audience
-                    </Typography>
-                  </Box>
-                } 
-              />
-              <FormControlLabel 
-                value="admin" 
-                control={<Radio />} 
-                label={
-                  <Box>
-                    <Typography variant="body1" fontWeight="bold">Administrator</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Manage platform operations (invite only)
                     </Typography>
                   </Box>
                 } 
@@ -383,15 +367,6 @@ export default function Register() {
                     onClick={() => window.location.href = 'http://localhost:5000/api/auth/google'}
                     >
                     Google
-                    </Button>
-                    <Button
-                    fullWidth
-                    variant="outlined"
-                    startIcon={<GitHub />}
-                    sx={{ py: 1.5 }}
-                    onClick={() => window.location.href = 'http://localhost:5000/api/auth/github'}
-                    >
-                    GitHub
                     </Button>
                     </Box>
                     

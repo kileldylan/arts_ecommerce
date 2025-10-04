@@ -24,6 +24,7 @@ import {
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import Footer from '../../components/Footer';
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'warning', icon: <Pending /> },
@@ -199,6 +200,7 @@ export default function CustomerOrders() {
         ))
       )}
     </Container>
+    <Footer/>
     </>
   );
 }

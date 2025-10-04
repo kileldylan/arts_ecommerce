@@ -9,7 +9,6 @@ import {
   Card,
   CardContent,
   Button,
-  Chip,
   IconButton,
   Drawer,
   Badge,
@@ -40,6 +39,7 @@ import { useProducts } from '../../contexts/ProductContext';
 import { useCart } from '../../contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Footer from '../../components/Footer';
 
 // Modern color palette
 const themeColors = {
@@ -53,15 +53,23 @@ const themeColors = {
   border: '#ECF0F1'
 };
 
-// Mock categories data
 const categories = [
   { id: 0, name: 'All Categories', slug: 'all', icon: <LocalMall /> },
-  { id: 1, name: 'Jewelry', slug: 'jewelry', icon: <Diamond /> },
-  { id: 2, name: 'Paintings', slug: 'paintings', icon: <Palette /> },
-  { id: 3, name: 'Sculptures', slug: 'sculptures', icon: <Brush /> },
-  { id: 4, name: 'Wood Carvings', slug: 'wood-carvings', icon: <Brush /> }
+  { id: 1, name: 'Gift Items', slug: 'gift-items', icon: <LocalMall /> },
+  { id: 2, name: 'Frames', slug: 'frames', icon: <Diamond /> },
+  { id: 3, name: 'Wall Art', slug: 'wall-art', icon: <Palette /> },
+  { id: 4, name: 'Trophies & Awards', slug: 'trophies-awards', icon: <Diamond /> },
+  { id: 5, name: 'Signage', slug: 'signage', icon: <Brush /> },
+  { id: 6, name: 'Banners', slug: 'banners', icon: <Brush /> },
+  { id: 7, name: 'Adhesive Stickers', slug: 'adhesive-stickers', icon: <Brush /> },
+  { id: 8, name: 'Board Printing', slug: 'board-printing', icon: <Brush /> },
+  { id: 9, name: 'Event Branding', slug: 'event-branding', icon: <Brush /> },
+  { id: 10, name: 'Door Signs', slug: 'door-signs', icon: <Brush /> }
 ];
+
 const API_BASE_URL = "http://localhost:5000";
+
+const PLACEHOLDER_IMAGE = '/api/placeholder/300/250';
 
 const getProductImageUrl = (product) => {
   try {
@@ -77,7 +85,6 @@ const getProductImageUrl = (product) => {
     }
     return null;
   } catch (error) {
-    console.error('Error parsing product images:', error);
     return null;
   }
 };
@@ -103,7 +110,7 @@ export default function CustomerDashboard() {
     }
   }, [getAllProducts]);
 
-const filteredProducts = products
+  const filteredProducts = products
     .filter((product) => {
       const matchesCategory = selectedCategory === '0' || product.category_id === parseInt(selectedCategory);
       const price = parseFloat(product.price) || 0;
@@ -122,226 +129,140 @@ const filteredProducts = products
       }
     });
 
-  const totalPages = Math.ceil(filteredProducts.length / 20);
+  const totalPages = Math.ceil(filteredProducts.length / 18);
   const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * 20,
-    currentPage * 20
+    (currentPage - 1) * 18,
+    currentPage * 18
   );
 
+  // --- UNIFORM CARD ---
   const ProductCard = ({ product }) => {
     const cartItem = cart.find(item => item.id === product.id);
-    const imageUrl = getProductImageUrl(product);
+    let imageUrl = getProductImageUrl(product);
+    if (!imageUrl) imageUrl = PLACEHOLDER_IMAGE;
 
     return (
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: 'column',
-        width: '100%',
-        height: 420, // FIXED TOTAL HEIGHT
-        minHeight: 420,
-        maxHeight: 420,
-        overflow: 'hidden', // Prevent any overflow from affecting layout
-      }}>
-        {/* Product Image Card - STRICTLY FIXED DIMENSIONS */}
-        <Card
-          sx={{
-            height: 250, // FIXED
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: 2,
-            transition: '0.2s',
-            border: `1px solid ${themeColors.border}`,
-            '&:hover': { 
-              boxShadow: 6, 
-              borderColor: themeColors.accent,
-              transform: 'translateY(-4px)'
-            },
-            borderRadius: '12px',
-            overflow: 'hidden',
-            flexShrink: 0
-          }}
-        >
-          <Box
-            sx={{
-              height: 160, // FIXED
-              width: '100%',
-              backgroundColor: 'grey.100',
-              backgroundImage: `url(${imageUrl || '/api/placeholder/300/250'})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              position: 'relative'
-            }}
-          >
-            {product.is_featured && (
-              <Chip
-                label="Featured"
-                size="small"
-                sx={{
-                  position: 'absolute',
-                  top: 8,
-                  left: 8,
-                  backgroundColor: themeColors.accent,
-                  color: 'white',
-                  fontWeight: 600,
-                  fontSize: '0.7rem'
-                }}
-              />
-            )}
-          </Box>
-          <CardContent sx={{ 
-            height: 90, // FIXED
-            p: 1.5, 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: 1,
-            '&:last-child': { pb: 1.5 },
-            flexShrink: 0
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-              <Rating value={4.5} precision={0.5} size="small" readOnly />
-              <Typography variant="caption" sx={{ color: themeColors.lightText, fontSize: '0.7rem' }}>
-                (24)
-              </Typography>
-            </Box>
-            <Box
-              sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                mt: 'auto',
-                gap: 1 
-              }}
-            >
-              <Typography
-                variant="h6"
-                sx={{ 
-                  color: themeColors.secondary, 
-                  fontWeight: 'bold', 
-                  fontSize: '0.95rem',
-                  flexShrink: 0
-                }}
-              >
-                Ksh{parseFloat(product.price).toLocaleString()}
-              </Typography>
-              {cartItem ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <IconButton
-                    size="small"
-                    onClick={() => updateQuantity(product.id, cartItem.quantity - 1)}
-                    sx={{ 
-                      backgroundColor: themeColors.primary, 
-                      color: 'white', 
-                      '&:hover': { backgroundColor: alpha(themeColors.primary, 0.8) },
-                      width: 24,
-                      height: 24
-                    }}
-                  >
-                    <Remove fontSize="small" />
-                  </IconButton>
-                  <Typography variant="body2" fontWeight="600" sx={{ minWidth: 20, textAlign: 'center', fontSize: '0.8rem' }}>
-                    {cartItem.quantity}
-                  </Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
-                    sx={{ 
-                      backgroundColor: themeColors.primary, 
-                      color: 'white', 
-                      '&:hover': { backgroundColor: alpha(themeColors.primary, 0.8) },
-                      width: 24,
-                      height: 24
-                    }}
-                  >
-                    <Add fontSize="small" />
-                  </IconButton>
-                </Box>
-              ) : (
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={() => addToCart(product)}
-                  sx={{
-                    backgroundColor: themeColors.primary,
-                    color: 'white',
-                    fontWeight: '600',
-                    borderRadius: '6px',
-                    px: 1.2,
-                    py: 0.3,
-                    fontSize: '0.7rem',
-                    minWidth: 'auto',
-                    whiteSpace: 'nowrap',
-                    '&:hover': { backgroundColor: alpha(themeColors.primary, 0.9) }
-                  }}
-                >
-                  Add to Cart
-                </Button>
-              )}
-            </Box>
-          </CardContent>
-        </Card>
-
-        {/* Product Name and Description - STRICTLY FIXED CONTAINER */}
-        <Box sx={{ 
-          height: 140, // FIXED
+      <Card
+        sx={{
+          height: 370,
           width: '100%',
-          mt: 1.5, 
-          px: 0.5,
           display: 'flex',
           flexDirection: 'column',
-          flexShrink: 0,
-          overflow: 'hidden', // CRITICAL: Prevent text from affecting layout
-        }}>
-          {/* Product Name - STRICTLY FIXED with overflow */}
+          border: `1px solid ${themeColors.border}`,
+          boxShadow: 2,
+          transition: '0.2s',
+          '&:hover': { boxShadow: 6, borderColor: themeColors.accent },
+          borderRadius: 3,
+          background: '#fff'
+        }}
+      >
+        <Box
+          sx={{
+            width: '100%',
+            height: 150,
+            backgroundColor: 'grey.100',
+            borderRadius: '12px 12px 0 0',
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <img
+            src={imageUrl}
+            alt={product.name}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block'
+            }}
+          />
+        </Box>
+        <CardContent
+          sx={{
+            flex: '1 1 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            p: 2,
+            minHeight: 0
+          }}
+        >
           <Typography
             variant="subtitle1"
             fontWeight={600}
             sx={{
-              color: themeColors.text,
-              mb: 1,
-              lineHeight: 1.3,
-              fontSize: '0.9rem',
-              height: 40, // FIXED
               overflow: 'hidden',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              width: '100%', // Force full width
-              maxWidth: '100%', // Prevent expansion
               textOverflow: 'ellipsis',
-              whiteSpace: 'normal',
-              wordBreak: 'break-word',
+              display: '-webkit-box',
+              WebkitLineClamp: 1,
+              WebkitBoxOrient: 'vertical',
+              minHeight: '1.5em',
+              maxHeight: '1.5em'
             }}
           >
             {product.name}
           </Typography>
-          
-          {/* Product Description - STRICTLY FIXED with overflow */}
-          <Typography
-            variant="body2"
-            sx={{
-              color: themeColors.lightText,
-              fontSize: '0.75rem',
-              lineHeight: 1.4,
-              height: 60, // FIXED
-              overflow: 'hidden',
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-              width: '100%', // Force full width
-              maxWidth: '100%', // Prevent expansion
-              textOverflow: 'ellipsis',
-              whiteSpace: 'normal',
-              wordBreak: 'break-word',
-            }}
-          >
-            {product.description}
-          </Typography>
-        </Box>
-      </Box>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+            <Rating value={4.5} precision={0.5} size="small" readOnly />
+            <Typography variant="caption" sx={{ color: themeColors.lightText }}>
+              (24 reviews)
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto' }}>
+            <Typography
+              variant="h6"
+              sx={{ color: themeColors.secondary, fontWeight: 'bold', fontSize: '1.1rem' }}
+            >
+              Ksh{parseFloat(product.price).toLocaleString()}
+            </Typography>
+            {cartItem ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton
+                  size="small"
+                  onClick={() => updateQuantity(product.id, cartItem.quantity - 1)}
+                  sx={{ backgroundColor: themeColors.primary, color: 'white', '&:hover': { backgroundColor: alpha(themeColors.primary, 0.8) } }}
+                >
+                  <Remove />
+                </IconButton>
+                <Typography variant="body1" fontWeight="600">
+                  {cartItem.quantity}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
+                  sx={{ backgroundColor: themeColors.primary, color: 'white', '&:hover': { backgroundColor: alpha(themeColors.primary, 0.8) } }}
+                >
+                  <Add />
+                </IconButton>
+              </Box>
+            ) : (
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => addToCart(product)}
+                sx={{
+                  backgroundColor: themeColors.primary,
+                  color: 'white',
+                  fontWeight: '600',
+                  borderRadius: '8px',
+                  px: 2,
+                  py: 0.5,
+                  '&:hover': { backgroundColor: alpha(themeColors.primary, 0.9) }
+                }}
+              >
+                Add to Cart
+              </Button>
+            )}
+          </Box>
+        </CardContent>
+      </Card>
     );
   };
+  // --- END UNIFORM CARD ---
 
   if (loading) {
     return (
@@ -356,7 +277,8 @@ const filteredProducts = products
   return (
     <Box sx={{ background: 'transparent', boxShadow: 'none', position: 'absolute', width: '100%', zIndex: 10 }}>
       <Container maxWidth="xl" sx={{ py: 4, px: { xs: 1, sm: 2, md: 3 } }}>
-        <Card sx={{ mb: 4, p: 2, borderRadius: '16px', border: `1px solid ${themeColors.border}`, boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
+        {/* Search and Filters Card */}
+        <Card sx={{ mb: 2, p: 2, borderRadius: '16px', border: `1px solid ${themeColors.border}`, boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={4}>
               <TextField
@@ -373,27 +295,6 @@ const filteredProducts = products
                   ),
                 }}
               />
-            </Grid>
-
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth>
-                <InputLabel sx={{ color: themeColors.text }}>Category</InputLabel>
-                <Select
-                  value={selectedCategory}
-                  label="Category"
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  sx={{ borderRadius: '12px', backgroundColor: 'white' }}
-                >
-                  {categories.map(category => (
-                    <MenuItem key={category.id} value={category.id.toString()}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {category.icon}
-                        {category.name}
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
             </Grid>
 
             <Grid item xs={12} md={3}>
@@ -433,18 +334,57 @@ const filteredProducts = products
           </Grid>
         </Card>
 
-        {/* Grid with STRICT FIXED SIZES */}
-        <Grid container spacing={3} sx={{ 
-          mx: 'auto', 
-          px: { xs: 1, sm: 2, md: 3 }, 
-          width: '100%',
-          '& .MuiGrid-item': {
-            minWidth: 0, // Prevent grid items from expanding
-            overflow: 'hidden'
-          }
-        }}>
+        {/* Category Buttons Bar */}
+        <Box sx={{ mb: 4, px: { xs: 1, sm: 2, md: 3 } }}>
+          <Grid container spacing={1} alignItems="center">
+            {categories.map((category) => (
+              <Grid item key={category.id}>
+                <Button
+                  variant={selectedCategory === category.id.toString() ? 'contained' : 'outlined'}
+                  startIcon={category.icon}
+                  onClick={() => setSelectedCategory(category.id.toString())}
+                  sx={{
+                    textTransform: 'none',
+                    borderRadius: '12px',
+                    px: 2,
+                    py: 0.5,
+                    fontSize: '0.9rem',
+                    color: selectedCategory === category.id.toString() ? themeColors.white : themeColors.text,
+                    backgroundColor: selectedCategory === category.id.toString() ? themeColors.primary : 'transparent',
+                    borderColor: themeColors.border,
+                    '&:hover': {
+                      backgroundColor: selectedCategory === category.id.toString() ? alpha(themeColors.primary, 0.9) : alpha(themeColors.primary, 0.1),
+                      borderColor: themeColors.primary
+                    }
+                  }}
+                >
+                  {category.name}
+                </Button>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+
+        {/* Product Grid */}
+        <Grid
+          container
+          spacing={3}
+          sx={{ mx: 'auto', px: { xs: 1, sm: 2, md: 3 }, width: '100%' }}
+          alignItems="stretch"
+        >
           {paginatedProducts.map(product => (
-            <Grid item xs={12} sm={6} md={3} key={product.id} sx={{ display: 'flex' }}>
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={3}
+              lg={3}
+              key={product.id}
+              sx={{
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
               <ProductCard product={product} />
             </Grid>
           ))}
@@ -478,7 +418,6 @@ const filteredProducts = products
           </Box>
         )}
 
-        {/* Rest of the component remains the same */}
         <Fab
           color="primary"
           aria-label="cart"
@@ -497,7 +436,6 @@ const filteredProducts = products
           </Badge>
         </Fab>
 
-        {/* Filter and Cart drawers remain unchanged */}
         <Drawer
           anchor="right"
           open={filterDrawer}
@@ -519,24 +457,9 @@ const filteredProducts = products
               onChange={(e, newValue) => setPriceRange(newValue)}
               valueLabelDisplay="auto"
               min={0}
-              max={100000}
+              max={10000}
               sx={{ mb: 3 }}
             />
-            <Typography variant="subtitle1" gutterBottom>
-              Categories
-            </Typography>
-            <Box sx={{ mb: 3 }}>
-              {categories.map(category => (
-                <Chip
-                  key={category.id}
-                  label={category.name}
-                  variant={selectedCategory === category.id.toString() ? 'filled' : 'outlined'}
-                  color="primary"
-                  onClick={() => setSelectedCategory(category.id.toString())}
-                  sx={{ m: 0.5 }}
-                />
-              ))}
-            </Box>
             <Button
               fullWidth
               variant="contained"
@@ -639,6 +562,7 @@ const filteredProducts = products
           </Box>
         </Drawer>
       </Container>
+      <Footer/>
     </Box>
   );
 }
