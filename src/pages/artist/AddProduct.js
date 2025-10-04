@@ -4,7 +4,6 @@ import { Container, Typography, Box, Alert, Snackbar } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../../contexts/ProductContext';
 import ProductForm from '../../forms/ProductForm';
-import Navbar from '../../components/NavBar';
 
 export default function AddProduct() {
   const navigate = useNavigate();
@@ -33,7 +32,6 @@ export default function AddProduct() {
 
   return (
     <>
-      <Navbar />
       <Container maxWidth="xl" sx={{ py: 4 }}>
         <Box sx={{ mb: 4 }}>
           <Typography variant="h3" component="h1" fontWeight="bold" gutterBottom>

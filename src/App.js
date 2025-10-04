@@ -1,4 +1,3 @@
-// src/App.js
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -7,7 +6,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProductProvider } from './contexts/ProductContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
+import CustomerDashboard from './pages/customer/CustomerDashboard';
 import OAuthSuccess from './pages/OAuthSuccess';
 import ProductList from './pages/artist/ProductList';
 import AddProduct from './pages/artist/AddProduct';
@@ -26,39 +25,20 @@ import CRMDashboard from './pages/artist/CRMDashboard';
 import CustomerProfile from './pages/customer/CustomerProfile';
 import { WishlistProvider } from './contexts/WIshlistContext';
 import WishlistPage from './pages/customer/WishlistPage';
+import Navbar from './components/NavBar';
+import Dashboard from './pages/Dashboard';
+
 const theme = createTheme({
   palette: {
     mode: 'light',
-    primary: {
-      main: '#6366f1',
-    },
-    secondary: {
-      main: '#ec4899',
-    },
-    background: {
-      default: '#f8fafc',
-      paper: '#ffffff',
-    },
+    primary: { main: '#6366f1' },
+    secondary: { main: '#ec4899' },
+    background: { default: '#f8fafc', paper: '#ffffff' },
   },
-  shape: {
-    borderRadius: 12,
-  },
+  shape: { borderRadius: 12 },
   components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          fontWeight: 600,
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        },
-      },
-    },
+    MuiButton: { styleOverrides: { root: { textTransform: 'none', fontWeight: 600 } } },
+    MuiCard: { styleOverrides: { root: { boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' } } },
   },
 });
 
@@ -68,7 +48,7 @@ function ProtectedRoute({ children }) {
 }
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
   
   if (loading) {
     return (
@@ -80,17 +60,16 @@ function AppContent() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Navbar />
       <Box component="main" sx={{ flexGrow: 1 }}>
         <Routes>
-          <Route 
-            path="/" 
-            element={user ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} 
-          />
+          <Route path="/" element={<Navigate to="/customer/dashboard" />} /> {/* Redirect root to CustomerDashboard */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/oauth-success" element={<OAuthSuccess />} />
           
-          {/* Protected Routes */}
+          <Route path="/customer/dashboard" element={<CustomerDashboard />} /> {/* Public access */}
+          
           <Route 
             path="/dashboard" 
             element={
@@ -100,109 +79,19 @@ function AppContent() {
             } 
           />
           
-          {/* Artist Routes */}
-          <Route 
-            path="/artist/products" 
-            element={
-              <ProtectedRoute>
-                <ProductList />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/artist/CRM" 
-            element={
-              <ProtectedRoute>
-                <CRMDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/artist/products/new" 
-            element={
-              <ProtectedRoute>
-                <AddProduct />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/artist/products/edit/:id" 
-            element={
-              <ProtectedRoute>
-                <EditProduct />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/artist/profile" 
-            element={
-              <ProtectedRoute>
-                <ArtistProfile />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/artist/orders" 
-            element={
-              <ProtectedRoute>
-                <Orders />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/artist/analytics" 
-            element={
-              <ProtectedRoute>
-                <Analytics />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/artist/products" element={<ProtectedRoute><ProductList /></ProtectedRoute>} />
+          <Route path="/artist/CRM" element={<ProtectedRoute><CRMDashboard /></ProtectedRoute>} />
+          <Route path="/artist/products/new" element={<ProtectedRoute><AddProduct /></ProtectedRoute>} />
+          <Route path="/artist/products/edit/:id" element={<ProtectedRoute><EditProduct /></ProtectedRoute>} />
+          <Route path="/artist/profile" element={<ProtectedRoute><ArtistProfile /></ProtectedRoute>} />
+          <Route path="/artist/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+          <Route path="/artist/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
 
-          {/* Customer Routes */}
-            <Route 
-            path="/customer/wishist" 
-            element={
-              <ProtectedRoute>
-                <WishlistPage />
-              </ProtectedRoute>
-            } 
-          />
-
-          <Route 
-            path="/customer/orders" 
-            element={
-              <ProtectedRoute>
-                <CustomerOrders />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Shared Routes */}
-          <Route 
-            path="/orders/:id" 
-            element={
-              <ProtectedRoute>
-                <OrderDetail />
-              </ProtectedRoute>
-            } 
-          />
-
-          <Route 
-            path="/checkout" 
-            element={
-              <ProtectedRoute>
-                <Checkout />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/customer/profile" 
-            element={
-              <ProtectedRoute>
-                <CustomerProfile />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/customer/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
+          <Route path="/customer/orders" element={<ProtectedRoute><CustomerOrders /></ProtectedRoute>} />
+          <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+          <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+          <Route path="/customer/profile" element={<ProtectedRoute><CustomerProfile /></ProtectedRoute>} />
         </Routes>
       </Box>
     </Box>
@@ -218,9 +107,9 @@ function App() {
           <OrderProvider>
             <CartProvider>
               <WishlistProvider>
-          <Router>
-            <AppContent />
-          </Router>
+                <Router>
+                  <AppContent />
+                </Router>
               </WishlistProvider>
             </CartProvider>
           </OrderProvider>

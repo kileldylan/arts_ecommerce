@@ -1,4 +1,3 @@
-// src/pages/artist/ProductList.js
 import React, { useEffect, useState } from 'react';
 import {
   Box,
@@ -17,15 +16,20 @@ import {
   LinearProgress,
   Alert,
   Snackbar,
-  alpha
+  alpha,
+  TextField,
+  InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
-import { Add, Edit, Delete, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Add, Edit, Delete, Visibility, VisibilityOff, Search } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../../contexts/ProductContext';
 import { useAuth } from '../../contexts/AuthContext';
-import Navbar from '../../components/NavBar';
 
-const STATIC_BASE_URL = "http://localhost:5000"; // static file host
+const STATIC_BASE_URL = "http://localhost:5000";
 
 // Modern color palette
 const themeColors = {
@@ -38,6 +42,15 @@ const themeColors = {
   white: '#FFFFFF',
   border: '#ECF0F1'
 };
+
+// Categories to match database (same as CustomerDashboard)
+const categories = [
+  { id: 0, name: 'All Categories', slug: 'all' },
+  { id: 1, name: 'Jewelry', slug: 'jewelry' },
+  { id: 2, name: 'Paintings', slug: 'paintings' },
+  { id: 3, name: 'Sculptures', slug: 'sculptures' },
+  { id: 4, name: 'Wood Carvings', slug: 'wood-carvings' }
+];
 
 function getFirstImageUrl(product) {
   if (!product || !product.images || product.images.length === 0) return undefined;
@@ -63,6 +76,8 @@ export default function ProductList() {
   const { user } = useAuth();
   const [deleteDialog, setDeleteDialog] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('0');
 
   useEffect(() => {
     if (user) {
@@ -91,10 +106,19 @@ export default function ProductList() {
     }
   };
 
+  // Apply filters
+  const filteredProducts = artistProducts.filter((product) => {
+    const matchesCategory = selectedCategory === '0' || product.category_id === parseInt(selectedCategory);
+    const matchesSearch =
+      !searchTerm ||
+      (product.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.description || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
   if (loading && artistProducts.length === 0) {
     return (
       <>
-        <Navbar />
         <Box sx={{ width: '100%' }}>
           <LinearProgress />
         </Box>
@@ -104,7 +128,6 @@ export default function ProductList() {
 
   return (
     <>
-      <Navbar />
       <Container maxWidth="xl" sx={{ py: 3 }}>
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -139,9 +162,42 @@ export default function ProductList() {
           </Alert>
         )}
 
+        {/* Search and Category Filter */}
+        <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
+          <TextField
+            fullWidth
+            placeholder="Search by name or description..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', backgroundColor: 'white', maxWidth: '400px' } }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ color: themeColors.lightText }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <FormControl sx={{ minWidth: 200 }}>
+            <InputLabel sx={{ color: themeColors.text }}>Category</InputLabel>
+            <Select
+              value={selectedCategory}
+              label="Category"
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              sx={{ borderRadius: '12px', backgroundColor: 'white' }}
+            >
+              {categories.map(category => (
+                <MenuItem key={category.id} value={category.id.toString()}>
+                  {category.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+
         {/* Products Grid */}
         <Grid container spacing={2}>
-          {artistProducts.length === 0 ? (
+          {filteredProducts.length === 0 ? (
             <Grid item xs={12}>
               <Card>
                 <CardContent sx={{ textAlign: 'center', py: 6 }}>
@@ -162,7 +218,7 @@ export default function ProductList() {
               </Card>
             </Grid>
           ) : (
-            artistProducts.map((product) => {
+            filteredProducts.map((product) => {
               const imageUrl = getFirstImageUrl(product);
               return (
                 <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>

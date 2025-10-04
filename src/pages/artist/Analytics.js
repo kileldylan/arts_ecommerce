@@ -32,7 +32,6 @@ import {
 } from '@mui/icons-material';
 import api from '../../utils/axios';
 import { useAuth } from '../../contexts/AuthContext';
-import Navbar from '../../components/NavBar';
 
 const themeColors = {
   primary: '#2C3E50',
@@ -246,7 +245,6 @@ export default function AnalyticsDashboard() {
 
   return (
     <>
-    <Navbar/>
     <Box sx={{ 
       minHeight: '100vh', 
       backgroundColor: themeColors.background,

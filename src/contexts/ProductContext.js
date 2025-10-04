@@ -20,30 +20,30 @@ export function ProductProvider({ children }) {
   const [error, setError] = useState(null);
   const { user } = useAuth();
 
-const getAllProducts = useCallback(async (filters = {}) => {
-  setLoading(true);
-  setError(null);
-  try {
-    console.log('Sending filters:', filters); // ← Debug log
-    console.log('API base URL:', api.defaults.baseURL); // ← Check base URL
-    
-    const response = await api.get('/products/all', { 
-      params: filters 
-    });
-    
-    console.log('Response received:', response.data); // ← Debug response
-    setProducts(response.data);
-    return response.data;
-  } catch (err) {
-    console.error('Full error object:', err); // ← More detailed error logging
-    console.error('Error config:', err.config); // ← See the request that failed
-    const errorMessage = err.response?.data?.message || 'Failed to fetch products';
-    setError(errorMessage);
-    throw new Error(errorMessage);
-  } finally {
-    setLoading(false);
-  }
-}, [setLoading, setError, setProducts]);
+  const getAllProducts = useCallback(async (filters = {}) => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('Sending filters:', filters); // ← Debug log
+      console.log('API base URL:', api.defaults.baseURL); // ← Check base URL
+      
+      const response = await api.get('/products/all', { 
+        params: filters 
+      });
+      
+      console.log('Response received:', response.data); // ← Debug response
+      setProducts(response.data);
+      return response.data;
+    } catch (err) {
+      console.error('Full error object:', err); // ← More detailed error logging
+      console.error('Error config:', err.config); // ← See the request that failed
+      const errorMessage = err.response?.data?.message || 'Failed to fetch products';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [setLoading, setError, setProducts]);
 
   const getArtistProducts = useCallback(async (artistId = null) => {
     setLoading(true);

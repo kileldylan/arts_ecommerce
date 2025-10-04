@@ -4,7 +4,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Typography, Box, CircularProgress, Alert, Snackbar } from '@mui/material';
 import { useProducts } from '../../contexts/ProductContext';
 import ProductForm from '../../forms/ProductForm';
-import Navbar from '../../components/NavBar';
 
 export default function EditProduct() {
   const { id } = useParams();
@@ -65,7 +64,6 @@ export default function EditProduct() {
   if (fetchLoading) {
     return (
       <>
-        <Navbar />
         <Container maxWidth="xl" sx={{ py: 4, textAlign: 'center' }}>
           <CircularProgress />
           <Typography variant="body1" sx={{ mt: 2 }}>
@@ -79,7 +77,6 @@ export default function EditProduct() {
   if (!product) {
     return (
       <>
-        <Navbar />
         <Container maxWidth="xl" sx={{ py: 4, textAlign: 'center' }}>
           <Typography variant="h6" color="error">
             Product not found
@@ -91,7 +88,6 @@ export default function EditProduct() {
 
   return (
     <>
-      <Navbar />
       <Container maxWidth="xl" sx={{ py: 4 }}>
         <Box sx={{ mb: 4 }}>
           <Typography variant="h3" component="h1" fontWeight="bold" gutterBottom>

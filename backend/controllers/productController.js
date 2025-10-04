@@ -114,8 +114,7 @@ exports.createProduct = (req, res) => {
       cost_per_item: parseNumber(cost_per_item),
       category_id: parseInt(category_id),
       artist_id: req.user.id, // ✅ Use authenticated user's ID
-      sku: sku || '',
-      barcode: barcode || '',
+      sku: sku === '' || sku === undefined || sku === null ? null : sku,      barcode: barcode || '',
       quantity: parseInt(quantity) || 0,
       allow_out_of_stock_purchases: parseBoolean(allow_out_of_stock_purchases),
       weight: parseNumber(weight),

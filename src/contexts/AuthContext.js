@@ -1,4 +1,3 @@
-// src/contexts/AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext();
@@ -16,71 +15,79 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-    const savedUser = sessionStorage.getItem('user') || localStorage.getItem('user');
-    
-    if (token && savedUser) {
-      // Don't set user immediately, wait for verification
-      fetchUserProfile(token);
-    } else {
-      setLoading(false);
-    }
-  }, []);
+    const initAuth = async () => {
+      const token = sessionStorage.getItem('token'); // Use sessionStorage only
+      const savedUser = sessionStorage.getItem('user');
 
-  const fetchUserProfile = async (token) => {
-    try {
-      const response = await fetch('http://localhost:5000/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      if (token && savedUser) {
+        try {
+          const response = await fetch('http://localhost:5000/api/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+
+          if (response.ok) {
+            const userData = await response.json();
+            setUser(userData);
+            sessionStorage.setItem('user', JSON.stringify(userData)); // Update with fresh data
+          } else {
+            clearAuthData(); // Clear if token is invalid
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+          clearAuthData(); // Clear on network error
         }
-      });
-      
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-        // Store in both sessionStorage (for tab isolation) and localStorage (for persistence)
-        sessionStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('user', JSON.stringify(userData));
-        sessionStorage.setItem('token', token);
-        localStorage.setItem('token', token);
       } else {
-        clearAuthData();
+        clearAuthData(); // No token or user, start fresh
       }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      clearAuthData();
-    } finally {
-      setLoading(false);
-    }
-  };
+      setLoading(false); // Set loading to false after initialization
+    };
+
+    initAuth();
+  }, []); // Run once on mount
 
   const clearAuthData = () => {
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
     setUser(null);
+  };
+
+  const fetchUserProfile = async (token) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+        sessionStorage.setItem('token', token);
+        sessionStorage.setItem('user', JSON.stringify(userData));
+        return { success: true, user: userData };
+      } else {
+        clearAuthData();
+        return { success: false, error: 'Invalid token' };
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      clearAuthData();
+      return { success: false, error: 'Network error' };
+    }
   };
 
   const login = async (email, password, userType) => {
     try {
       const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         const { token, user: userData } = data;
-        // Store in both sessionStorage (for tab isolation) and localStorage (for persistence)
         sessionStorage.setItem('token', token);
-        localStorage.setItem('token', token);
         sessionStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
         return { success: true };
       } else {
@@ -95,21 +102,16 @@ export function AuthProvider({ children }) {
     try {
       const response = await fetch('http://localhost:5000/api/auth/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         const { token, user: userData } = data;
-        // Store in both sessionStorage (for tab isolation) and localStorage (for persistence)
         sessionStorage.setItem('token', token);
-        localStorage.setItem('token', token);
         sessionStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
         return { success: true };
       } else {
@@ -126,11 +128,12 @@ export function AuthProvider({ children }) {
 
   const value = {
     user,
+    isAuthenticated: !!user,
     login,
     register,
     logout,
     loading,
-    fetchUserProfile
+    fetchUserProfile, // Added back to the context value
   };
 
   return (

@@ -2,14 +2,12 @@
 import React from "react";
 import { Box, Grid, Typography } from "@mui/material";
 import { useWishlist } from "../../contexts/WIshlistContext";
-import Navbar from "../../components/NavBar";
 
 export default function WishlistPage() {
   const { wishlist } = useWishlist();
 
   return (
     <>
-      <Navbar />
       <Box sx={{ p: 4 }}>
         <Typography variant="h4" fontWeight={700} mb={3}>
           My Wishlist

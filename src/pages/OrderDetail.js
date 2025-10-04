@@ -32,7 +32,6 @@ import {
 } from '@mui/icons-material';
 import { useOrders } from '../contexts/OrderContext';
 import { useAuth } from '../contexts/AuthContext';
-import Navbar from '../components/NavBar';
 
 const themeColors = {
   primary: '#2C3E50',
@@ -89,7 +88,6 @@ export default function OrderDetail() {
   if (loading || !order) {
     return (
       <>
-        <Navbar />
         <Container maxWidth="lg" sx={{ py: 6, textAlign: 'center' }}>
           <CircularProgress />
           <Typography variant="body1" sx={{ mt: 2 }}>
@@ -102,7 +100,6 @@ export default function OrderDetail() {
 
   return (
     <>
-      <Navbar />
       <Container maxWidth="lg" sx={{ py: 6 }}>
         <Button
           startIcon={<ArrowBack />}

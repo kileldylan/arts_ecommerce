@@ -24,7 +24,6 @@ import {
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '../../components/NavBar';
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'warning', icon: <Pending /> },
@@ -159,7 +158,6 @@ export default function CustomerOrders() {
 
   return (
     <>
-    <Navbar/>
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h3" fontWeight="bold" gutterBottom>
         My Orders

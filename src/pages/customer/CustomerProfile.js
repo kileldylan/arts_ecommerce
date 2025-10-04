@@ -5,7 +5,6 @@ import {
 } from '@mui/material';
 import { Edit, Save, CameraAlt } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
-import Navbar from '../../components/NavBar';
 
 export default function CustomerProfile() {
   const { user } = useAuth();
@@ -64,7 +63,6 @@ export default function CustomerProfile() {
 
   return (
     <>
-      <Navbar />
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Typography variant="h3" fontWeight="bold" gutterBottom>
           My Profile

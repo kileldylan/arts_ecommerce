@@ -25,7 +25,6 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
-import Navbar from '../components/NavBar';
 
 // Modern color palette
 const themeColors = {
@@ -208,7 +207,6 @@ export default function ArtistDashboard() {
 
   return (
     <>
-      <Navbar />
       <Box
         sx={{
           flexGrow: 1,
