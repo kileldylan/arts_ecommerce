@@ -1,5 +1,15 @@
-// backend/server.js
 require('dotenv').config();
+
+// Memory optimization - set at the very top
+const v8 = require('v8');
+v8.setFlagsFromString('--max-old-space-size=512');
+
+// Log memory configuration
+console.log('=== Memory Configuration ===');
+console.log('Heap Size Limit:', Math.round(v8.getHeapStatistics().heap_size_limit / 1024 / 1024) + ' MB');
+console.log('Node Flags: --max-old-space-size=512');
+console.log('============================');
+
 const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
@@ -24,9 +34,21 @@ const healthRoutes = require('./routes/health');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// ======================= MEMORY MONITORING =======================
+const startMemoryMonitoring = () => {
+  setInterval(() => {
+    const memUsage = process.memoryUsage();
+    console.log('=== Memory Monitor ===');
+    console.log('RSS:', Math.round(memUsage.rss / 1024 / 1024) + ' MB');
+    console.log('Heap Used:', Math.round(memUsage.heapUsed / 1024 / 1024) + ' MB');
+    console.log('Heap Total:', Math.round(memUsage.heapTotal / 1024 / 1024) + ' MB');
+    console.log('=====================');
+  }, 300000); // Log every 5 minutes
+};
+
 // ======================= SECURITY MIDDLEWARE =======================
 app.use(securityHeaders);
-app.use(compression());
+app.use(compression({ level: 6 })); // Balanced compression level
 
 // ======================= CORS CONFIGURATION =======================
 const allowedOrigins = [
@@ -56,26 +78,32 @@ app.use(cors({
 app.use(apiLimiter);
 app.use(speedLimiter);
 
-// ======================= BODY PARSING =======================
+// ======================= BODY PARSING (OPTIMIZED) =======================
 app.use(express.json({ 
-  limit: '10mb',
+  limit: '5mb', // Reduced from 10mb to save memory
   verify: (req, res, buf) => {
     req.rawBody = buf;
   }
 }));
 app.use(express.urlencoded({ 
   extended: true, 
-  limit: '10mb' 
+  limit: '5mb' // Reduced from 10mb
 }));
 
 // ======================= LOGGING & SANITIZATION =======================
-app.use(requestLogger);
+// Only use detailed logging in development
+if (process.env.NODE_ENV === 'development') {
+  app.use(requestLogger);
+}
 app.use(sanitizeInput);
 
 // ======================= STATIC FILES =======================
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   maxAge: '1d', // Cache static files for 1 day
-  etag: true
+  etag: true,
+  // Optimize memory usage for static files
+  cacheControl: true,
+  lastModified: true
 }));
 
 // ======================= HEALTH CHECK =======================
@@ -101,6 +129,24 @@ app.get('/', (req, res) => {
   });
 });
 
+// ======================= MEMORY HEALTH CHECK =======================
+app.get('/memory-health', (req, res) => {
+  const memUsage = process.memoryUsage();
+  const heapStats = v8.getHeapStatistics();
+  
+  res.json({
+    status: 'healthy',
+    memory: {
+      rss: Math.round(memUsage.rss / 1024 / 1024) + ' MB',
+      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + ' MB',
+      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + ' MB',
+      heapLimit: Math.round(heapStats.heap_size_limit / 1024 / 1024) + ' MB'
+    },
+    uptime: Math.round(process.uptime()) + ' seconds',
+    nodeVersion: process.version
+  });
+});
+
 // ======================= 404 HANDLER =======================
 app.use('*', (req, res) => {
   res.status(404).json({
@@ -121,9 +167,10 @@ app.use((error, req, res, next) => {
     ip: req.ip
   });
 
-  // Log to file or external service in production
-  if (process.env.NODE_ENV === 'production') {
-    // Here you could log to Sentry, LogRocket, etc.
+  // Memory cleanup on error
+  if (global.gc) {
+    console.log('🔄 Triggering garbage collection due to error');
+    global.gc();
   }
 
   res.status(500).json({
@@ -136,15 +183,24 @@ app.use((error, req, res, next) => {
 });
 
 // ======================= GRACEFUL SHUTDOWN =======================
-process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM received, shutting down gracefully');
-  process.exit(0);
-});
+const gracefulShutdown = () => {
+  console.log('🛑 Shutdown signal received, shutting down gracefully');
+  
+  // Close server and cleanup
+  server.close(() => {
+    console.log('✅ HTTP server closed');
+    process.exit(0);
+  });
 
-process.on('SIGINT', () => {
-  console.log('🛑 SIGINT received, shutting down gracefully');
-  process.exit(0);
-});
+  // Force exit after 10 seconds
+  setTimeout(() => {
+    console.log('⚠️  Forcing shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
 
 // ======================= START SERVER =======================
 const server = app.listen(PORT, '0.0.0.0', () => {
@@ -155,8 +211,12 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🕒 Started at: ${new Date().toISOString()}`);
   console.log(`📊 Database: Supabase`);
-  console.log(`💾 Caching: ${process.env.REDIS_URL ? 'Redis Enabled' : 'Redis Disabled'}`);
+  console.log(`💾 Caching: Memory Only (Redis Removed)`);
+  console.log(`🧠 Memory Limit: 512MB`);
   console.log('='.repeat(50) + '\n');
+  
+  // Start memory monitoring
+  startMemoryMonitoring();
 });
 
 // Handle server errors
