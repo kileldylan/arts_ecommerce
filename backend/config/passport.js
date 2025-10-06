@@ -20,14 +20,13 @@ passport.deserializeUser((id, done) => {
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "/api/auth/google/callback", // Remove localhost:5000
-  scope: ['profile', 'email'], // Add required scopes
+  callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:5000/api/auth/google/callback",
+  scope: ['profile', 'email'],
   passReqToCallback: true
 }, async (req, accessToken, refreshToken, profile, done) => {
   try {
     console.log('Google profile received:', profile);
     
-    // Check if we have the necessary profile data
     if (!profile || !profile.emails || !profile.emails[0]) {
       return done(new Error("No email provided by Google"), null);
     }
@@ -36,37 +35,23 @@ passport.use(new GoogleStrategy({
     const name = profile.displayName || profile.name?.givenName || 'Google User';
     const avatar = profile.photos && profile.photos[0] ? profile.photos[0].value : '';
     
-    console.log('Processing Google user:', { email, name });
-    
-    // Check if user already exists
     User.findByEmail(email, async (err, users) => {
-      if (err) {
-        console.error('Error finding user by email:', err);
-        return done(err);
-      }
+      if (err) return done(err);
 
       if (users && users.length > 0) {
-        console.log('Existing user found:', users[0]);
         return done(null, users[0]);
       } else {
-        // Create new user
         const newUser = {
-          name: name,
-          email: email,
+          name,
+          email,
           password: '',
-          user_type: 'customer', // Changed from userType to user_type to match your DB
-          avatar: avatar,
-          google_id: profile.id // Changed from googleId to google_id to match your DB
+          user_type: 'customer',
+          avatar,
+          google_id: profile.id
         };
 
-        console.log('Creating new user:', newUser);
-        
         User.create(newUser, (err, user) => {
-          if (err) {
-            console.error('Error creating user:', err);
-            return done(err);
-          }
-          console.log('User created successfully:', user);
+          if (err) return done(err);
           return done(null, user);
         });
       }
