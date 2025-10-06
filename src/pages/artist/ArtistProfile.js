@@ -18,7 +18,7 @@ export default function ArtistProfile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/users/profile/${user?.id}`, {
+        const res = await fetch(`https://branchiartsgifts.vercel.app/api/users/profile/${user?.id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();

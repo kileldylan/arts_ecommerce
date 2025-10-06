@@ -41,7 +41,7 @@ export default function CustomerProfile() {
     if (avatarFile) formData.append('avatar', avatarFile);
 
     try {
-      const res = await fetch('http://localhost:5000/api/users/profile', {
+      const res = await fetch('https://branchiartsgifts.vercel.app/api/users/profile', {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}` },
         body: formData
