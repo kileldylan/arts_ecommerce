@@ -15,7 +15,7 @@ export default function OAuthSuccess() {
           // Redirect based on user type
           const userType = user.user_metadata?.user_type || 'customer';
           if (userType === 'artist') {
-            navigate('/artist/profile');
+            navigate('/dashboard');
           } else {
             navigate('/customer/dashboard');
           }
