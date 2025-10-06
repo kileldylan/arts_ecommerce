@@ -1,4 +1,3 @@
-//// src/pages/Register.js
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,9 +22,7 @@ export default function Register() {
     confirmPassword: '',
     showPassword: false,
     showConfirmPassword: false,
-    // Customer specific
     phone: '',
-    // Artist specific
     bio: '',
     specialty: '',
     portfolio: '',
@@ -96,12 +93,10 @@ export default function Register() {
     if (result.success) {
       if (result.needsEmailVerification) {
         setMessage('Please check your email to verify your account before logging in.');
-        // Optionally redirect to login page after a delay
         setTimeout(() => {
           navigate('/login');
         }, 5000);
       } else {
-        // User is automatically logged in (rare case)
         navigate(userType === 'artist' ? '/artist/profile' : '/customer/dashboard');
       }
     } else {
@@ -113,13 +108,19 @@ export default function Register() {
 
   const handleGoogleRegister = async () => {
     try {
-      const result = await loginWithGoogle();
+      setLoading(true);
+      setError('');
+      // ✅ FIXED: Pass the selected user type to Google OAuth
+      const result = await loginWithGoogle(userType);
+      
       if (!result.success) {
-        setError(result.error);
+        setError(result.error || 'Google sign-in failed');
       }
-      // User will be redirected to Google OAuth
     } catch (error) {
+      console.error('Google OAuth error:', error);
       setError('Failed to sign in with Google');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -356,7 +357,7 @@ export default function Register() {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Button
                     onClick={handleBack}
-                    disabled={activeStep === 0}
+                    disabled={activeStep === 0 || loading}
                   >
                     Back
                   </Button>
@@ -375,6 +376,7 @@ export default function Register() {
                       variant="contained"
                       onClick={handleNext}
                       sx={{ px: 4 }}
+                      disabled={loading}
                     >
                       Next
                     </Button>
@@ -394,7 +396,7 @@ export default function Register() {
                         onClick={handleGoogleRegister}
                         disabled={loading}
                       >
-                        Sign up with Google
+                        {loading ? 'Connecting...' : 'Sign up with Google'}
                       </Button>
                     </Box>
                     

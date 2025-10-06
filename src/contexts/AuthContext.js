@@ -44,7 +44,12 @@ export function AuthProvider({ children }) {
         console.log('Auth event:', event, session);
         
         if (session?.user) {
-          await fetchUserProfile(session.user);
+          // For OAuth sign-ins, create profile and user records
+          if (event === 'SIGNED_IN') {
+            await handleOAuthSignIn(session.user);
+          } else {
+            await fetchUserProfile(session.user);
+          }
         } else {
           setUser(null);
         }
@@ -55,10 +60,100 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  const handleOAuthSignIn = async (authUser) => {
+    try {
+      // First, try to fetch existing profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (profileError && profileError.code === 'PGRST116') {
+        // Profile doesn't exist, create both profile and user records
+        await createProfileAndUserRecords(authUser);
+      } else if (profileError) {
+        throw profileError;
+      } else {
+        // Profile exists, just update user data
+        const userData = {
+          ...authUser,
+          profile: profile
+        };
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error('Error in handleOAuthSignIn:', error);
+      setUser(authUser); // Fallback to just auth user
+    }
+  };
+  
+  const createProfileAndUserRecords = async (authUser) => {
+    try {
+      const userMetadata = authUser.user_metadata || {};
+      const fullName = userMetadata.full_name || userMetadata.name || '';
+      const [firstName, ...lastNameParts] = fullName.split(' ');
+      const lastName = lastNameParts.join(' ') || '';
+
+      // For Google OAuth, we don't have a password, so we'll handle it differently
+      const userType = userMetadata.user_type || 'customer';
+
+      // 1. Create profile record (Supabase auth profiles)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            id: authUser.id,
+            email: authUser.email,
+            first_name: firstName,
+            last_name: lastName,
+            user_type: userType,
+            avatar_url: userMetadata.avatar_url,
+            created_at: new Date().toISOString(),
+          }
+        ]);
+
+      if (profileError) throw profileError;
+
+      // 2. Create record in your existing users table
+      const { error: userError } = await supabase
+        .from('users')
+        .insert([
+          {
+            id: authUser.id, // Using the same UUID from auth.users
+            name: fullName,
+            email: authUser.email,
+            password: 'oauth-user-no-password', // Placeholder for OAuth users
+            user_type: userType,
+            phone: null, // Can be updated later
+            bio: userMetadata.bio || null,
+            specialty: userMetadata.specialty || null,
+            portfolio: userMetadata.portfolio || null,
+            social_media: userMetadata.social_media || null,
+            avatar: userMetadata.avatar_url || null,
+            is_verified: 1, // OAuth users are typically verified
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+        ]);
+
+      if (userError && !userError.message.includes('duplicate key')) {
+        console.warn('Error creating users table record:', userError);
+        // Don't throw error for users table - it might have constraints
+      }
+
+      // Fetch the newly created profile
+      await fetchUserProfile(authUser);
+    } catch (error) {
+      console.error('Error creating profile and user records:', error);
+      throw error;
+    }
+  };
+
   const fetchUserProfile = async (authUser) => {
     try {
       const { data: profile, error } = await supabase
-        .from('profiles')  // Changed from 'users' to 'profiles'
+        .from('profiles')
         .select('*')
         .eq('id', authUser.id)
         .single();
@@ -67,7 +162,7 @@ export function AuthProvider({ children }) {
         console.error('Error fetching profile:', error);
         // If profile doesn't exist, create one
         if (error.code === 'PGRST116') {
-          await createUserProfile(authUser);
+          await createProfileAndUserRecords(authUser);
           return;
         }
         throw error;
@@ -84,30 +179,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const createUserProfile = async (authUser) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')  // Changed from 'users' to 'profiles'
-        .insert([
-          {
-            id: authUser.id,
-            email: authUser.email,
-            first_name: authUser.user_metadata?.first_name || '',
-            last_name: authUser.user_metadata?.last_name || '',
-            user_type: authUser.user_metadata?.user_type || 'customer',
-            created_at: new Date().toISOString(),
-          }
-        ]);
-
-      if (error) throw error;
-
-      // Fetch the newly created profile
-      await fetchUserProfile(authUser);
-    } catch (error) {
-      console.error('Error creating profile:', error);
-    }
-  };
-
   const login = async (email, password) => {
     try {
       setLoading(true);
@@ -120,7 +191,8 @@ export function AuthProvider({ children }) {
 
       if (data.user) {
         await fetchUserProfile(data.user);
-        return { success: true, user: user };
+        // ✅ FIXED: Return data.user instead of user state
+        return { success: true, user: data.user };
       }
 
       return { success: false, error: 'Login failed' };
@@ -143,6 +215,11 @@ export function AuthProvider({ children }) {
             first_name: userData.firstName,
             last_name: userData.lastName,
             user_type: userData.userType,
+            bio: userData.bio,
+            specialty: userData.specialty,
+            portfolio: userData.portfolio,
+            social_media: userData.socialMedia,
+            phone: userData.phone,
           },
           emailRedirectTo: `${window.location.origin}/oauth-success`,
         },
@@ -150,8 +227,10 @@ export function AuthProvider({ children }) {
 
       if (error) throw error;
 
-      // Profile will be created automatically via the fetchUserProfile function
-      // when the user confirms their email and logs in
+      // For email/password registration, also create profile immediately
+      if (data.user && data.session) {
+        await createProfileAndUserRecords(data.user);
+      }
 
       return { 
         success: true, 
@@ -166,7 +245,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (userType = 'customer') => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -175,6 +254,10 @@ export function AuthProvider({ children }) {
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
+          },
+          // Pass user type as additional data
+          data: {
+            user_type: userType,
           }
         }
       });

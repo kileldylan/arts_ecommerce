@@ -1,20 +1,18 @@
-// src/pages/Login.js
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Card, CardContent, TextField, Button, Typography, Box,
-  Divider, Alert, Container, FormControl
+  Divider, Alert, Container
 } from '@mui/material';
 import { Google } from '@mui/icons-material';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [userType, setUserType] = useState('customer');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -27,15 +25,39 @@ export default function Login() {
     setLoading(true);
     setError('');
     
-    const result = await login(email, password, userType);
+    const result = await login(email, password);
     
     if (result.success) {
-      navigate(userType === 'admin' ? '/admin' : '/dashboard');
+      // Determine redirect based on user type
+      const userType = result.user?.user_metadata?.user_type || 'customer';
+      if (userType === 'artist') {
+        navigate('/artist/profile');
+      } else {
+        navigate('/customer/dashboard');
+      }
     } else {
       setError(result.error);
     }
     
     setLoading(false);
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const result = await loginWithGoogle('customer');
+      
+      if (!result.success) {
+        setError(result.error || 'Google login failed');
+      }
+      // User will be redirected to Google OAuth automatically
+    } catch (error) {
+      console.error('Google login error:', error);
+      setError('Failed to sign in with Google');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -53,9 +75,6 @@ export default function Login() {
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
             
             <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-              <FormControl component="fieldset" sx={{ width: '100%', mb: 2 }}>
-              </FormControl>
-              
               <TextField
                 margin="normal"
                 required
@@ -91,7 +110,7 @@ export default function Login() {
               </Button>
               
               <Box sx={{ textAlign: 'center', mb: 2 }}>
-                <Link to="/forgot-password" style={{ textDecoration: 'none' }}>
+                <Link to="/forgot-password" style={{ textDecoration: 'none', color: '#6366f1' }}>
                   Forgot password?
                 </Link>
               </Box>
@@ -100,20 +119,21 @@ export default function Login() {
               
               <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
                 <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<Google />}
-                sx={{ py: 1.5 }}
-                onClick={() => window.location.href = 'http://localhost:5000/api/auth/google'}
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<Google />}
+                  sx={{ py: 1.5 }}
+                  onClick={handleGoogleLogin}
+                  disabled={loading}
                 >
-                Google
+                  {loading ? 'Signing in...' : 'Sign in with Google'}
                 </Button>
               </Box>
               
               <Box sx={{ textAlign: 'center' }}>
                 <Typography variant="body2" color="text.secondary">
                   Don't have an account?{' '}
-                  <Link to="/register" style={{ textDecoration: 'none', fontWeight: 600 }}>
+                  <Link to="/register" style={{ textDecoration: 'none', fontWeight: 600, color: '#6366f1' }}>
                     Sign up
                   </Link>
                 </Typography>
