@@ -17,24 +17,100 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        if (session?.user) {
+          // Fetch user profile from profiles table
+          await fetchUserProfile(session.user);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Error getting session:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getInitialSession();
 
     // Listen for auth changes
-    const { data: listener } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setUser(session?.user ?? null);
+        console.log('Auth event:', event, session);
+        
+        if (session?.user) {
+          await fetchUserProfile(session.user);
+        } else {
+          setUser(null);
+        }
         setLoading(false);
       }
     );
 
-    return () => listener.subscription.unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
+
+  const fetchUserProfile = async (authUser) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')  // Changed from 'users' to 'profiles'
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        // If profile doesn't exist, create one
+        if (error.code === 'PGRST116') {
+          await createUserProfile(authUser);
+          return;
+        }
+        throw error;
+      }
+
+      const userData = {
+        ...authUser,
+        profile: profile
+      };
+      setUser(userData);
+    } catch (error) {
+      console.error('Error in fetchUserProfile:', error);
+      setUser(authUser); // Fallback to just auth user
+    }
+  };
+
+  const createUserProfile = async (authUser) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')  // Changed from 'users' to 'profiles'
+        .insert([
+          {
+            id: authUser.id,
+            email: authUser.email,
+            first_name: authUser.user_metadata?.first_name || '',
+            last_name: authUser.user_metadata?.last_name || '',
+            user_type: authUser.user_metadata?.user_type || 'customer',
+            created_at: new Date().toISOString(),
+          }
+        ]);
+
+      if (error) throw error;
+
+      // Fetch the newly created profile
+      await fetchUserProfile(authUser);
+    } catch (error) {
+      console.error('Error creating profile:', error);
+    }
+  };
 
   const login = async (email, password) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -42,68 +118,87 @@ export function AuthProvider({ children }) {
 
       if (error) throw error;
 
-      // Fetch additional user data from your "users" table
       if (data.user) {
-        const { data: userRecord, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('email', data.user.email)
-          .single();
-
-        if (!userError && userRecord) {
-          const userData = { ...data.user, details: userRecord };
-          setUser(userData);
-          return { success: true, user: userData };
-        }
+        await fetchUserProfile(data.user);
+        return { success: true, user: user };
       }
 
-      return { success: true, user: data.user };
+      return { success: false, error: 'Login failed' };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
     }
   };
 
   const register = async (userData) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
         options: {
           data: {
-            name: `${userData.firstName} ${userData.lastName}`,
+            first_name: userData.firstName,
+            last_name: userData.lastName,
             user_type: userData.userType,
           },
+          emailRedirectTo: `${window.location.origin}/oauth-success`,
         },
       });
 
       if (error) throw error;
 
-      // Insert user record in your Supabase "users" table
-      if (data.user) {
-        const { error: insertError } = await supabase.from('users').insert([
-          {
-            name: `${userData.firstName} ${userData.lastName}`,
-            email: userData.email,
-            password: userData.password, // optional (you might hash this if backend)
-            user_type: userData.userType,
-          },
-        ]);
+      // Profile will be created automatically via the fetchUserProfile function
+      // when the user confirms their email and logs in
 
-        if (insertError) throw insertError;
-      }
-
-      return { success: true, user: data.user };
+      return { 
+        success: true, 
+        user: data.user,
+        needsEmailVerification: !data.session // If no session, email verification was sent
+      };
     } catch (error) {
       console.error('Registration error:', error);
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithGoogle = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/oauth-success`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      });
+
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      console.error('Google login error:', error);
       return { success: false, error: error.message };
     }
   };
 
   const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    setUser(null);
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const value = {
@@ -111,6 +206,7 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!user,
     login,
     register,
+    loginWithGoogle,
     logout,
     loading,
   };

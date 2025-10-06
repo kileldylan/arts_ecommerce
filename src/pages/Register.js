@@ -1,4 +1,4 @@
-// src/pages/Register.js
+//// src/pages/Register.js
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,7 +16,8 @@ export default function Register() {
   const [activeStep, setActiveStep] = useState(0);
   const [userType, setUserType] = useState('customer');
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -29,20 +30,22 @@ export default function Register() {
     specialty: '',
     portfolio: '',
     socialMedia: '',
-    // Admin specific (will be invite only)
-    inviteCode: ''
   });
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleNext = () => {
     if (activeStep === 0) {
       setActiveStep(1);
     } else if (activeStep === 1) {
-      if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
+      if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword) {
         return setError('Please fill in all required fields');
+      }
+      if (formData.password.length < 6) {
+        return setError('Password must be at least 6 characters long');
       }
       if (formData.password !== formData.confirmPassword) {
         return setError('Passwords do not match');
@@ -73,9 +76,11 @@ export default function Register() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setMessage('');
 
     const userData = {
-      name: formData.name,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
       email: formData.email,
       password: formData.password,
       userType: userType,
@@ -84,18 +89,38 @@ export default function Register() {
       specialty: formData.specialty,
       portfolio: formData.portfolio,
       socialMedia: formData.socialMedia,
-      inviteCode: formData.inviteCode
     };
 
     const result = await register(userData);
     
     if (result.success) {
-      navigate(userType === 'admin' ? '/admin' : userType === 'artist' ? '/artist/profile' : '/dashboard');
+      if (result.needsEmailVerification) {
+        setMessage('Please check your email to verify your account before logging in.');
+        // Optionally redirect to login page after a delay
+        setTimeout(() => {
+          navigate('/login');
+        }, 5000);
+      } else {
+        // User is automatically logged in (rare case)
+        navigate(userType === 'artist' ? '/artist/profile' : '/customer/dashboard');
+      }
     } else {
       setError(result.error);
     }
     
     setLoading(false);
+  };
+
+  const handleGoogleRegister = async () => {
+    try {
+      const result = await loginWithGoogle();
+      if (!result.success) {
+        setError(result.error);
+      }
+      // User will be redirected to Google OAuth
+    } catch (error) {
+      setError('Failed to sign in with Google');
+    }
   };
 
   const renderStepContent = (step) => {
@@ -112,7 +137,7 @@ export default function Register() {
                   <Box>
                     <Typography variant="body1" fontWeight="bold">Customer</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Browse and purchase beautiful art and jewelry pieces
+                      Browse and purchase beautiful art and gifts
                     </Typography>
                   </Box>
                 } 
@@ -136,17 +161,29 @@ export default function Register() {
       case 1:
         return (
           <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 required
                 fullWidth
-                id="name"
-                label="Full Name"
-                name="name"
-                autoComplete="name"
+                id="firstName"
+                label="First Name"
+                name="firstName"
+                autoComplete="given-name"
                 autoFocus
-                value={formData.name}
-                onChange={handleChange('name')}
+                value={formData.firstName}
+                onChange={handleChange('firstName')}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                required
+                fullWidth
+                id="lastName"
+                label="Last Name"
+                name="lastName"
+                autoComplete="family-name"
+                value={formData.lastName}
+                onChange={handleChange('lastName')}
               />
             </Grid>
             <Grid item xs={12}>
@@ -157,12 +194,13 @@ export default function Register() {
                 label="Email Address"
                 name="email"
                 autoComplete="email"
+                type="email"
                 value={formData.email}
                 onChange={handleChange('email')}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <InputLabel htmlFor="password">Password</InputLabel>
+              <InputLabel htmlFor="password">Password *</InputLabel>
               <OutlinedInput
                 required
                 fullWidth
@@ -172,6 +210,7 @@ export default function Register() {
                 autoComplete="new-password"
                 value={formData.password}
                 onChange={handleChange('password')}
+                placeholder="At least 6 characters"
                 endAdornment={
                   <InputAdornment position="end">
                     <IconButton
@@ -186,7 +225,7 @@ export default function Register() {
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <InputLabel htmlFor="confirmPassword">Confirm Password</InputLabel>
+              <InputLabel htmlFor="confirmPassword">Confirm Password *</InputLabel>
               <OutlinedInput
                 required
                 fullWidth
@@ -219,7 +258,7 @@ export default function Register() {
                 <TextField
                   fullWidth
                   id="phone"
-                  label="Phone Number"
+                  label="Phone Number (Optional)"
                   name="phone"
                   autoComplete="tel"
                   value={formData.phone}
@@ -239,7 +278,7 @@ export default function Register() {
                     name="specialty"
                     value={formData.specialty}
                     onChange={handleChange('specialty')}
-                    placeholder="e.g., Jewelry, Painting, Sculpture"
+                    placeholder="e.g., Jewelry, Painting, Sculpture, Frames"
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -248,17 +287,18 @@ export default function Register() {
                     multiline
                     rows={3}
                     id="bio"
-                    label="Short Bio"
+                    label="Short Bio (Optional)"
                     name="bio"
                     value={formData.bio}
                     onChange={handleChange('bio')}
+                    placeholder="Tell us about your artistic journey..."
                   />
                 </Grid>
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
                     id="portfolio"
-                    label="Portfolio Link"
+                    label="Portfolio Link (Optional)"
                     name="portfolio"
                     value={formData.portfolio}
                     onChange={handleChange('portfolio')}
@@ -269,7 +309,7 @@ export default function Register() {
                   <TextField
                     fullWidth
                     id="socialMedia"
-                    label="Social Media"
+                    label="Social Media (Optional)"
                     name="socialMedia"
                     value={formData.socialMedia}
                     onChange={handleChange('socialMedia')}
@@ -277,20 +317,6 @@ export default function Register() {
                   />
                 </Grid>
               </>
-            )}
-            
-            {userType === 'admin' && (
-              <Grid item xs={12}>
-                <TextField
-                  required
-                  fullWidth
-                  id="inviteCode"
-                  label="Admin Invite Code"
-                  name="inviteCode"
-                  value={formData.inviteCode}
-                  onChange={handleChange('inviteCode')}
-                />
-              </Grid>
             )}
           </Grid>
         );
@@ -321,6 +347,7 @@ export default function Register() {
             </Stepper>
             
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+            {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
             
             <Box component="form" onSubmit={handleSubmit}>
               {renderStepContent(activeStep)}
@@ -359,21 +386,22 @@ export default function Register() {
                     <Divider sx={{ my: 3 }}>or</Divider>
                     
                     <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-                    <Button
-                    fullWidth
-                    variant="outlined"
-                    startIcon={<Google />}
-                    sx={{ py: 1.5 }}
-                    onClick={() => window.location.href = 'http://localhost:5000/api/auth/google'}
-                    >
-                    Google
-                    </Button>
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={<Google />}
+                        sx={{ py: 1.5 }}
+                        onClick={handleGoogleRegister}
+                        disabled={loading}
+                      >
+                        Sign up with Google
+                      </Button>
                     </Box>
                     
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body2" color="text.secondary">
                         Already have an account?{' '}
-                        <Link to="/login" style={{ textDecoration: 'none', fontWeight: 600 }}>
+                        <Link to="/login" style={{ textDecoration: 'none', fontWeight: 600, color: '#6366f1' }}>
                           Sign in
                         </Link>
                       </Typography>
