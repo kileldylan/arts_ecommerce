@@ -1,6 +1,5 @@
-/////// src/contexts/AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { supabase } from '../utils/supabaseClient'; // Your Supabase client
+import { supabase } from '../utils/supabaseClient';
 
 const AuthContext = createContext();
 
@@ -24,14 +23,14 @@ export function AuthProvider({ children }) {
     });
 
     // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
 
-    return () => subscription.unsubscribe();
+    return () => listener.subscription.unsubscribe();
   }, []);
 
   const login = async (email, password) => {
@@ -42,20 +41,17 @@ export function AuthProvider({ children }) {
       });
 
       if (error) throw error;
-      
-      // Fetch additional user data from your profiles table
+
+      // Fetch additional user data from your "users" table
       if (data.user) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
+        const { data: userRecord, error: userError } = await supabase
+          .from('users')
           .select('*')
-          .eq('id', data.user.id)
+          .eq('email', data.user.email)
           .single();
 
-        if (!profileError) {
-          const userData = {
-            ...data.user,
-            profile
-          };
+        if (!userError && userRecord) {
+          const userData = { ...data.user, details: userRecord };
           setUser(userData);
           return { success: true, user: userData };
         }
@@ -63,6 +59,7 @@ export function AuthProvider({ children }) {
 
       return { success: true, user: data.user };
     } catch (error) {
+      console.error('Login error:', error);
       return { success: false, error: error.message };
     }
   };
@@ -74,34 +71,31 @@ export function AuthProvider({ children }) {
         password: userData.password,
         options: {
           data: {
-            first_name: userData.firstName,
-            last_name: userData.lastName,
+            name: `${userData.firstName} ${userData.lastName}`,
             user_type: userData.userType,
-          }
-        }
+          },
+        },
       });
 
       if (error) throw error;
 
+      // Insert user record in your Supabase "users" table
       if (data.user) {
-        // Create profile in profiles table
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: data.user.id,
-              first_name: userData.firstName,
-              last_name: userData.lastName,
-              email: userData.email,
-              user_type: userData.userType,
-            }
-          ]);
+        const { error: insertError } = await supabase.from('users').insert([
+          {
+            name: `${userData.firstName} ${userData.lastName}`,
+            email: userData.email,
+            password: userData.password, // optional (you might hash this if backend)
+            user_type: userData.userType,
+          },
+        ]);
 
-        if (profileError) throw profileError;
+        if (insertError) throw insertError;
       }
 
       return { success: true, user: data.user };
     } catch (error) {
+      console.error('Registration error:', error);
       return { success: false, error: error.message };
     }
   };
@@ -109,6 +103,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    setUser(null);
   };
 
   const value = {
