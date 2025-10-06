@@ -147,7 +147,7 @@ app.get('/memory-health', (req, res) => {
 });
 
 // ======================= 404 HANDLER =======================
-app.use('/:any(*)', (req, res) => {
+app.use(/.*/, (req, res) => {
   res.status(404).json({
     success: false,
     error: 'Route not found',
