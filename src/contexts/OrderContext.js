@@ -1,7 +1,7 @@
 /////// src/contexts/OrderContext.js
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import { supabase } from '../utils/supabase';
+import { supabase } from '../utils/supabaseClient';
 
 const OrderContext = createContext();
 
