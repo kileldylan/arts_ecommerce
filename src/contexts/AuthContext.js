@@ -1,4 +1,6 @@
+/////// src/contexts/AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { supabase } from '../utils/supabaseClient'; // Your Supabase client
 
 const AuthContext = createContext();
 
@@ -15,115 +17,98 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initAuth = async () => {
-      const token = sessionStorage.getItem('token'); // Use sessionStorage only
-      const savedUser = sessionStorage.getItem('user');
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-      if (token && savedUser) {
-        try {
-          const response = await fetch('http://localhost:5000/api/auth/me', {
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-            sessionStorage.setItem('user', JSON.stringify(userData)); // Update with fresh data
-          } else {
-            clearAuthData(); // Clear if token is invalid
-          }
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-          clearAuthData(); // Clear on network error
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email, password) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+      
+      // Fetch additional user data from your profiles table
+      if (data.user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (!profileError) {
+          const userData = {
+            ...data.user,
+            profile
+          };
+          setUser(userData);
+          return { success: true, user: userData };
         }
-      } else {
-        clearAuthData(); // No token or user, start fresh
       }
-      setLoading(false); // Set loading to false after initialization
-    };
 
-    initAuth();
-  }, []); // Run once on mount
-
-  const clearAuthData = () => {
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('user');
-    setUser(null);
-  };
-
-  const fetchUserProfile = async (token) => {
-    try {
-      const response = await fetch('http://localhost:5000/api/auth/me', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-        sessionStorage.setItem('token', token);
-        sessionStorage.setItem('user', JSON.stringify(userData));
-        return { success: true, user: userData };
-      } else {
-        clearAuthData();
-        return { success: false, error: 'Invalid token' };
-      }
+      return { success: true, user: data.user };
     } catch (error) {
-      console.error('Error fetching user profile:', error);
-      clearAuthData();
-      return { success: false, error: 'Network error' };
-    }
-  };
-
-  const login = async (email, password, userType) => {
-    try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        const { token, user: userData } = data;
-        sessionStorage.setItem('token', token);
-        sessionStorage.setItem('user', JSON.stringify(userData));
-        setUser(userData);
-        return { success: true };
-      } else {
-        return { success: false, error: data.message };
-      }
-    } catch (error) {
-      return { success: false, error: 'Network error. Please try again.' };
+      return { success: false, error: error.message };
     }
   };
 
   const register = async (userData) => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            first_name: userData.firstName,
+            last_name: userData.lastName,
+            user_type: userData.userType,
+          }
+        }
       });
 
-      const data = await response.json();
+      if (error) throw error;
 
-      if (response.ok) {
-        const { token, user: userData } = data;
-        sessionStorage.setItem('token', token);
-        sessionStorage.setItem('user', JSON.stringify(userData));
-        setUser(userData);
-        return { success: true };
-      } else {
-        return { success: false, error: data.message };
+      if (data.user) {
+        // Create profile in profiles table
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: data.user.id,
+              first_name: userData.firstName,
+              last_name: userData.lastName,
+              email: userData.email,
+              user_type: userData.userType,
+            }
+          ]);
+
+        if (profileError) throw profileError;
       }
+
+      return { success: true, user: data.user };
     } catch (error) {
-      return { success: false, error: 'Network error. Please try again.' };
+      return { success: false, error: error.message };
     }
   };
 
-  const logout = () => {
-    clearAuthData();
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
   const value = {
@@ -133,7 +118,6 @@ export function AuthProvider({ children }) {
     register,
     logout,
     loading,
-    fetchUserProfile, // Added back to the context value
   };
 
   return (

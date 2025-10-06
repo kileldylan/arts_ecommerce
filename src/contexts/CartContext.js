@@ -1,4 +1,5 @@
-// src/contexts/CartContext.js
+/////// src/contexts/CartContext.js
+// This remains unchanged as it's client-side only
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const CartContext = createContext();

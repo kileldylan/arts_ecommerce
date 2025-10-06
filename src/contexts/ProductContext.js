@@ -1,7 +1,7 @@
-// src/contexts/ProductContext.js
+/////// src/contexts/ProductContext.js
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import api from '../utils/axios';
+import { supabase } from '../utils/supabaseClient';
 
 const ProductContext = createContext();
 
@@ -24,26 +24,43 @@ export function ProductProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      console.log('Sending filters:', filters); // ← Debug log
-      console.log('API base URL:', api.defaults.baseURL); // ← Check base URL
-      
-      const response = await api.get('/products/all', { 
-        params: filters 
-      });
-      
-      console.log('Response received:', response.data); // ← Debug response
-      setProducts(response.data);
-      return response.data;
+      let query = supabase
+        .from('products')
+        .select(`
+          *,
+          profiles:artist_id (first_name, last_name, avatar_url),
+          product_images (*)
+        `)
+        .eq('is_published', true);
+
+      // Apply filters
+      if (filters.category) {
+        query = query.eq('category', filters.category);
+      }
+      if (filters.minPrice) {
+        query = query.gte('price', filters.minPrice);
+      }
+      if (filters.maxPrice) {
+        query = query.lte('price', filters.maxPrice);
+      }
+      if (filters.search) {
+        query = query.ilike('title', `%${filters.search}%`);
+      }
+
+      const { data, error: supabaseError } = await query;
+
+      if (supabaseError) throw supabaseError;
+
+      setProducts(data || []);
+      return data || [];
     } catch (err) {
-      console.error('Full error object:', err); // ← More detailed error logging
-      console.error('Error config:', err.config); // ← See the request that failed
-      const errorMessage = err.response?.data?.message || 'Failed to fetch products';
+      const errorMessage = err.message || 'Failed to fetch products';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [setLoading, setError, setProducts]);
+  }, []);
 
   const getArtistProducts = useCallback(async (artistId = null) => {
     setLoading(true);
@@ -51,14 +68,23 @@ export function ProductProvider({ children }) {
     try {
       const id = artistId || user?.id;
       if (!id) return;
-      
-      const response = await api.get(`/products/artist/${id}`);
-      setArtistProducts(response.data);
-      return response.data;
+
+      const { data, error: supabaseError } = await supabase
+        .from('products')
+        .select(`
+          *,
+          product_images (*)
+        `)
+        .eq('artist_id', id)
+        .order('created_at', { ascending: false });
+
+      if (supabaseError) throw supabaseError;
+
+      setArtistProducts(data || []);
+      return data || [];
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Failed to fetch artist products';
+      const errorMessage = err.message || 'Failed to fetch artist products';
       setError(errorMessage);
-      console.error('Error fetching artist products:', err);
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
@@ -69,54 +95,93 @@ export function ProductProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.get(`/products/${productId}`);
-      return response.data;
+      const { data, error: supabaseError } = await supabase
+        .from('products')
+        .select(`
+          *,
+          profiles:artist_id (*),
+          product_images (*)
+        `)
+        .eq('id', productId)
+        .single();
+
+      if (supabaseError) throw supabaseError;
+      return data;
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Failed to fetch product';
+      const errorMessage = err.message || 'Failed to fetch product';
       setError(errorMessage);
-      console.error('Error fetching product:', err);
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-const createProduct = async (formData) => {
-  setLoading(true);
-  setError(null);
-  try {
-    const response = await api.post('/products', formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-      timeout: 30000,
-    });
+  const createProduct = async (productData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // First create the product
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .insert([{
+          title: productData.title,
+          description: productData.description,
+          price: productData.price,
+          category: productData.category,
+          artist_id: user.id,
+          dimensions: productData.dimensions,
+          materials: productData.materials,
+          is_published: productData.is_published || false,
+        }])
+        .select()
+        .single();
 
-    await getArtistProducts();
-    return response.data;
-  } catch (err) {
-    console.error("API error:", {
-      status: err.response?.status,
-      data: err.response?.data,
-      message: err.message,
-    });
-    const errorMessage = err.response?.data?.message || 'Failed to create product';
-    setError(errorMessage);
-    throw new Error(errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
+      if (productError) throw productError;
+
+      // Handle image uploads if any
+      if (productData.images && productData.images.length > 0) {
+        const imageRecords = productData.images.map((image, index) => ({
+          product_id: product.id,
+          image_url: image.url, // Assuming you've uploaded to Supabase Storage
+          is_primary: index === 0,
+          display_order: index,
+        }));
+
+        const { error: imageError } = await supabase
+          .from('product_images')
+          .insert(imageRecords);
+
+        if (imageError) throw imageError;
+      }
+
+      await getArtistProducts();
+      return product;
+    } catch (err) {
+      const errorMessage = err.message || 'Failed to create product';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const updateProduct = async (productId, productData) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.put(`/products/${productId}`, productData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const { data, error: supabaseError } = await supabase
+        .from('products')
+        .update(productData)
+        .eq('id', productId)
+        .select()
+        .single();
+
+      if (supabaseError) throw supabaseError;
+
       await getArtistProducts();
-      return response.data;
+      return data;
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Failed to update product';
+      const errorMessage = err.message || 'Failed to update product';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -128,14 +193,18 @@ const createProduct = async (formData) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.delete(`/products/${productId}`);
-      // Refresh artist products
+      const { error: supabaseError } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+
+      if (supabaseError) throw supabaseError;
+
       await getArtistProducts();
-      return response.data;
+      return { success: true };
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Failed to delete product';
+      const errorMessage = err.message || 'Failed to delete product';
       setError(errorMessage);
-      console.error('Error deleting product:', err);
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
@@ -143,23 +212,7 @@ const createProduct = async (formData) => {
   };
 
   const togglePublishProduct = async (productId, isPublished) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await api.put(`/products/${productId}`, {
-        is_published: isPublished
-      });
-      // Refresh artist products
-      await getArtistProducts();
-      return response.data;
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Failed to update product status';
-      setError(errorMessage);
-      console.error('Error updating product status:', err);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
+    return updateProduct(productId, { is_published: isPublished });
   };
 
   const value = {
