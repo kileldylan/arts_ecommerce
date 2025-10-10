@@ -114,7 +114,7 @@ export default function Navbar() {
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}
-        onClick={() => navigate('/customer/dashboard')}
+        onClick={() => navigate('/dashboard')}
       >
         Branchi Arts & Gifts
       </Typography>
