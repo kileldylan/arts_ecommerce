@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/react"
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -100,6 +101,7 @@ function AppContent() {
 
 function App() {
   return (
+    <Analytics>
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
@@ -116,6 +118,7 @@ function App() {
         </ProductProvider>
       </AuthProvider>
     </ThemeProvider>
+    </Analytics>
   );
 }
 
