@@ -64,12 +64,12 @@ function AppContent() {
       <Navbar />
       <Box component="main" sx={{ flexGrow: 1 }}>
         <Routes>
-          <Route path="/" element={<Navigate to="/customer/dashboard" />} /> {/* Redirect root to CustomerDashboard */}
+          <Route path="/" element={<Navigate to="/customer/dashboard" />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/oauth-success" element={<OAuthSuccess />} />
           
-          <Route path="/customer/dashboard" element={<CustomerDashboard />} /> {/* Public access */}
+          <Route path="/customer/dashboard" element={<CustomerDashboard />} />
           
           <Route 
             path="/dashboard" 
@@ -101,7 +101,7 @@ function AppContent() {
 
 function App() {
   return (
-    <Analytics>
+    // ✅ CORRECT: Analytics should be inside but as a sibling or at the end
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
@@ -117,8 +117,8 @@ function App() {
           </OrderProvider>
         </ProductProvider>
       </AuthProvider>
+      <Analytics /> {/* ✅ CORRECT: Place it at the end as a self-closing tag */}
     </ThemeProvider>
-    </Analytics>
   );
 }
 

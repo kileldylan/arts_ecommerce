@@ -11,12 +11,12 @@ const getApiBaseUrl = () => {
   return 'http://localhost:5000/api';
 };
 
-const API_BASE_URL = getApiBaseUrl();
+const REACT_APP_API_BASE_URL = getApiBaseUrl();
 
-console.log('🎯 API Base URL:', API_BASE_URL);
+console.log('🎯 API Base URL:', REACT_APP_API_BASE_URL);
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: REACT_APP_API_BASE_URL,
   timeout: 30000, // 30 seconds for cold starts
   headers: {
     'Content-Type': 'application/json',
