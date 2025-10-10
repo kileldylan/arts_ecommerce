@@ -146,6 +146,12 @@ app.get('/memory-health', (req, res) => {
   });
 });
 
+app.get('/api/ping', (req, res) => {
+  // Return minimal response - just 1KB max
+  res.setHeader('Content-Type', 'text/plain');
+  res.send('OK'); // Only 2 bytes!
+});
+
 // ======================= 404 HANDLER =======================
 app.use(/.*/, (req, res) => {
   res.status(404).json({
