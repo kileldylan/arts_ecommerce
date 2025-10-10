@@ -1,5 +1,4 @@
-/////// src/contexts/ProductContext.js
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../utils/supabaseClient';
 
@@ -20,42 +19,65 @@ export function ProductProvider({ children }) {
   const [error, setError] = useState(null);
   const { user } = useAuth();
 
+  // Simple frontend cache to prevent unnecessary re-fetches
+  const cacheRef = useRef({
+    allProducts: null,
+    lastFetch: 0,
+    cacheDuration: 2 * 60 * 1000 // 2 minutes cache
+  });
+
   const getAllProducts = useCallback(async (filters = {}) => {
+    // Check cache first
+    const now = Date.now();
+    if (cacheRef.current.allProducts && 
+        (now - cacheRef.current.lastFetch) < cacheRef.current.cacheDuration) {
+      console.log('✅ Serving from frontend cache');
+      setProducts(cacheRef.current.allProducts);
+      return cacheRef.current.allProducts;
+    }
+
     setLoading(true);
     setError(null);
+    
     try {
+      console.log('🔄 Fetching products from Supabase...');
+      
+      // SIMPLE QUERY - No complex joins that might fail
       let query = supabase
         .from('products')
-        .select(`
-          *,
-          profiles:artist_id (first_name, last_name, avatar_url),
-          product_images (*)
-        `)
-        .eq('is_published', true);
+        .select('*')
+        .eq('is_published', true)
+        .order('created_at', { ascending: false });
 
-      // Apply filters
-      if (filters.category) {
+      // Apply basic filters
+      if (filters.category && filters.category !== '0') {
         query = query.eq('category', filters.category);
       }
-      if (filters.minPrice) {
-        query = query.gte('price', filters.minPrice);
-      }
-      if (filters.maxPrice) {
-        query = query.lte('price', filters.maxPrice);
-      }
       if (filters.search) {
-        query = query.ilike('title', `%${filters.search}%`);
+        query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
       }
 
       const { data, error: supabaseError } = await query;
 
-      if (supabaseError) throw supabaseError;
+      if (supabaseError) {
+        console.error('❌ Supabase error:', supabaseError);
+        throw supabaseError;
+      }
+
+      console.log(`✅ Successfully fetched ${data?.length || 0} products`);
+      
+      // Update cache
+      cacheRef.current.allProducts = data || [];
+      cacheRef.current.lastFetch = now;
 
       setProducts(data || []);
       return data || [];
+      
     } catch (err) {
       const errorMessage = err.message || 'Failed to fetch products';
+      console.error('❌ Product fetch error:', errorMessage);
       setError(errorMessage);
+      setProducts([]); // Set empty array to prevent undefined errors
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
@@ -63,28 +85,36 @@ export function ProductProvider({ children }) {
   }, []);
 
   const getArtistProducts = useCallback(async (artistId = null) => {
+    const id = artistId || user?.id;
+    if (!id) {
+      console.log('⚠️ No user ID available for artist products');
+      setArtistProducts([]);
+      return [];
+    }
+
     setLoading(true);
     setError(null);
+    
     try {
-      const id = artistId || user?.id;
-      if (!id) return;
-
+      console.log(`🔄 Fetching products for artist: ${id}`);
+      
       const { data, error: supabaseError } = await supabase
         .from('products')
-        .select(`
-          *,
-          product_images (*)
-        `)
+        .select('*')
         .eq('artist_id', id)
         .order('created_at', { ascending: false });
 
       if (supabaseError) throw supabaseError;
 
+      console.log(`✅ Found ${data?.length || 0} artist products`);
       setArtistProducts(data || []);
       return data || [];
+      
     } catch (err) {
       const errorMessage = err.message || 'Failed to fetch artist products';
+      console.error('❌ Artist products error:', errorMessage);
       setError(errorMessage);
+      setArtistProducts([]);
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
@@ -92,23 +122,29 @@ export function ProductProvider({ children }) {
   }, [user]);
 
   const getProduct = async (productId) => {
+    if (!productId) {
+      throw new Error('Product ID is required');
+    }
+
     setLoading(true);
     setError(null);
+    
     try {
+      console.log(`🔄 Fetching product: ${productId}`);
+      
       const { data, error: supabaseError } = await supabase
         .from('products')
-        .select(`
-          *,
-          profiles:artist_id (*),
-          product_images (*)
-        `)
+        .select('*')
         .eq('id', productId)
         .single();
 
       if (supabaseError) throw supabaseError;
+
       return data;
+      
     } catch (err) {
       const errorMessage = err.message || 'Failed to fetch product';
+      console.error('❌ Single product error:', errorMessage);
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -116,15 +152,21 @@ export function ProductProvider({ children }) {
     }
   };
 
+  // Clear cache when products are modified
+  const clearCache = () => {
+    cacheRef.current.allProducts = null;
+    cacheRef.current.lastFetch = 0;
+  };
+
   const createProduct = async (productData) => {
     setLoading(true);
     setError(null);
+    
     try {
-      // First create the product
       const { data: product, error: productError } = await supabase
         .from('products')
         .insert([{
-          title: productData.title,
+          name: productData.name,
           description: productData.description,
           price: productData.price,
           category: productData.category,
@@ -138,24 +180,14 @@ export function ProductProvider({ children }) {
 
       if (productError) throw productError;
 
-      // Handle image uploads if any
-      if (productData.images && productData.images.length > 0) {
-        const imageRecords = productData.images.map((image, index) => ({
-          product_id: product.id,
-          image_url: image.url, // Assuming you've uploaded to Supabase Storage
-          is_primary: index === 0,
-          display_order: index,
-        }));
-
-        const { error: imageError } = await supabase
-          .from('product_images')
-          .insert(imageRecords);
-
-        if (imageError) throw imageError;
-      }
-
+      // Clear cache since products changed
+      clearCache();
+      
+      // Refresh artist products
       await getArtistProducts();
+      
       return product;
+      
     } catch (err) {
       const errorMessage = err.message || 'Failed to create product';
       setError(errorMessage);
@@ -168,6 +200,7 @@ export function ProductProvider({ children }) {
   const updateProduct = async (productId, productData) => {
     setLoading(true);
     setError(null);
+    
     try {
       const { data, error: supabaseError } = await supabase
         .from('products')
@@ -178,8 +211,12 @@ export function ProductProvider({ children }) {
 
       if (supabaseError) throw supabaseError;
 
+      // Clear cache since products changed
+      clearCache();
       await getArtistProducts();
+      
       return data;
+      
     } catch (err) {
       const errorMessage = err.message || 'Failed to update product';
       setError(errorMessage);
@@ -192,6 +229,7 @@ export function ProductProvider({ children }) {
   const deleteProduct = async (productId) => {
     setLoading(true);
     setError(null);
+    
     try {
       const { error: supabaseError } = await supabase
         .from('products')
@@ -200,8 +238,12 @@ export function ProductProvider({ children }) {
 
       if (supabaseError) throw supabaseError;
 
+      // Clear cache since products changed
+      clearCache();
       await getArtistProducts();
+      
       return { success: true };
+      
     } catch (err) {
       const errorMessage = err.message || 'Failed to delete product';
       setError(errorMessage);
@@ -209,10 +251,6 @@ export function ProductProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const togglePublishProduct = async (productId, isPublished) => {
-    return updateProduct(productId, { is_published: isPublished });
   };
 
   const value = {
@@ -226,8 +264,11 @@ export function ProductProvider({ children }) {
     createProduct,
     updateProduct,
     deleteProduct,
-    togglePublishProduct,
-    clearError: () => setError(null)
+    clearError: () => setError(null),
+    refreshProducts: () => {
+      clearCache();
+      return getAllProducts();
+    }
   };
 
   return (

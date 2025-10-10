@@ -25,6 +25,10 @@ import {
   Store,
   Person,
   AdminPanelSettings,
+  ShoppingBag,
+  Analytics,
+  Group,
+  AccountCircle,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -42,7 +46,7 @@ const themeColors = {
 };
 
 export default function Navbar() {
-  const { user, logout, loading } = useAuth(); // Added loading
+  const { user, profile, userType, logout, loading } = useAuth();
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -53,10 +57,14 @@ export default function Navbar() {
   const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-    handleMenuClose();
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+      handleMenuClose();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const handleNavigation = (path) => {
@@ -66,34 +74,64 @@ export default function Navbar() {
   };
 
   const getNavItems = () => {
-    const commonItems = [{ label: 'Dashboard', path: '/dashboard', icon: <Dashboard /> }];
+    // Common items that appear for everyone (including logged out users)
+    const commonItems = [
+      { label: 'Home', path: '/', icon: <Dashboard /> },
+    ];
 
+    // If no user or still loading, return only common items
     if (loading || !user) {
-      return commonItems; // Return minimal items during loading or if no user
+      return commonItems;
     }
 
-    switch (user.user_type) {
+    console.log('🔍 Navbar - User type:', userType, 'Profile:', profile);
+
+    // User-specific items based on user type
+    switch (userType) {
       case 'admin':
         return [
           ...commonItems,
           { label: 'Admin Panel', path: '/admin', icon: <AdminPanelSettings /> },
-          { label: 'Users', path: '/admin/users', icon: <Person /> },
+          { label: 'Users', path: '/admin/users', icon: <Group /> },
+          { label: 'Analytics', path: '/admin/analytics', icon: <Analytics /> },
         ];
       case 'artist':
         return [
           ...commonItems,
           { label: 'My Products', path: '/artist/products', icon: <Store /> },
-          { label: 'Orders', path: '/artist/orders', icon: <Store /> },
-          { label: 'Analytics', path: '/artist/analytics', icon: <Store /> },
-          { label: 'CRM', path: '/artist/CRM', icon: <Store /> },
+          { label: 'Orders', path: '/artist/orders', icon: <ShoppingBag /> },
+          { label: 'Analytics', path: '/artist/analytics', icon: <Analytics /> },
+          { label: 'CRM', path: '/artist/CRM', icon: <Group /> },
         ];
       case 'customer':
       default:
         return [
           ...commonItems,
-          { label: 'Orders', path: '/customer/orders', icon: <Store /> },
+          { label: 'My Orders', path: '/customer/orders', icon: <ShoppingBag /> },
+          { label: 'Wishlist', path: '/customer/wishlist', icon: <Store /> },
         ];
     }
+  };
+
+  const getDisplayName = () => {
+    if (!user) return 'Guest';
+    
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name} ${profile.last_name}`;
+    }
+    if (profile?.first_name) {
+      return profile.first_name;
+    }
+    return user?.email?.split('@')[0] || 'User';
+  };
+
+  const getAvatarInitial = () => {
+    if (!user) return '?';
+    
+    if (profile?.first_name) {
+      return profile.first_name.charAt(0).toUpperCase();
+    }
+    return user?.email?.charAt(0).toUpperCase() || 'U';
   };
 
   const navItems = getNavItems();
@@ -114,7 +152,7 @@ export default function Navbar() {
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}
-        onClick={() => navigate('/dashboard')}
+        onClick={() => navigate('/')}
       >
         Branchi Arts & Gifts
       </Typography>
@@ -129,7 +167,10 @@ export default function Navbar() {
             sx={{
               color: 'white',
               fontWeight: '500',
-              '&:hover': { backgroundColor: alpha('#FFFFFF', 0.1), transform: 'translateY(-1px)' },
+              '&:hover': { 
+                backgroundColor: alpha('#FFFFFF', 0.1), 
+                transform: 'translateY(-1px)' 
+              },
               transition: 'all 0.2s ease-in-out',
             }}
           >
@@ -154,14 +195,24 @@ export default function Navbar() {
         anchor="left"
         open={mobileDrawer}
         onClose={() => setMobileDrawer(false)}
-        PaperProps={{ sx: { backgroundColor: themeColors.primary, color: 'white' } }}
+        PaperProps={{ 
+          sx: { 
+            backgroundColor: themeColors.primary, 
+            color: 'white',
+            width: 280 
+          } 
+        }}
       >
-        <Box sx={{ width: 280, height: '100%', backgroundColor: themeColors.primary }}>
-          <List>
-            <ListItem sx={{ py: 3 }}>
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <List sx={{ flexGrow: 1 }}>
+            <ListItem sx={{ py: 3, borderBottom: `1px solid ${alpha('#FFFFFF', 0.1)}` }}>
               <ListItemText
                 primary="Branchi Arts & Gifts"
-                primaryTypographyProps={{ variant: 'h6', fontWeight: '700', color: 'white' }}
+                primaryTypographyProps={{ 
+                  variant: 'h6', 
+                  fontWeight: '700', 
+                  color: 'white' 
+                }}
               />
             </ListItem>
             {navItems.map((item) => (
@@ -169,13 +220,63 @@ export default function Navbar() {
                 button
                 key={item.path}
                 onClick={() => handleNavigation(item.path)}
-                sx={{ '&:hover': { backgroundColor: alpha('#FFFFFF', 0.1) } }}
+                sx={{ 
+                  '&:hover': { backgroundColor: alpha('#FFFFFF', 0.1) },
+                  py: 2
+                }}
               >
-                <ListItemIcon sx={{ color: 'white' }}>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.label} primaryTypographyProps={{ color: 'white' }} />
+                <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={item.label} 
+                  primaryTypographyProps={{ color: 'white' }} 
+                />
               </ListItem>
             ))}
           </List>
+          
+          {/* Only show user section if logged in */}
+          {user && (
+            <Box sx={{ p: 2, borderTop: `1px solid ${alpha('#FFFFFF', 0.1)}` }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Avatar
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    backgroundColor: themeColors.accent,
+                    fontWeight: '600',
+                    fontSize: '1rem',
+                    mr: 2
+                  }}
+                >
+                  {getAvatarInitial()}
+                </Avatar>
+                <Box>
+                  <Typography variant="body2" fontWeight="600" color="white">
+                    {getDisplayName()}
+                  </Typography>
+                  {/* Removed role tag as requested */}
+                </Box>
+              </Box>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<ExitToApp />}
+                onClick={handleLogout}
+                sx={{
+                  color: 'white',
+                  borderColor: alpha('#FFFFFF', 0.3),
+                  '&:hover': {
+                    borderColor: 'white',
+                    backgroundColor: alpha('#FFFFFF', 0.1)
+                  }
+                }}
+              >
+                Logout
+              </Button>
+            </Box>
+          )}
         </Box>
       </Drawer>
 
@@ -192,14 +293,16 @@ export default function Navbar() {
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}
+        onClick={() => navigate('/')}
       >
         Branchi Arts & Gifts
       </Typography>
     </>
   );
 
+  // Don't render anything during initial auth loading
   if (loading) {
-    return null; // Prevent rendering during loading
+    return null;
   }
 
   return (
@@ -216,7 +319,30 @@ export default function Navbar() {
         {isMobile ? renderMobileNav() : renderDesktopNav()}
 
         {user ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {/* User info for desktop - Removed role tag */}
+            {!isMobile && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Avatar
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    backgroundColor: themeColors.accent,
+                    fontWeight: '600',
+                    fontSize: '0.9rem',
+                  }}
+                >
+                  {getAvatarInitial()}
+                </Avatar>
+                <Box sx={{ textAlign: 'right' }}>
+                  <Typography variant="body2" fontWeight="600" color="white">
+                    {getDisplayName()}
+                  </Typography>
+                  {/* Removed role tag as requested */}
+                </Box>
+              </Box>
+            )}
+            
             <IconButton
               onClick={handleMenuOpen}
               color="inherit"
@@ -231,9 +357,10 @@ export default function Navbar() {
                   fontSize: '1rem',
                 }}
               >
-                {user.name?.charAt(0).toUpperCase() || 'U'}
+                {getAvatarInitial()}
               </Avatar>
             </IconButton>
+            
             <Menu
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
@@ -245,14 +372,15 @@ export default function Navbar() {
                   border: `1px solid ${alpha('#FFFFFF', 0.1)}`,
                   borderRadius: '12px',
                   marginTop: '8px',
+                  minWidth: 180,
                 },
               }}
             >
               <MenuItem
                 onClick={() =>
                   handleNavigation(
-                    user.user_type === 'artist'
-                      ? '/artist/profile'
+                    userType === 'artist' 
+                      ? '/artist/profile' 
                       : '/customer/profile'
                   )
                 }
@@ -276,34 +404,49 @@ export default function Navbar() {
           </Box>
         ) : (
           <Box sx={{ display: 'flex', gap: 2, marginLeft: 'auto' }}>
-            <Button
+            {/* Show simple account icon when not logged in */}
+            <IconButton
               color="inherit"
               onClick={() => navigate('/login')}
-              sx={{
-                fontWeight: '500',
+              sx={{ 
                 '&:hover': { backgroundColor: alpha('#FFFFFF', 0.1) },
+                display: { xs: 'flex', md: 'none' } // Only show on mobile when logged out
               }}
             >
-              Login
-            </Button>
-            <Button
-              variant="contained"
-              onClick={() => navigate('/register')}
-              sx={{
-                backgroundColor: themeColors.accent,
-                color: 'white',
-                fontWeight: '600',
-                borderRadius: '8px',
-                px: 3,
-                '&:hover': {
-                  backgroundColor: alpha(themeColors.accent, 0.9),
-                  transform: 'translateY(-1px)',
-                },
-                transition: 'all 0.2s ease-in-out',
-              }}
-            >
-              Sign Up
-            </Button>
+              <AccountCircle />
+            </IconButton>
+            
+            {/* Regular login/signup buttons for desktop */}
+            <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 2 }}>
+              <Button
+                color="inherit"
+                onClick={() => navigate('/login')}
+                sx={{
+                  fontWeight: '500',
+                  '&:hover': { backgroundColor: alpha('#FFFFFF', 0.1) },
+                }}
+              >
+                Login
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/register')}
+                sx={{
+                  backgroundColor: themeColors.accent,
+                  color: 'white',
+                  fontWeight: '600',
+                  borderRadius: '8px',
+                  px: 3,
+                  '&:hover': {
+                    backgroundColor: alpha(themeColors.accent, 0.9),
+                    transform: 'translateY(-1px)',
+                  },
+                  transition: 'all 0.2s ease-in-out',
+                }}
+              >
+                Sign Up
+              </Button>
+            </Box>
           </Box>
         )}
       </Toolbar>

@@ -31,7 +31,7 @@ export default function Login() {
       // Determine redirect based on user type
       const userType = result.user?.user_metadata?.user_type || 'customer';
       if (userType === 'artist') {
-        navigate('/dashboard');
+        navigate('/artist/dashboard');
       } else {
         navigate('/customer/dashboard');
       }

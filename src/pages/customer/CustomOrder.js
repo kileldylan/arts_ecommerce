@@ -45,7 +45,7 @@ const paymentStatusConfig = {
 
 export default function CustomOrder() {
   const [tabValue, setTabValue] = useState('all');
-  const { orders, loading, getOrders } = useOrders();
+  const { orders, getOrders } = useOrders();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -145,17 +145,6 @@ export default function CustomOrder() {
       </CardContent>
     </Card>
   );
-
-  if (loading) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4, textAlign: 'center' }}>
-        <CircularProgress />
-        <Typography variant="body1" sx={{ mt: 2 }}>
-          Loading your orders...
-        </Typography>
-      </Container>
-    );
-  }
 
   return (
     <>

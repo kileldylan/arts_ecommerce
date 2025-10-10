@@ -97,7 +97,7 @@ export default function CustomerDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [filterDrawer, setFilterDrawer] = useState(false);
   const [cartDrawer, setCartDrawer] = useState(false);
-  const { products, loading, getAllProducts } = useProducts();
+  const { products, getAllProducts } = useProducts();
   const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getCartTotal, getCartItemsCount } = useCart();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -263,16 +263,6 @@ export default function CustomerDashboard() {
     );
   };
   // --- END UNIFORM CARD ---
-
-  if (loading) {
-    return (
-      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: themeColors.background }}>
-        <Typography variant="h4" sx={{ color: themeColors.text }}>
-          Loading products...
-        </Typography>
-      </Box>
-    );
-  }
 
   return (
     <Box sx={{ background: 'transparent', boxShadow: 'none', position: 'absolute', width: '100%', zIndex: 10 }}>

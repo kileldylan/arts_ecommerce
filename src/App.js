@@ -28,6 +28,7 @@ import WishlistPage from './pages/customer/WishlistPage';
 import Navbar from './components/NavBar';
 import Dashboard from './pages/Dashboard';
 import AnalyticsDashboard from "./pages/artist/ArtistAnalytics";
+import ArtistDashboard from "./pages/ArtistDashboard";
 
 const theme = createTheme({
   palette: {
@@ -80,6 +81,7 @@ function AppContent() {
             } 
           />
           
+          <Route path="/artist/dashboard" element={<ProtectedRoute><ArtistDashboard /></ProtectedRoute>} />
           <Route path="/artist/products" element={<ProtectedRoute><ProductList /></ProtectedRoute>} />
           <Route path="/artist/CRM" element={<ProtectedRoute><CRMDashboard /></ProtectedRoute>} />
           <Route path="/artist/products/new" element={<ProtectedRoute><AddProduct /></ProtectedRoute>} />
