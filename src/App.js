@@ -14,7 +14,6 @@ import AddProduct from './pages/artist/AddProduct';
 import EditProduct from './pages/artist/EditProduct';
 import ArtistProfile from './pages/artist/ArtistProfile';
 import Orders from './pages/artist/Orders';
-import Analytics from './pages/artist/Analytics';
 import './App.css';
 import { Box, CircularProgress } from '@mui/material';
 import { OrderProvider } from './contexts/OrderContext';
@@ -28,6 +27,7 @@ import { WishlistProvider } from './contexts/WIshlistContext';
 import WishlistPage from './pages/customer/WishlistPage';
 import Navbar from './components/NavBar';
 import Dashboard from './pages/Dashboard';
+import AnalyticsDashboard from "./pages/artist/ArtistAnalytics";
 
 const theme = createTheme({
   palette: {
@@ -86,7 +86,7 @@ function AppContent() {
           <Route path="/artist/products/edit/:id" element={<ProtectedRoute><EditProduct /></ProtectedRoute>} />
           <Route path="/artist/profile" element={<ProtectedRoute><ArtistProfile /></ProtectedRoute>} />
           <Route path="/artist/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-          <Route path="/artist/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+          <Route path="/artist/analytics" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
 
           <Route path="/customer/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
           <Route path="/customer/orders" element={<ProtectedRoute><CustomerOrders /></ProtectedRoute>} />
