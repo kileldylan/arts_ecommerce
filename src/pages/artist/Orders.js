@@ -20,7 +20,8 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
-  TextField
+  TextField,
+  LinearProgress
 } from '@mui/material';
 import {
   ShoppingBag,
@@ -193,12 +194,9 @@ export default function ArtistOrders() {
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4, textAlign: 'center' }}>
-        <CircularProgress />
-        <Typography variant="body1" sx={{ mt: 2 }}>
-          Loading orders...
-        </Typography>
-      </Container>
+      <Box sx={{ width: '100%' }}>
+        <LinearProgress />
+      </Box>
     );
   }
 

@@ -201,9 +201,9 @@ export default function AnalyticsDashboard() {
 
   if (loading) {
     return (
-      <Container maxWidth="xl" sx={{ py: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <Typography variant="h6" sx={{ color: themeColors.lightText }}>Loading analytics data...</Typography>
-      </Container>
+      <Box sx={{ width: '100%' }}>
+        <LinearProgress />
+      </Box>
     );
   }
 
