@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Container, Typography, Box, Card, CardContent, TextField,
-  Button, Avatar, Grid, Chip, Divider, Alert, CircularProgress,
-  LinearProgress
+  Button, Avatar, Grid, Chip, Divider, Alert, CircularProgress
 } from '@mui/material';
 import { Edit, Save, CameraAlt } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
@@ -29,7 +28,7 @@ export default function ArtistProfile() {
           return;
         }
 
-        // Use the profile from AuthContext, but fetch fresh data to ensure we have everything
+        // Fetch fresh profile data with all fields
         const { data, error: fetchError } = await supabase
           .from('profiles')
           .select('*')
@@ -61,7 +60,7 @@ export default function ArtistProfile() {
     if (file) {
       // Validate file type and size
       if (!file.type.startsWith('image/')) {
-        setError('Please select a valid image file');
+        setError('Please select a valid image file (JPEG, PNG, etc.)');
         return;
       }
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
@@ -79,21 +78,30 @@ export default function ArtistProfile() {
       const fileName = `${userId}/${Math.random()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
+      console.log('Uploading avatar to:', filePath);
+
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, file, { 
+          upsert: true,
+          cacheControl: '3600'
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
 
+      console.log('Avatar uploaded successfully:', publicUrl);
       return publicUrl;
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      throw new Error('Failed to upload avatar');
+      throw new Error('Failed to upload avatar: ' + error.message);
     }
   };
 
@@ -107,19 +115,26 @@ export default function ArtistProfile() {
 
       // Upload new avatar if selected
       if (avatarFile) {
-        avatarUrl = await uploadAvatar(avatarFile, user.id);
+        try {
+          avatarUrl = await uploadAvatar(avatarFile, user.id);
+        } catch (uploadError) {
+          setError(uploadError.message);
+          return;
+        }
       }
 
-      // Prepare update data
+      // Prepare update data with all fields
       const updateData = {
         first_name: profileData.first_name || '',
         last_name: profileData.last_name || '',
         bio: profileData.bio || '',
         specialty: profileData.specialty || '',
+        portfolio: profileData.portfolio || '',
         website: profileData.website || '',
         instagram: profileData.instagram || '',
         facebook: profileData.facebook || '',
         twitter: profileData.twitter || '',
+        phone: profileData.phone || '',
         updated_at: new Date().toISOString(),
       };
 
@@ -128,13 +143,18 @@ export default function ArtistProfile() {
         updateData.avatar = avatarUrl;
       }
 
+      console.log('Updating profile with data:', updateData);
+
       // Update profile in Supabase
       const { error: updateError } = await supabase
         .from('profiles')
         .update(updateData)
         .eq('id', user.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw updateError;
+      }
 
       // Refresh the profile in AuthContext
       await refreshProfile();
@@ -142,6 +162,9 @@ export default function ArtistProfile() {
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
       setAvatarFile(null);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       console.error('Error updating profile:', err);
       setError(err.message || 'Failed to update profile');
@@ -157,19 +180,15 @@ export default function ArtistProfile() {
     }));
   };
 
-  const handleSocialMediaChange = (platform, value) => {
-    setProfileData(prev => ({
-      ...prev,
-      [platform]: value
-    }));
-  };
-
   // Show loading state
   if (authLoading || loading) {
     return (
-      <Box sx={{ width: '100%' }}>
-        <LinearProgress />
-      </Box>
+      <Container maxWidth="lg" sx={{ py: 4, textAlign: 'center' }}>
+        <CircularProgress />
+        <Typography variant="body1" sx={{ mt: 2 }}>
+          Loading profile...
+        </Typography>
+      </Container>
     );
   }
 
@@ -258,9 +277,28 @@ export default function ArtistProfile() {
             </CardContent>
           </Card>
 
-          {/* Social Links */}
+          {/* Contact & Social Links */}
           <Card sx={{ mt: 3, p: 2 }}>
-            <Typography variant="h6" gutterBottom>Social Links</Typography>
+            <Typography variant="h6" gutterBottom>Contact & Social Links</Typography>
+            
+            {/* Phone */}
+            <Typography variant="subtitle2" sx={{ mt: 1 }}>Phone</Typography>
+            {isEditing ? (
+              <TextField
+                fullWidth
+                value={profileData.phone || ''}
+                onChange={(e) => handleInputChange('phone', e.target.value)}
+                sx={{ mb: 2 }}
+                disabled={saving}
+                placeholder="Your phone number"
+              />
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {profileData.phone || 'No phone number'}
+              </Typography>
+            )}
+
+            {/* Social Links */}
             {['website', 'instagram', 'facebook', 'twitter'].map((platform) =>
               isEditing ? (
                 <TextField
@@ -268,7 +306,7 @@ export default function ArtistProfile() {
                   fullWidth
                   label={platform.charAt(0).toUpperCase() + platform.slice(1)}
                   value={profileData[platform] || ''}
-                  onChange={(e) => handleSocialMediaChange(platform, e.target.value)}
+                  onChange={(e) => handleInputChange(platform, e.target.value)}
                   sx={{ mb: 2 }}
                   disabled={saving}
                   placeholder={`Your ${platform} URL`}
@@ -380,8 +418,24 @@ export default function ArtistProfile() {
                 placeholder="e.g., Painting, Sculpture, Digital Art..."
               />
             ) : (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                 {profileData.specialty || 'No specialty specified'}
+              </Typography>
+            )}
+
+            {/* Portfolio */}
+            <Typography variant="subtitle2">Portfolio</Typography>
+            {isEditing ? (
+              <TextField
+                fullWidth
+                value={profileData.portfolio || ''}
+                onChange={(e) => handleInputChange('portfolio', e.target.value)}
+                disabled={saving}
+                placeholder="Link to your portfolio website..."
+              />
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                {profileData.portfolio || 'No portfolio link'}
               </Typography>
             )}
           </Card>
