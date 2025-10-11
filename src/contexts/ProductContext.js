@@ -50,8 +50,8 @@ export function ProductProvider({ children }) {
         .order('created_at', { ascending: false });
 
       // Apply basic filters
-      if (filters.category && filters.category !== '0') {
-        query = query.eq('category', filters.category);
+      if (filters.category_id && filters.category_id !== '0') {
+        query = query.eq('category_id', filters.category_id);
       }
       if (filters.search) {
         query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
@@ -85,11 +85,13 @@ export function ProductProvider({ children }) {
   }, []);
 
   const getArtistProducts = useCallback(async (artistId = null) => {
-    // Use profile ID first, then user ID as fallback
-    const id = artistId || profile?.id || user?.id;
+    // Use ONLY the integer artist_id from profile
+    const id = artistId || profile?.artist_id;
     
     if (!id) {
-      console.log('⚠️ No user ID available for artist products');
+      console.log('⚠️ No artist_id available in profile');
+      console.log('Current profile artist_id:', profile?.artist_id);
+      console.log('Full profile:', profile);
       setArtistProducts([]);
       return [];
     }
@@ -98,76 +100,22 @@ export function ProductProvider({ children }) {
     setError(null);
     
     try {
-      console.log(`🔄 Fetching products for artist: ${id} (UUID: ${id.includes('-')})`);
+      console.log(`🔄 Fetching products for artist_id: ${id} (INTEGER)`);
       
-      // First, let's test if the artist_id column accepts UUIDs
-      const testQuery = await supabase
-        .from('products')
-        .select('artist_id')
-        .limit(1);
-
-      console.log('🔍 Database artist_id sample:', testQuery.data?.[0]?.artist_id);
-      
-      // Try the query with UUID directly
-      let query = supabase
+      const { data, error: supabaseError } = await supabase
         .from('products')
         .select('*')
+        .eq('artist_id', id)
         .order('created_at', { ascending: false });
 
-      // Try different approaches based on the artist_id type
-      if (testQuery.data?.[0]?.artist_id && typeof testQuery.data[0].artist_id === 'string' && testQuery.data[0].artist_id.includes('-')) {
-        // Database uses UUIDs - use direct filter
-        console.log('🎯 Using UUID filter');
-        query = query.eq('artist_id', id);
-      } else {
-        // Database might use integers - use client-side filtering
-        console.log('🎯 Using client-side filtering (potential type mismatch)');
-      }
-
-      const { data, error: supabaseError } = await query;
-
       if (supabaseError) {
-        console.error('❌ Supabase error in getArtistProducts:', supabaseError);
-        
-        // If there's a type error, fall back to client-side filtering
-        if (supabaseError.message.includes('integer') || supabaseError.message.includes('invalid input syntax')) {
-          console.log('🔄 Type mismatch detected, using client-side filtering...');
-          
-          const { data: allProducts, error: allError } = await supabase
-            .from('products')
-            .select('*')
-            .order('created_at', { ascending: false });
-            
-          if (allError) {
-            console.error('❌ Error fetching all products:', allError);
-            throw allError;
-          }
-          
-          // Filter by artist_id manually (convert both to string for comparison)
-          const filteredProducts = allProducts.filter(product => 
-            product.artist_id && product.artist_id.toString() === id.toString()
-          );
-          
-          console.log(`✅ Found ${filteredProducts.length} artist products (client-side filter)`);
-          setArtistProducts(filteredProducts);
-          return filteredProducts;
-        }
-        
+        console.error('❌ Supabase error:', supabaseError);
         throw supabaseError;
       }
 
-      // If we used client-side filtering approach from the start, filter the results
-      let finalProducts = data || [];
-      if (testQuery.data?.[0]?.artist_id && typeof testQuery.data[0].artist_id === 'number') {
-        console.log('🔍 Filtering results client-side for integer artist_id');
-        finalProducts = finalProducts.filter(product => 
-          product.artist_id && product.artist_id.toString() === id.toString()
-        );
-      }
-
-      console.log(`✅ Found ${finalProducts.length} artist products`);
-      setArtistProducts(finalProducts);
-      return finalProducts;
+      console.log(`✅ Found ${data?.length || 0} products for artist_id ${id}`);
+      setArtistProducts(data || []);
+      return data || [];
       
     } catch (err) {
       const errorMessage = err.message || 'Failed to fetch artist products';
@@ -178,7 +126,7 @@ export function ProductProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [user, profile]);
+  }, [profile?.artist_id]); // ✅ Only depend on profile.artist_id
 
   const getProduct = async (productId) => {
     if (!productId) {
@@ -222,7 +170,14 @@ export function ProductProvider({ children }) {
     setError(null);
     
     try {
-      console.log('🔄 Creating product with artist_id:', user?.id);
+      // Use the INTEGER artist_id from profile
+      const artistId = profile?.artist_id;
+      
+      if (!artistId) {
+        throw new Error('Artist ID not found. Please make sure you are logged in as an artist and your profile has an artist_id.');
+      }
+
+      console.log('🔄 Creating product with artist_id:', artistId);
       
       const { data: product, error: productError } = await supabase
         .from('products')
@@ -230,26 +185,33 @@ export function ProductProvider({ children }) {
           name: productData.name,
           description: productData.description,
           price: productData.price,
-          category: productData.category,
-          artist_id: user?.id, // This should be UUID
-          dimensions: productData.dimensions,
-          materials: productData.materials,
+          compare_price: productData.compare_price,
+          cost_per_item: productData.cost_per_item,
+          category_id: productData.category_id,
+          artist_id: artistId,
+          sku: productData.sku,
+          barcode: productData.barcode,
+          quantity: productData.quantity,
+          allow_out_of_stock_purchases: productData.allow_out_of_stock_purchases || false,
+          weight: productData.weight,
+          length: productData.length,
+          width: productData.width,
+          height: productData.height,
           is_published: productData.is_published || false,
+          is_featured: productData.is_featured || false,
+          is_digital: productData.is_digital || false,
+          requires_shipping: productData.requires_shipping !== undefined ? productData.requires_shipping : true,
+          seo_title: productData.seo_title,
+          seo_description: productData.seo_description,
+          slug: productData.slug,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         }])
         .select()
         .single();
 
       if (productError) {
         console.error('❌ Product creation error:', productError);
-        
-        // If it's a type error, provide clear instructions
-        if (productError.message.includes('integer') || productError.message.includes('invalid input syntax')) {
-          throw new Error(
-            'Database schema issue: artist_id column expects integer but received UUID. ' +
-            'Please run this SQL in your Supabase database: ' +
-            'ALTER TABLE products ALTER COLUMN artist_id TYPE UUID USING artist_id::uuid;'
-          );
-        }
         throw productError;
       }
 
@@ -282,7 +244,10 @@ export function ProductProvider({ children }) {
       
       const { data, error: supabaseError } = await supabase
         .from('products')
-        .update(productData)
+        .update({
+          ...productData,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', productId)
         .select()
         .single();
@@ -343,6 +308,62 @@ export function ProductProvider({ children }) {
     return updateProduct(productId, { is_published: isPublished });
   };
 
+  const getProductsByCategory = async (categoryId) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log(`🔄 Fetching products for category: ${categoryId}`);
+      
+      const { data, error: supabaseError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('category_id', categoryId)
+        .eq('is_published', true)
+        .order('created_at', { ascending: false });
+
+      if (supabaseError) throw supabaseError;
+
+      return data || [];
+      
+    } catch (err) {
+      const errorMessage = err.message || 'Failed to fetch category products';
+      console.error('❌ Category products error:', errorMessage);
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchProducts = async (searchTerm) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log(`🔄 Searching products for: ${searchTerm}`);
+      
+      const { data, error: supabaseError } = await supabase
+        .from('products')
+        .select('*')
+        .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+        .eq('is_published', true)
+        .order('created_at', { ascending: false });
+
+      if (supabaseError) throw supabaseError;
+
+      return data || [];
+      
+    } catch (err) {
+      const errorMessage = err.message || 'Failed to search products';
+      console.error('❌ Product search error:', errorMessage);
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const value = {
     products,
     artistProducts,
@@ -355,10 +376,15 @@ export function ProductProvider({ children }) {
     updateProduct,
     deleteProduct,
     togglePublishProduct,
+    getProductsByCategory,
+    searchProducts,
     clearError: () => setError(null),
     refreshProducts: () => {
       clearCache();
       return getAllProducts();
+    },
+    refreshArtistProducts: () => {
+      return getArtistProducts();
     }
   };
 
