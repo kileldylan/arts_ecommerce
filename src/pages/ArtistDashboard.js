@@ -52,7 +52,7 @@ export default function ArtistDashboard() {
 
   useEffect(() => {
     if (profile) {
-      getArtistProducts(profile.id);
+      getArtistProducts(profile.artist_id);
     }
   }, [profile, getArtistProducts]);
 
