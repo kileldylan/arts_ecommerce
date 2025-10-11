@@ -106,8 +106,8 @@ export default function ProductList() {
 
   useEffect(() => {
     console.log('🔍 ProductList - Profile:', profile);
-    if (profile?.id) {
-      getArtistProducts(profile.id);
+    if (profile?.artist_id) {
+      getArtistProducts(profile.artist_id);
     }
   }, [profile, getArtistProducts]);
 
@@ -117,8 +117,8 @@ export default function ProductList() {
       await updateProduct(productId, { is_published: isPublished });
       setSuccessMessage(`Product ${isPublished ? 'published' : 'unpublished'} successfully!`);
       // Refresh the products list
-      if (profile?.id) {
-        getArtistProducts(profile.id);
+      if (profile?.artist_id) {
+        getArtistProducts(profile.artist_id);
       }
     } catch (error) {
       console.error('Error toggling product status:', error);
@@ -153,7 +153,7 @@ export default function ProductList() {
 
   // Debug logging
   console.log('🔍 ProductList Debug:', {
-    profileId: profile?.id,
+    profileId: profile?.artist_id,
     artistProductsCount: artistProducts.length,
     filteredCount: filteredProducts.length,
     loading: loading
