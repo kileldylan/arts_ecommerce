@@ -19,11 +19,13 @@ export function OrderProvider({ children }) {
   const [error, setError] = useState(null);
   const { user } = useAuth();
 
+  // In OrderContext.js - update the getOrders function
   const getOrders = useCallback(async (filters = {}) => {
     setLoading(true);
     setError(null);
     try {
-      let query = supabase
+      // Build the base query without shipping_address first
+      let baseQuery = supabase
         .from('orders')
         .select(`
           *,
@@ -31,14 +33,12 @@ export function OrderProvider({ children }) {
             *,
             products (*)
           ),
-          customer:customer_id (*),
-          shipping_address (*)
+          customer:customer_id (*)
         `)
         .order('created_at', { ascending: false });
 
       // Apply filters based on user role
       if (user?.user_type === 'artist') {
-        // For artists, get orders that include their products
         const { data: artistProducts } = await supabase
           .from('products')
           .select('id')
@@ -47,27 +47,47 @@ export function OrderProvider({ children }) {
         const productIds = artistProducts?.map(p => p.id) || [];
         
         if (productIds.length > 0) {
-          query = query.filter('order_items.product_id', 'in', `(${productIds.join(',')})`);
+          baseQuery = baseQuery.filter('order_items.product_id', 'in', `(${productIds.join(',')})`);
         } else {
           setOrders([]);
           return [];
         }
       } else if (user?.user_type === 'customer') {
-        // For customers, get their own orders
-        query = query.eq('customer_id', user.id);
+        baseQuery = baseQuery.eq('customer_id', user.id);
       }
 
       // Apply status filter
       if (filters.status) {
-        query = query.eq('status', filters.status);
+        baseQuery = baseQuery.eq('status', filters.status);
       }
 
-      const { data, error: supabaseError } = await query;
+      const { data, error: supabaseError } = await baseQuery;
 
       if (supabaseError) throw supabaseError;
 
-      setOrders(data || []);
-      return data || [];
+      // If shipping_address relationship exists, fetch it separately
+      const ordersWithShipping = await Promise.all(
+        (data || []).map(async (order) => {
+          if (order.shipping_address_id) {
+            try {
+              const { data: shippingAddress } = await supabase
+                .from('shipping_addresses') // Note the table name might be plural
+                .select('*')
+                .eq('id', order.shipping_address_id)
+                .single();
+              
+              return { ...order, shipping_address: shippingAddress };
+            } catch (error) {
+              console.warn('Could not fetch shipping address:', error);
+              return { ...order, shipping_address: null };
+            }
+          }
+          return { ...order, shipping_address: null };
+        })
+      );
+
+      setOrders(ordersWithShipping);
+      return ordersWithShipping;
     } catch (err) {
       const errorMessage = err.message || 'Failed to fetch orders';
       setError(errorMessage);

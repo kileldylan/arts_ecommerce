@@ -39,7 +39,7 @@ const themeColors = {
 };
 
 export default function ArtistDashboard() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const { artistProducts, loading, getArtistProducts } = useProducts();
   const [stats, setStats] = useState({
@@ -51,10 +51,10 @@ export default function ArtistDashboard() {
   });
 
   useEffect(() => {
-    if (user) {
-      getArtistProducts(user.id);
+    if (profile) {
+      getArtistProducts(profile.id);
     }
-  }, [user, getArtistProducts]);
+  }, [profile, getArtistProducts]);
 
   useEffect(() => {
     if (artistProducts.length > 0) {
@@ -231,8 +231,7 @@ export default function ArtistDashboard() {
                 fontSize: { xs: '2rem', md: '2.75rem' }
               }}
             >
-              Welcome back, {user?.name}!
-            </Typography>
+              Welcome back, {profile?.first_name || 'Artist'}            </Typography>
             <Typography
               variant="h6"
               color={themeColors.lightText}

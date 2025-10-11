@@ -7,10 +7,11 @@ import { Box } from '@mui/material';
 import CustomerDashboard from './customer/CustomerDashboard';
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { profile } = useAuth(); // ✅ get profile directly
+  const userType = profile?.user_type || 'customer'; // fallback
 
   const renderDashboard = () => {
-    switch (user?.user_type) {
+    switch (userType) {
       case 'artist':
         return <ArtistDashboard />;
       case 'admin':

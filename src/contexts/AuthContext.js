@@ -13,10 +13,10 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null); // Separate profile state
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Simple profile fetcher
+  // Enhanced profile fetcher with better error handling
   const fetchUserProfile = async (userId) => {
     try {
       console.log('🔄 Fetching profile for user:', userId);
@@ -30,9 +30,9 @@ export function AuthProvider({ children }) {
       if (error) {
         console.error('❌ Profile fetch error:', error);
         
-        // If profile doesn't exist, check if we need to create one
         if (error.code === 'PGRST116') {
-          console.log('⚠️ Profile does not exist, checking auth user...');
+          console.log('⚠️ Profile does not exist');
+          // Don't create profile automatically - let registration handle it
           return null;
         }
         throw error;
@@ -44,50 +44,7 @@ export function AuthProvider({ children }) {
       
     } catch (error) {
       console.error('❌ Failed to fetch profile:', error);
-      setProfile(null);
       return null;
-    }
-  };
-
-  // Create profile if it doesn't exist
-  const createUserProfile = async (authUser) => {
-    try {
-      console.log('🔄 Creating profile for user:', authUser.id);
-      
-      const userMetadata = authUser.user_metadata || {};
-      const userType = userMetadata.user_type || 'customer';
-      const fullName = userMetadata.full_name || userMetadata.name || 'User';
-      const [firstName, ...lastNameParts] = fullName.split(' ');
-      const lastName = lastNameParts.join(' ') || '';
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: authUser.id,
-            email: authUser.email,
-            first_name: firstName,
-            last_name: lastName,
-            user_type: userType,
-            avatar_url: userMetadata.avatar_url,
-            created_at: new Date().toISOString(),
-          }
-        ])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('❌ Profile creation error:', error);
-        throw error;
-      }
-
-      console.log('✅ Profile created successfully:', data);
-      setProfile(data);
-      return data;
-      
-    } catch (error) {
-      console.error('❌ Failed to create profile:', error);
-      throw error;
     }
   };
 
@@ -96,7 +53,6 @@ export function AuthProvider({ children }) {
 
     const initializeAuth = async () => {
       try {
-        // Get current session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -108,15 +64,10 @@ export function AuthProvider({ children }) {
 
         if (session?.user) {
           setUser(session.user);
+          console.log('👤 User set:', session.user.id);
           
-          // Try to fetch profile
-          const userProfile = await fetchUserProfile(session.user.id);
-          
-          // If profile doesn't exist and this is a new user, create one
-          if (!userProfile) {
-            console.log('🔄 No profile found, creating one...');
-            await createUserProfile(session.user);
-          }
+          // Fetch profile - but don't create if it doesn't exist
+          await fetchUserProfile(session.user.id);
         } else {
           console.log('🔍 No user session');
           setUser(null);
@@ -129,7 +80,7 @@ export function AuthProvider({ children }) {
         setProfile(null);
       } finally {
         setLoading(false);
-        console.log('✅ Auth initialization complete');
+        console.log('✅ Auth initialization complete - Loading:', false);
       }
     };
 
@@ -142,17 +93,7 @@ export function AuthProvider({ children }) {
         
         if (session?.user) {
           setUser(session.user);
-          
-          if (event === 'SIGNED_IN') {
-            // For new sign-ins, ensure profile exists
-            const profile = await fetchUserProfile(session.user.id);
-            if (!profile) {
-              await createUserProfile(session.user);
-            }
-          } else {
-            // For existing sessions, just fetch profile
-            await fetchUserProfile(session.user.id);
-          }
+          await fetchUserProfile(session.user.id);
         } else {
           setUser(null);
           setProfile(null);
@@ -174,6 +115,11 @@ export function AuthProvider({ children }) {
       });
 
       if (error) throw error;
+
+      if (data.user) {
+        // Fetch profile after successful login
+        await fetchUserProfile(data.user.id);
+      }
 
       return { 
         success: true, 
@@ -203,6 +149,29 @@ export function AuthProvider({ children }) {
       });
 
       if (error) throw error;
+
+      // Create profile after successful registration
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: data.user.id,
+              email: data.user.email,
+              first_name: userData.firstName,
+              last_name: userData.lastName,
+              user_type: userData.userType,
+              created_at: new Date().toISOString(),
+            }
+          ]);
+
+        if (profileError) {
+          console.error('❌ Profile creation error:', profileError);
+        } else {
+          // Refresh profile after creation
+          await fetchUserProfile(data.user.id);
+        }
+      }
 
       return { 
         success: true, 
@@ -254,22 +223,16 @@ export function AuthProvider({ children }) {
   };
 
   const value = {
-    // User from Supabase Auth
     user,
-    // Profile from profiles table (contains user_type)
     profile,
-    // Combined user data for convenience
     userData: user ? { ...user, profile } : null,
-    // Helpers
     isAuthenticated: !!user,
     userType: profile?.user_type || 'customer',
-    // Methods
     login,
     register,
     loginWithGoogle,
     logout,
     loading,
-    // Refresh profile
     refreshProfile: () => user && fetchUserProfile(user.id),
   };
 

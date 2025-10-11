@@ -17,7 +17,7 @@ export function ProductProvider({ children }) {
   const [artistProducts, setArtistProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   // Simple frontend cache to prevent unnecessary re-fetches
   const cacheRef = useRef({
@@ -85,7 +85,9 @@ export function ProductProvider({ children }) {
   }, []);
 
   const getArtistProducts = useCallback(async (artistId = null) => {
-    const id = artistId || user?.id;
+    // Use profile ID first, then user ID as fallback
+    const id = artistId || profile?.id || user?.id;
+    
     if (!id) {
       console.log('⚠️ No user ID available for artist products');
       setArtistProducts([]);
@@ -96,19 +98,76 @@ export function ProductProvider({ children }) {
     setError(null);
     
     try {
-      console.log(`🔄 Fetching products for artist: ${id}`);
+      console.log(`🔄 Fetching products for artist: ${id} (UUID: ${id.includes('-')})`);
       
-      const { data, error: supabaseError } = await supabase
+      // First, let's test if the artist_id column accepts UUIDs
+      const testQuery = await supabase
+        .from('products')
+        .select('artist_id')
+        .limit(1);
+
+      console.log('🔍 Database artist_id sample:', testQuery.data?.[0]?.artist_id);
+      
+      // Try the query with UUID directly
+      let query = supabase
         .from('products')
         .select('*')
-        .eq('artist_id', id)
         .order('created_at', { ascending: false });
 
-      if (supabaseError) throw supabaseError;
+      // Try different approaches based on the artist_id type
+      if (testQuery.data?.[0]?.artist_id && typeof testQuery.data[0].artist_id === 'string' && testQuery.data[0].artist_id.includes('-')) {
+        // Database uses UUIDs - use direct filter
+        console.log('🎯 Using UUID filter');
+        query = query.eq('artist_id', id);
+      } else {
+        // Database might use integers - use client-side filtering
+        console.log('🎯 Using client-side filtering (potential type mismatch)');
+      }
 
-      console.log(`✅ Found ${data?.length || 0} artist products`);
-      setArtistProducts(data || []);
-      return data || [];
+      const { data, error: supabaseError } = await query;
+
+      if (supabaseError) {
+        console.error('❌ Supabase error in getArtistProducts:', supabaseError);
+        
+        // If there's a type error, fall back to client-side filtering
+        if (supabaseError.message.includes('integer') || supabaseError.message.includes('invalid input syntax')) {
+          console.log('🔄 Type mismatch detected, using client-side filtering...');
+          
+          const { data: allProducts, error: allError } = await supabase
+            .from('products')
+            .select('*')
+            .order('created_at', { ascending: false });
+            
+          if (allError) {
+            console.error('❌ Error fetching all products:', allError);
+            throw allError;
+          }
+          
+          // Filter by artist_id manually (convert both to string for comparison)
+          const filteredProducts = allProducts.filter(product => 
+            product.artist_id && product.artist_id.toString() === id.toString()
+          );
+          
+          console.log(`✅ Found ${filteredProducts.length} artist products (client-side filter)`);
+          setArtistProducts(filteredProducts);
+          return filteredProducts;
+        }
+        
+        throw supabaseError;
+      }
+
+      // If we used client-side filtering approach from the start, filter the results
+      let finalProducts = data || [];
+      if (testQuery.data?.[0]?.artist_id && typeof testQuery.data[0].artist_id === 'number') {
+        console.log('🔍 Filtering results client-side for integer artist_id');
+        finalProducts = finalProducts.filter(product => 
+          product.artist_id && product.artist_id.toString() === id.toString()
+        );
+      }
+
+      console.log(`✅ Found ${finalProducts.length} artist products`);
+      setArtistProducts(finalProducts);
+      return finalProducts;
       
     } catch (err) {
       const errorMessage = err.message || 'Failed to fetch artist products';
@@ -119,7 +178,7 @@ export function ProductProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, profile]);
 
   const getProduct = async (productId) => {
     if (!productId) {
@@ -163,6 +222,8 @@ export function ProductProvider({ children }) {
     setError(null);
     
     try {
+      console.log('🔄 Creating product with artist_id:', user?.id);
+      
       const { data: product, error: productError } = await supabase
         .from('products')
         .insert([{
@@ -170,7 +231,7 @@ export function ProductProvider({ children }) {
           description: productData.description,
           price: productData.price,
           category: productData.category,
-          artist_id: user.id,
+          artist_id: user?.id, // This should be UUID
           dimensions: productData.dimensions,
           materials: productData.materials,
           is_published: productData.is_published || false,
@@ -178,8 +239,22 @@ export function ProductProvider({ children }) {
         .select()
         .single();
 
-      if (productError) throw productError;
+      if (productError) {
+        console.error('❌ Product creation error:', productError);
+        
+        // If it's a type error, provide clear instructions
+        if (productError.message.includes('integer') || productError.message.includes('invalid input syntax')) {
+          throw new Error(
+            'Database schema issue: artist_id column expects integer but received UUID. ' +
+            'Please run this SQL in your Supabase database: ' +
+            'ALTER TABLE products ALTER COLUMN artist_id TYPE UUID USING artist_id::uuid;'
+          );
+        }
+        throw productError;
+      }
 
+      console.log('✅ Product created successfully:', product?.id);
+      
       // Clear cache since products changed
       clearCache();
       
@@ -190,6 +265,7 @@ export function ProductProvider({ children }) {
       
     } catch (err) {
       const errorMessage = err.message || 'Failed to create product';
+      console.error('❌ Product creation error:', errorMessage);
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -202,6 +278,8 @@ export function ProductProvider({ children }) {
     setError(null);
     
     try {
+      console.log(`🔄 Updating product: ${productId}`);
+      
       const { data, error: supabaseError } = await supabase
         .from('products')
         .update(productData)
@@ -211,6 +289,8 @@ export function ProductProvider({ children }) {
 
       if (supabaseError) throw supabaseError;
 
+      console.log('✅ Product updated successfully');
+      
       // Clear cache since products changed
       clearCache();
       await getArtistProducts();
@@ -219,6 +299,7 @@ export function ProductProvider({ children }) {
       
     } catch (err) {
       const errorMessage = err.message || 'Failed to update product';
+      console.error('❌ Product update error:', errorMessage);
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -231,6 +312,8 @@ export function ProductProvider({ children }) {
     setError(null);
     
     try {
+      console.log(`🔄 Deleting product: ${productId}`);
+      
       const { error: supabaseError } = await supabase
         .from('products')
         .delete()
@@ -238,6 +321,8 @@ export function ProductProvider({ children }) {
 
       if (supabaseError) throw supabaseError;
 
+      console.log('✅ Product deleted successfully');
+      
       // Clear cache since products changed
       clearCache();
       await getArtistProducts();
@@ -246,11 +331,16 @@ export function ProductProvider({ children }) {
       
     } catch (err) {
       const errorMessage = err.message || 'Failed to delete product';
+      console.error('❌ Product deletion error:', errorMessage);
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
+  };
+
+  const togglePublishProduct = async (productId, isPublished) => {
+    return updateProduct(productId, { is_published: isPublished });
   };
 
   const value = {
@@ -264,6 +354,7 @@ export function ProductProvider({ children }) {
     createProduct,
     updateProduct,
     deleteProduct,
+    togglePublishProduct,
     clearError: () => setError(null),
     refreshProducts: () => {
       clearCache();

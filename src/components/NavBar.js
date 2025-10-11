@@ -76,7 +76,7 @@ export default function Navbar() {
   const getNavItems = () => {
     // Common items that appear for everyone (including logged out users)
     const commonItems = [
-      { label: 'Home', path: '/', icon: <Dashboard /> },
+      { label: 'Home', path: '/dashboard', icon: <Dashboard /> },
     ];
 
     // If no user or still loading, return only common items
@@ -119,9 +119,7 @@ export default function Navbar() {
     if (profile?.first_name && profile?.last_name) {
       return `${profile.first_name} ${profile.last_name}`;
     }
-    if (profile?.first_name) {
-      return profile.first_name;
-    }
+
     return user?.email?.split('@')[0] || 'User';
   };
 
@@ -152,7 +150,7 @@ export default function Navbar() {
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}
-        onClick={() => navigate('/')}
+        onClick={() => navigate('/dashboard')}
       >
         Branchi Arts & Gifts
       </Typography>
@@ -240,18 +238,6 @@ export default function Navbar() {
           {user && (
             <Box sx={{ p: 2, borderTop: `1px solid ${alpha('#FFFFFF', 0.1)}` }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Avatar
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    backgroundColor: themeColors.accent,
-                    fontWeight: '600',
-                    fontSize: '1rem',
-                    mr: 2
-                  }}
-                >
-                  {getAvatarInitial()}
-                </Avatar>
                 <Box>
                   <Typography variant="body2" fontWeight="600" color="white">
                     {getDisplayName()}
@@ -323,17 +309,7 @@ export default function Navbar() {
             {/* User info for desktop - Removed role tag */}
             {!isMobile && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Avatar
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    backgroundColor: themeColors.accent,
-                    fontWeight: '600',
-                    fontSize: '0.9rem',
-                  }}
-                >
-                  {getAvatarInitial()}
-                </Avatar>
+
                 <Box sx={{ textAlign: 'right' }}>
                   <Typography variant="body2" fontWeight="600" color="white">
                     {getDisplayName()}
