@@ -8,8 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabaseClient';
 
 export default function ArtistProfile() {
-  const { user, profile, refreshProfile, loading: authLoading } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
+  const { user, profile, refreshProfile, loading: authLoading, updateProfileImmediately } = useAuth();  const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
