@@ -25,10 +25,10 @@ import CRMDashboard from './pages/artist/CRMDashboard';
 import CustomerProfile from './pages/customer/CustomerProfile';
 import { WishlistProvider } from './contexts/WIshlistContext';
 import WishlistPage from './pages/customer/WishlistPage';
-import Navbar from './components/NavBar';
 import Dashboard from './pages/Dashboard';
 import AnalyticsDashboard from "./pages/artist/ArtistAnalytics";
 import ArtistDashboard from "./pages/ArtistDashboard";
+import ElegantNavbar from "./components/ELegantNavbar";
 
 const theme = createTheme({
   palette: {
@@ -62,7 +62,7 @@ function AppContent() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <Navbar />
+      <ElegantNavbar />
       <Box component="main" sx={{ flexGrow: 1 }}>
         <Routes>
           <Route path="/" element={<Navigate to="/customer/dashboard" />} />

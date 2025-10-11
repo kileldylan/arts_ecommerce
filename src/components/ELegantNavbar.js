@@ -1,4 +1,3 @@
-// src/components/ElegantNavbar.js
 import React, { useState } from 'react';
 import {
   AppBar,
@@ -13,16 +12,29 @@ import {
   List,
   ListItem,
   ListItemText,
+  ListItemIcon,
   Divider,
+  Menu,
+  MenuItem,
+  Avatar,
   useScrollTrigger,
-  Slide
+  Slide,
+  alpha
 } from '@mui/material';
 import {
-  Menu,
+  Menu as MenuIcon,
   ShoppingCart,
   Person,
   Search,
-  Close
+  Close,
+  ExitToApp,
+  Dashboard,
+  Store,
+  AdminPanelSettings,
+  ShoppingBag,
+  Analytics,
+  Group,
+  AccountCircle,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
@@ -42,26 +54,92 @@ function HideOnScroll(props) {
 
 export default function ElegantNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
   const { getCartItemsCount } = useCart();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, profile, userType, logout, loading } = useAuth();
 
-  const menuItems = [
-    { label: 'Home', path: '/' },
-    { label: 'Shop', path: '/customer/dashboard' },
-    { label: 'Categories', path: '/categories' },
-    { label: 'About', path: '/about' },
-    { label: 'Contact', path: '/contact' }
-  ];
+  const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
 
   const handleLogout = async () => {
     try {
       await logout();
       navigate('/');
+      handleMenuClose();
+      setMobileMenuOpen(false);
     } catch (error) {
       console.error('Logout error:', error);
     }
   };
+
+  const handleNavigation = (path) => {
+    navigate(path);
+    setMobileMenuOpen(false);
+    handleMenuClose();
+  };
+
+  const getNavItems = () => {
+    // Common items that appear for everyone (including logged out users)
+    const commonItems = [
+      { label: 'Home', path: '/dashboard', icon: <Dashboard /> },
+    ];
+
+    // If no user or still loading, return only common items
+    if (loading || !user) {
+      return commonItems;
+    }
+
+    // User-specific items based on user type
+    switch (userType) {
+      case 'admin':
+        return [
+          ...commonItems,
+          { label: 'Admin Panel', path: '/admin', icon: <AdminPanelSettings /> },
+          { label: 'Users', path: '/admin/users', icon: <Group /> },
+          { label: 'Analytics', path: '/admin/analytics', icon: <Analytics /> },
+        ];
+      case 'artist':
+        return [
+          ...commonItems,
+          { label: 'My Products', path: '/artist/products', icon: <Store /> },
+          { label: 'Orders', path: '/artist/orders', icon: <ShoppingBag /> },
+          { label: 'Analytics', path: '/artist/analytics', icon: <Analytics /> },
+        ];
+      case 'customer':
+      default:
+        return [
+          ...commonItems,
+          { label: 'My Orders', path: '/customer/orders', icon: <ShoppingBag /> },
+        ];
+    }
+  };
+
+  const getDisplayName = () => {
+    if (!user) return 'Guest';
+    
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name} ${profile.last_name}`;
+    }
+
+    return user?.email?.split('@')[0] || 'User';
+  };
+
+  const getAvatarInitial = () => {
+    if (!user) return '?';
+    
+    if (profile?.first_name) {
+      return profile.first_name.charAt(0).toUpperCase();
+    }
+    return user?.email?.charAt(0).toUpperCase() || 'U';
+  };
+
+  const navItems = getNavItems();
+
+  // Don't render anything during initial auth loading
+  if (loading) {
+    return null;
+  }
 
   return (
     <>
@@ -93,15 +171,15 @@ export default function ElegantNavbar() {
                 }}
                 onClick={() => navigate('/')}
               >
-                ArtsEcommerce
+                Branchi Arts & Gifts
               </Typography>
 
               {/* Desktop Menu */}
               <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1, flexGrow: 1 }}>
-                {menuItems.map((item) => (
+                {navItems.map((item) => (
                   <Button
-                    key={item.label}
-                    onClick={() => navigate(item.path)}
+                    key={item.path}
+                    onClick={() => handleNavigation(item.path)}
                     sx={{
                       color: 'text.primary',
                       fontWeight: 500,
@@ -146,52 +224,126 @@ export default function ElegantNavbar() {
                   </Badge>
                 </IconButton>
 
-                {/* User Account / Login */}
+                {/* User Account */}
                 {isAuthenticated ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <IconButton 
-                      onClick={() => navigate('/profile')}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    {/* User info for desktop */}
+                    <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography variant="body2" fontWeight="600" color="text.primary">
+                          {getDisplayName()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    
+                    <IconButton
+                      onClick={handleMenuOpen}
                       sx={{ 
                         color: 'text.primary',
                         '&:hover': { backgroundColor: 'rgba(44, 62, 80, 0.04)' }
                       }}
                     >
-                      <Person />
+                      <Avatar
+                        sx={{
+                          width: 36,
+                          height: 36,
+                          backgroundColor: '#F39C12',
+                          fontWeight: '600',
+                          fontSize: '1rem',
+                        }}
+                      >
+                        {getAvatarInitial()}
+                      </Avatar>
                     </IconButton>
-                    <Button
-                      variant="outlined"
-                      onClick={handleLogout}
-                      sx={{
-                        borderColor: 'text.primary',
-                        color: 'text.primary',
-                        borderRadius: '8px',
-                        px: 2,
-                        '&:hover': {
-                          borderColor: '#E74C3C',
-                          backgroundColor: 'rgba(231, 76, 60, 0.04)'
-                        }
+                    
+                    <Menu
+                      anchorEl={anchorEl}
+                      open={Boolean(anchorEl)}
+                      onClose={handleMenuClose}
+                      PaperProps={{
+                        sx: {
+                          backgroundColor: 'white',
+                          color: 'text.primary',
+                          border: '1px solid rgba(0,0,0,0.1)',
+                          borderRadius: '12px',
+                          marginTop: '8px',
+                          minWidth: 180,
+                          boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
+                        },
                       }}
                     >
-                      Logout
-                    </Button>
+                      <MenuItem
+                        onClick={() =>
+                          handleNavigation(
+                            userType === 'artist' 
+                              ? '/artist/profile' 
+                              : '/customer/profile'
+                          )
+                        }
+                        sx={{ '&:hover': { backgroundColor: 'rgba(44, 62, 80, 0.04)' } }}
+                      >
+                        <ListItemIcon>
+                          <Person fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary="Profile" />
+                      </MenuItem>
+                      <MenuItem
+                        onClick={handleLogout}
+                        sx={{ '&:hover': { backgroundColor: 'rgba(44, 62, 80, 0.04)' } }}
+                      >
+                        <ListItemIcon>
+                          <ExitToApp fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary="Logout" />
+                      </MenuItem>
+                    </Menu>
                   </Box>
                 ) : (
-                  <Button
-                    variant="contained"
-                    onClick={() => navigate('/login')}
-                    sx={{
-                      backgroundColor: '#2C3E50',
-                      borderRadius: '8px',
-                      px: 3,
-                      '&:hover': {
-                        backgroundColor: '#34495E',
-                        transform: 'translateY(-1px)'
-                      },
-                      transition: 'all 0.2s ease-in-out'
-                    }}
-                  >
-                    Login
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    {/* Show simple account icon when not logged in on mobile */}
+                    <IconButton
+                      color="inherit"
+                      onClick={() => navigate('/login')}
+                      sx={{ 
+                        '&:hover': { backgroundColor: 'rgba(44, 62, 80, 0.04)' },
+                        display: { xs: 'flex', md: 'none' }
+                      }}
+                    >
+                      <AccountCircle />
+                    </IconButton>
+                    
+                    {/* Regular login/signup buttons for desktop */}
+                    <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 2 }}>
+                      <Button
+                        color="inherit"
+                        onClick={() => navigate('/login')}
+                        sx={{
+                          color: 'text.primary',
+                          fontWeight: '500',
+                          '&:hover': { backgroundColor: 'rgba(44, 62, 80, 0.04)' },
+                        }}
+                      >
+                        Login
+                      </Button>
+                      <Button
+                        variant="contained"
+                        onClick={() => navigate('/register')}
+                        sx={{
+                          backgroundColor: '#2C3E50',
+                          color: 'white',
+                          borderRadius: '8px',
+                          px: 3,
+                          '&:hover': {
+                            backgroundColor: '#34495E',
+                            transform: 'translateY(-1px)'
+                          },
+                          transition: 'all 0.2s ease-in-out'
+                        }}
+                      >
+                        Sign Up
+                      </Button>
+                    </Box>
+                  </Box>
                 )}
 
                 {/* Mobile Menu Button */}
@@ -199,7 +351,7 @@ export default function ElegantNavbar() {
                   sx={{ display: { md: 'none' }, color: 'text.primary' }}
                   onClick={() => setMobileMenuOpen(true)}
                 >
-                  <Menu />
+                  <MenuIcon />
                 </IconButton>
               </Box>
             </Toolbar>
@@ -220,7 +372,7 @@ export default function ElegantNavbar() {
           }
         }}
       >
-        <Box sx={{ p: 2 }}>
+        <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" fontWeight="600">
               Menu
@@ -230,14 +382,13 @@ export default function ElegantNavbar() {
             </IconButton>
           </Box>
           <Divider sx={{ mb: 2 }} />
-          <List>
-            {menuItems.map((item) => (
+          
+          {/* Navigation Items */}
+          <List sx={{ flexGrow: 1 }}>
+            {navItems.map((item) => (
               <ListItem 
-                key={item.label} 
-                onClick={() => {
-                  navigate(item.path);
-                  setMobileMenuOpen(false);
-                }}
+                key={item.path} 
+                onClick={() => handleNavigation(item.path)}
                 sx={{
                   borderRadius: '8px',
                   mb: 0.5,
@@ -246,6 +397,9 @@ export default function ElegantNavbar() {
                   }
                 }}
               >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  {item.icon}
+                </ListItemIcon>
                 <ListItemText 
                   primary={item.label} 
                   primaryTypographyProps={{
@@ -255,6 +409,79 @@ export default function ElegantNavbar() {
               </ListItem>
             ))}
           </List>
+
+          {/* User Section for Mobile */}
+          {isAuthenticated ? (
+            <Box sx={{ borderTop: '1px solid rgba(0,0,0,0.1)', pt: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, px: 1 }}>
+                <Avatar
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    backgroundColor: '#F39C12',
+                    fontWeight: '600',
+                    fontSize: '0.9rem',
+                    mr: 2
+                  }}
+                >
+                  {getAvatarInitial()}
+                </Avatar>
+                <Box>
+                  <Typography variant="body2" fontWeight="600">
+                    {getDisplayName()}
+                  </Typography>
+                </Box>
+              </Box>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<ExitToApp />}
+                onClick={handleLogout}
+                sx={{
+                  color: 'text.primary',
+                  borderColor: 'rgba(0,0,0,0.2)',
+                  '&:hover': {
+                    borderColor: '#E74C3C',
+                    backgroundColor: 'rgba(231, 76, 60, 0.04)'
+                  }
+                }}
+              >
+                Logout
+              </Button>
+            </Box>
+          ) : (
+            <Box sx={{ borderTop: '1px solid rgba(0,0,0,0.1)', pt: 2 }}>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={() => handleNavigation('/login')}
+                sx={{
+                  backgroundColor: '#2C3E50',
+                  mb: 1,
+                  '&:hover': {
+                    backgroundColor: '#34495E'
+                  }
+                }}
+              >
+                Login
+              </Button>
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={() => handleNavigation('/register')}
+                sx={{
+                  borderColor: '#2C3E50',
+                  color: '#2C3E50',
+                  '&:hover': {
+                    borderColor: '#34495E',
+                    backgroundColor: 'rgba(44, 62, 80, 0.04)'
+                  }
+                }}
+              >
+                Sign Up
+              </Button>
+            </Box>
+          )}
         </Box>
       </Drawer>
 
