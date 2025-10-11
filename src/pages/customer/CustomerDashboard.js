@@ -564,23 +564,6 @@ export default function ModernDashboard() {
       </Box>
 
       <Container maxWidth="xl" sx={{ py: 4 }}>
-        {/* Features Section */}
-        <Grid container spacing={4} sx={{ mb: 8 }}>
-          {features.map((feature, index) => (
-            <Grid item xs={12} md={4} key={index}>
-              <Box sx={{ textAlign: 'center', px: 2 }}>
-                {feature.icon}
-                <Typography variant="h6" fontWeight="600" sx={{ mt: 2, mb: 1 }}>
-                  {feature.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {feature.description}
-                </Typography>
-              </Box>
-            </Grid>
-          ))}
-        </Grid>
-
         {/* Categories Section */}
         <Box sx={{ mb: 8 }}>
           <Typography variant="h4" fontWeight="700" sx={{ mb: 4, textAlign: 'center' }}>
@@ -608,19 +591,6 @@ export default function ModernDashboard() {
                     }
                   }}
                 >
-                  <Box
-                    sx={{
-                      width: 80,
-                      height: 80,
-                      backgroundColor: '#f8f9fa',
-                      borderRadius: '16px',
-                      mb: 2,
-                      backgroundImage: `url(${category.image})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      border: `1px solid ${themeColors.border}`
-                    }}
-                  />
                   <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 0.5 }}>
                     {category.name}
                   </Typography>
@@ -631,42 +601,8 @@ export default function ModernDashboard() {
               </Grid>
             ))}
           </Grid>
+
         </Box>
-
-        {/* Testimonials Section */}
-        <Box sx={{ mb: 8 }}>
-          <Typography variant="h4" fontWeight="700" sx={{ mb: 4, textAlign: 'center' }}>
-            What Our Customers Say
-          </Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              gap: 3,
-              overflowX: 'auto',
-              py: 2,
-              px: 1,
-              scrollbarWidth: 'none',
-              '&::-webkit-scrollbar': { display: 'none' },
-              WebkitOverflowScrolling: 'touch'
-            }}
-          >
-            {testimonials.map((testimonial) => (
-              <TestimonialCard key={testimonial.id} testimonial={testimonial} />
-            ))}
-          </Box>
-        </Box>
-
-        {/* Products Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
-          <Box>
-            <Typography variant="h4" fontWeight="700">
-              {selectedCategory === '0' ? 'All Products' : categories.find(c => c.id === selectedCategory)?.name}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {filteredProducts.length} products found
-            </Typography>
-          </Box>
-
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
             {/* Sort Filter */}
             <FormControl sx={{ minWidth: 150 }} size="small">
@@ -683,7 +619,6 @@ export default function ModernDashboard() {
               </Select>
             </FormControl>
           </Box>
-        </Box>
 
         {/* Products Grid */}
         {loading ? (
@@ -734,6 +669,46 @@ export default function ModernDashboard() {
             )}
           </>
         )}
+
+        {/* Features Section */}
+        <Grid container spacing={4} sx={{ mb: 8 }}>
+          {features.map((feature, index) => (
+            <Grid item xs={12} md={4} key={index}>
+              <Box sx={{ textAlign: 'center', px: 2 }}>
+                {feature.icon}
+                <Typography variant="h6" fontWeight="600" sx={{ mt: 2, mb: 1 }}>
+                  {feature.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {feature.description}
+                </Typography>
+              </Box>
+            </Grid>
+          ))}
+        </Grid>
+
+        {/* Testimonials Section */}
+        <Box sx={{ mb: 8 }}>
+          <Typography variant="h4" fontWeight="700" sx={{ mb: 4, textAlign: 'center' }}>
+            What Our Customers Say
+          </Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 3,
+              overflowX: 'auto',
+              py: 2,
+              px: 1,
+              scrollbarWidth: 'none',
+              '&::-webkit-scrollbar': { display: 'none' },
+              WebkitOverflowScrolling: 'touch'
+            }}
+          >
+            {testimonials.map((testimonial) => (
+              <TestimonialCard key={testimonial.id} testimonial={testimonial} />
+            ))}
+          </Box>
+        </Box>
       </Container>
 
       {/* Floating Cart Button */}
