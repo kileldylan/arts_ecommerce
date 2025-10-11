@@ -343,7 +343,7 @@ export default function ProductList() {
                           Ksh {product.price}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {product.category || 'Uncategorized'}
+                          {product.category_id || 'Uncategorized'}
                         </Typography>
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
