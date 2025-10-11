@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 
 const AuthContext = createContext();
@@ -15,11 +15,28 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [lastProfileUpdate, setLastProfileUpdate] = useState(0);
+  
+  // Use refs to track state without causing re-renders
+  const profileCacheRef = useRef({});
+  const lastFetchTimeRef = useRef(0);
 
-  // Enhanced profile fetcher with better error handling
-  const fetchUserProfile = async (userId) => {
+  // Enhanced profile fetcher with cache control
+  const fetchUserProfile = async (userId, forceRefresh = false) => {
     try {
-      console.log('🔄 Fetching profile for user:', userId);
+      const now = Date.now();
+      const CACHE_TIMEOUT = 30000; // 30 seconds cache
+      
+      // Check cache if not forcing refresh
+      if (!forceRefresh && 
+          profileCacheRef.current[userId] && 
+          now - lastFetchTimeRef.current < CACHE_TIMEOUT) {
+        console.log('📦 Using cached profile for user:', userId);
+        setProfile(profileCacheRef.current[userId]);
+        return profileCacheRef.current[userId];
+      }
+
+      console.log('🔄 Fetching fresh profile for user:', userId);
       
       const { data, error } = await supabase
         .from('profiles')
@@ -31,15 +48,22 @@ export function AuthProvider({ children }) {
         console.error('❌ Profile fetch error:', error);
         
         if (error.code === 'PGRST116') {
-          console.log('⚠️ Profile does not exist');
-          // Don't create profile automatically - let registration handle it
+          console.log('⚠️ Profile does not exist for user:', userId);
+          profileCacheRef.current[userId] = null;
+          setProfile(null);
           return null;
         }
         throw error;
       }
 
       console.log('✅ Profile fetched successfully:', data);
+      
+      // Update cache and state
+      profileCacheRef.current[userId] = data;
       setProfile(data);
+      setLastProfileUpdate(now);
+      lastFetchTimeRef.current = now;
+      
       return data;
       
     } catch (error) {
@@ -48,11 +72,34 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Clear cache function
+  const clearProfileCache = (userId = null) => {
+    if (userId) {
+      delete profileCacheRef.current[userId];
+    } else {
+      profileCacheRef.current = {};
+    }
+    lastFetchTimeRef.current = 0;
+    setLastProfileUpdate(Date.now());
+    console.log('🧹 Cleared profile cache for:', userId || 'all users');
+  };
+
+  // Update profile immediately (for avatar changes, etc.)
+  const updateProfileImmediately = (updatedProfile) => {
+    if (updatedProfile && user) {
+      profileCacheRef.current[user.id] = updatedProfile;
+      setProfile(updatedProfile);
+      setLastProfileUpdate(Date.now());
+      console.log('⚡ Profile updated immediately:', updatedProfile);
+    }
+  };
+
   useEffect(() => {
     console.log('🔄 AuthProvider: Initializing...');
 
     const initializeAuth = async () => {
       try {
+        setLoading(true);
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -66,18 +113,20 @@ export function AuthProvider({ children }) {
           setUser(session.user);
           console.log('👤 User set:', session.user.id);
           
-          // Fetch profile - but don't create if it doesn't exist
-          await fetchUserProfile(session.user.id);
+          // Always fetch fresh profile on initialization (no cache)
+          await fetchUserProfile(session.user.id, true);
         } else {
           console.log('🔍 No user session');
           setUser(null);
           setProfile(null);
+          clearProfileCache();
         }
         
       } catch (error) {
         console.error('❌ Auth initialization error:', error);
         setUser(null);
         setProfile(null);
+        clearProfileCache();
       } finally {
         setLoading(false);
         console.log('✅ Auth initialization complete - Loading:', false);
@@ -93,17 +142,22 @@ export function AuthProvider({ children }) {
         
         if (session?.user) {
           setUser(session.user);
-          await fetchUserProfile(session.user.id);
+          // Force refresh profile on auth state changes
+          await fetchUserProfile(session.user.id, true);
         } else {
           setUser(null);
           setProfile(null);
+          clearProfileCache();
         }
         
         setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('🔌 Cleaning up auth subscription');
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email, password) => {
@@ -117,8 +171,9 @@ export function AuthProvider({ children }) {
       if (error) throw error;
 
       if (data.user) {
-        // Fetch profile after successful login
-        await fetchUserProfile(data.user.id);
+        // Clear cache and fetch fresh profile after successful login
+        clearProfileCache(data.user.id);
+        await fetchUserProfile(data.user.id, true);
       }
 
       return { 
@@ -168,8 +223,9 @@ export function AuthProvider({ children }) {
         if (profileError) {
           console.error('❌ Profile creation error:', profileError);
         } else {
-          // Refresh profile after creation
-          await fetchUserProfile(data.user.id);
+          // Clear cache and refresh profile after creation
+          clearProfileCache(data.user.id);
+          await fetchUserProfile(data.user.id, true);
         }
       }
 
@@ -214,12 +270,20 @@ export function AuthProvider({ children }) {
       if (error) throw error;
       setUser(null);
       setProfile(null);
+      clearProfileCache();
     } catch (error) {
       console.error('❌ Logout error:', error);
       throw error;
     } finally {
       setLoading(false);
     }
+  };
+
+  const refreshProfile = async (forceRefresh = true) => {
+    if (user) {
+      return await fetchUserProfile(user.id, forceRefresh);
+    }
+    return null;
   };
 
   const value = {
@@ -233,7 +297,10 @@ export function AuthProvider({ children }) {
     loginWithGoogle,
     logout,
     loading,
-    refreshProfile: () => user && fetchUserProfile(user.id),
+    refreshProfile,
+    updateProfileImmediately, // New function for immediate updates
+    clearProfileCache, // New function to clear cache
+    lastProfileUpdate, // For components to watch for changes
   };
 
   return (

@@ -105,7 +105,7 @@ export default function ArtistProfile() {
     }
   };
 
-  const handleSave = async () => {
+    const handleSave = async () => {
     try {
       setSaving(true);
       setError('');
@@ -117,6 +117,19 @@ export default function ArtistProfile() {
       if (avatarFile) {
         try {
           avatarUrl = await uploadAvatar(avatarFile, user.id);
+          
+          // IMMEDIATELY update the UI without waiting for the full save
+          const updatedProfileWithAvatar = {
+            ...profileData,
+            avatar: avatarUrl
+          };
+          
+          // Update both local state and AuthContext immediately
+          setProfileData(updatedProfileWithAvatar);
+          if (updateProfileImmediately) {
+            updateProfileImmediately(updatedProfileWithAvatar);
+          }
+          
         } catch (uploadError) {
           setError(uploadError.message);
           return;
@@ -156,8 +169,10 @@ export default function ArtistProfile() {
         throw updateError;
       }
 
-      // Refresh the profile in AuthContext
-      await refreshProfile();
+      // Force refresh the profile in AuthContext to ensure consistency
+      if (refreshProfile) {
+        await refreshProfile(true); // Force refresh
+      }
       
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
