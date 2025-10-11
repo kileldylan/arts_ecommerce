@@ -65,7 +65,7 @@ export default function ElegantNavbar() {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/');
+      navigate('/login');
       handleMenuClose();
       setMobileMenuOpen(false);
     } catch (error) {
