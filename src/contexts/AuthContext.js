@@ -15,51 +15,95 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState(null);
 
-  // Simple profile fetcher
-  const fetchUserProfile = async (userId) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+  // Enhanced profile fetcher with retry logic
+  const fetchUserProfile = async (userId, retries = 3) => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        console.log(`🔍 Fetching profile (attempt ${attempt}/${retries})...`);
+        
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // Profile doesn't exist
+        if (error) {
+          if (error.code === 'PGRST116') {
+            // Profile doesn't exist
+            console.log('⚠️ Profile not found for user:', userId);
+            setProfile(null);
+            return null;
+          }
+          throw error;
+        }
+
+        console.log('✅ Profile fetched successfully:', data);
+        setProfile(data);
+        return data;
+      } catch (error) {
+        console.error(`❌ Profile fetch attempt ${attempt} failed:`, error);
+        
+        if (attempt === retries) {
+          console.error('💥 All profile fetch attempts failed');
           setProfile(null);
           return null;
         }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  };
+
+  // Check and refresh session
+  const refreshSession = async () => {
+    try {
+      console.log('🔄 Checking/refreshing session...');
+      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('❌ Session check error:', error);
         throw error;
       }
 
-      setProfile(data);
-      return data;
+      console.log('🔍 Current session:', currentSession ? 'Valid' : 'Invalid');
+      
+      if (currentSession?.user) {
+        setSession(currentSession);
+        setUser(currentSession.user);
+        await fetchUserProfile(currentSession.user.id);
+      } else {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+      }
+      
+      return currentSession;
     } catch (error) {
-      console.error('Failed to fetch profile:', error);
+      console.error('❌ Session refresh failed:', error);
+      setSession(null);
+      setUser(null);
       setProfile(null);
       return null;
     }
   };
 
+  // Enhanced auth state listener
   useEffect(() => {
     const initializeAuth = async () => {
       try {
         setLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
+        console.log('🚀 Initializing auth...');
         
-        if (session?.user) {
-          setUser(session.user);
-          await fetchUserProfile(session.user.id);
-        } else {
-          setUser(null);
-          setProfile(null);
-        }
+        await refreshSession();
+        
       } catch (error) {
-        console.error('Auth initialization error:', error);
+        console.error('❌ Auth initialization error:', error);
         setUser(null);
         setProfile(null);
+        setSession(null);
       } finally {
         setLoading(false);
       }
@@ -67,33 +111,70 @@ export function AuthProvider({ children }) {
 
     initializeAuth();
 
-    // Auth state change listener
+    // Enhanced auth state change listener with session refresh
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          setUser(session.user);
-          await fetchUserProfile(session.user.id);
-        } else {
-          setUser(null);
-          setProfile(null);
+      async (event, currentSession) => {
+        console.log('🔐 Auth state change:', event, currentSession ? 'Has session' : 'No session');
+        
+        switch (event) {
+          case 'SIGNED_IN':
+          case 'TOKEN_REFRESHED':
+          case 'USER_UPDATED':
+            if (currentSession?.user) {
+              setSession(currentSession);
+              setUser(currentSession.user);
+              await fetchUserProfile(currentSession.user.id);
+            }
+            break;
+            
+          case 'SIGNED_OUT':
+          case 'USER_DELETED':
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+            break;
+            
+          case 'INITIAL_SESSION':
+            if (currentSession?.user) {
+              setSession(currentSession);
+              setUser(currentSession.user);
+              await fetchUserProfile(currentSession.user.id);
+            }
+            break;
         }
+        
         setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    // Set up periodic session check (every 5 minutes)
+    const sessionCheckInterval = setInterval(() => {
+      refreshSession();
+    }, 5 * 60 * 1000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(sessionCheckInterval);
+    };
   }, []);
 
+  // Enhanced login with session validation
   const login = async (email, password) => {
     try {
+      console.log('🔐 Attempting login...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
+      
+      console.log('✅ Login successful, validating session...');
+      await refreshSession();
+      
       return { success: true, user: data.user };
     } catch (error) {
+      console.error('❌ Login failed:', error);
       return { success: false, error: error.message };
     }
   };
@@ -165,11 +246,17 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Session validation function for other components to use
+  const validateSession = async () => {
+    return await refreshSession();
+  };
+
   const value = {
     user,
     profile,
+    session,
     userData: user ? { ...user, profile } : null,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user && !!session,
     userType: profile?.user_type || 'customer',
     login,
     register,
@@ -177,6 +264,7 @@ export function AuthProvider({ children }) {
     logout,
     loading,
     refreshProfile: () => user && fetchUserProfile(user.id),
+    validateSession, // Export session validation
   };
 
   return (

@@ -1,5 +1,5 @@
 import { Analytics } from "@vercel/analytics/react"
-import React from 'react';
+import React, {useEffect} from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -43,6 +43,37 @@ const theme = createTheme({
     MuiCard: { styleOverrides: { root: { boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' } } },
   },
 });
+
+const SessionRecovery = () => {
+  const { validateSession, isAuthenticated } = useAuth();
+  
+  useEffect(() => {
+    // Attempt to recover session on app start and when coming back from background
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isAuthenticated) {
+        console.log('🔄 App became visible, validating session...');
+        validateSession();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also validate session when the window gains focus
+    window.addEventListener('focus', () => {
+      if (isAuthenticated) {
+        console.log('🔄 Window focused, validating session...');
+        validateSession();
+      }
+    });
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', validateSession);
+    };
+  }, [isAuthenticated, validateSession]);
+
+  return null;
+};
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -108,6 +139,7 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <ProductProvider>
+          <SessionRecovery/>
           <OrderProvider>
             <CartProvider>
               <WishlistProvider>

@@ -1,7 +1,7 @@
 // src/pages/artist/EditProduct.js
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Container, Typography, Box, CircularProgress, Alert, Snackbar } from '@mui/material';
+import { Container, Typography, Box, CircularProgress, Alert, Snackbar, LinearProgress } from '@mui/material';
 import { useProducts } from '../../contexts/ProductContext';
 import ProductForm from '../../forms/ProductForm';
 
@@ -63,16 +63,12 @@ export default function EditProduct() {
 
   if (fetchLoading) {
     return (
-      <>
-        <Container maxWidth="xl" sx={{ py: 4, textAlign: 'center' }}>
-          <CircularProgress />
-          <Typography variant="body1" sx={{ mt: 2 }}>
-            Loading product...
-          </Typography>
-        </Container>
-      </>
+      <Box sx={{ width: '100%' }}>
+        <LinearProgress />
+      </Box>
     );
   }
+
 
   if (!product) {
     return (

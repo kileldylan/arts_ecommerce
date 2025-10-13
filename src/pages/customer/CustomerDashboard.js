@@ -59,16 +59,11 @@ const themeColors = {
 
 const categories = [
   { id: '0', name: 'All Products', count: 0 },
-  { id: '1', name: 'Frames', count: 9, image: '/api/placeholder/80/80?text=Frames' },
-  { id: '2', name: 'Wall Art', count: 3, image: '/api/placeholder/80/80?text=Wall+Art' },
-  { id: '3', name: 'Wall Décor', count: 5, image: '/api/placeholder/80/80?text=Wall+Décor' },
-  { id: '4', name: 'Wallpaper', count: 21, image: '/api/placeholder/80/80?text=Wallpaper' },
-  { id: '5', name: 'Signage', count: 7, image: '/api/placeholder/80/80?text=Signage' },
-  { id: '6', name: 'Banners', count: 10, image: '/api/placeholder/80/80?text=Banners' },
-  { id: '7', name: 'Stickers', count: 5, image: '/api/placeholder/80/80?text=Stickers' },
-  { id: '8', name: 'Board Printing', count: 7, image: '/api/placeholder/80/80?text=Board+Printing' },
-  { id: '9', name: 'Event Branding', count: 4, image: '/api/placeholder/80/80?text=Event+Branding' },
-  { id: '10', name: 'Aesthetic Mirrors', count: 31, image: '/api/placeholder/80/80?text=Door+Signs' }
+  { id: '1', name: 'Wooden Intarshia', count: 21, image: '/api/placeholder/80/80?text=Wallpaper' },
+  { id: '2', name: 'Frames', count: 9, image: '/api/placeholder/80/80?text=Frames' },
+  { id: '3', name: 'Wall Art', count: 3, image: '/api/placeholder/80/80?text=Wall+Art' },
+  { id: '4', name: 'Sculptures', count: 3, image: '/api/placeholder/80/80?text=Wall+Art' },
+  { id: '5', name: 'Aesthetic Mirrors', count: 31, image: '/api/placeholder/80/80?text=Door+Signs' }
 ];
 
 const features = [

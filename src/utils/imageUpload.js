@@ -62,24 +62,28 @@ export class ImageUploadService {
 
   // Delete image
   static async deleteImage(filePath) {
-    try {
-      const { error } = await supabase.storage
-        .from(this.BUCKET_NAME)
-        .remove([filePath]);
+  try {
+    console.log('🗑️ Attempting to delete image from storage:', filePath);
+    
+    const { data, error } = await supabase.storage
+      .from(this.BUCKET_NAME)
+      .remove([filePath]);
 
-      if (error) {
-        throw error;
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error deleting image:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+    if (error) {
+      console.error('❌ Storage deletion error:', error);
+      throw error;
     }
+
+    console.log('✅ Image deleted successfully from storage:', filePath);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error deleting image from storage:', error);
+    return {
+      success: false,
+      error: error.message
+    };
   }
+}
 
   // Get image URL (useful for displaying)
   static getImageUrl(filePath) {

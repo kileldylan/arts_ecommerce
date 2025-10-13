@@ -100,6 +100,7 @@ export default function ProductList() {
   const [successMessage, setSuccessMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('0');
+  const [deletingProductId, setDeletingProductId] = useState(null); 
 
   useEffect(() => {
     if (profile?.artist_id) {
@@ -120,16 +121,32 @@ export default function ProductList() {
   };
 
   const handleDelete = async () => {
-    if (deleteDialog) {
-      try {
-        await deleteProduct(deleteDialog.id);
-        setSuccessMessage('Product deleted successfully!');
-        setDeleteDialog(null);
-      } catch (error) {
-        console.error('Error deleting product:', error);
-      }
+  console.log('=== DELETE PROCESS STARTING ===');
+  console.log('🔄 DELETE BUTTON CLICKED');
+  console.log('🔍 Delete dialog data:', deleteDialog);
+  
+  if (deleteDialog) {
+    try {
+      setDeletingProductId(deleteDialog.id); // Start loading
+      console.log('🚀 Calling deleteProduct with ID:', deleteDialog.id);
+      const result = await deleteProduct(deleteDialog.id);
+      console.log('✅ deleteProduct returned:', result);
+      
+      setSuccessMessage('Product deleted successfully!');
+      setDeleteDialog(null);
+      console.log('=== DELETE PROCESS COMPLETED SUCCESSFULLY ===');
+    } catch (error) {
+      console.error('❌ ERROR IN handleDelete:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error stack:', error.stack);
+      console.log('=== DELETE PROCESS FAILED ===');
+    } finally {
+      setDeletingProductId(null); // Stop loading regardless of outcome
     }
-  };
+  } else {
+    console.warn('⚠️ Delete dialog is null - this should not happen');
+  }
+};
 
   const handleTogglePublish = async (product) => {
     await togglePublishProduct(product.id, !product.is_published);

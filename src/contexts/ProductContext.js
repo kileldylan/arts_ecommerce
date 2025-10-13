@@ -108,7 +108,7 @@ export function ProductProvider({ children }) {
   const [artistProducts, setArtistProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { user, profile } = useAuth();
+  const { user, profile, validateSession } = useAuth();
 
   // Simple frontend cache to prevent unnecessary re-fetches
   const cacheRef = useRef({
@@ -116,6 +116,81 @@ export function ProductProvider({ children }) {
     lastFetch: 0,
     cacheDuration: 2 * 60 * 1000 // 2 minutes cache
   });
+
+  // Enhanced session validation for all product operations
+  const ensureValidSession = async (operation = 'operation') => {
+    try {
+      console.log(`🔍 Validating session for ${operation}...`);
+      
+      // Use the validateSession from AuthContext if available
+      if (validateSession) {
+        const session = await validateSession();
+        if (!session) {
+          throw new Error('No valid session. Please log in again.');
+        }
+        return session;
+      }
+
+      // Fallback validation
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('❌ Session check failed:', error);
+        throw new Error('Session validation failed');
+      }
+      
+      if (!session) {
+        console.error('❌ No valid session found');
+        throw new Error('No active session. Please log in again.');
+      }
+
+      // Check session expiry
+      const expiresAt = new Date(session.expires_at);
+      const now = new Date();
+      const timeUntilExpiry = expiresAt - now;
+      
+      console.log(`⏰ Session expires in: ${Math.round(timeUntilExpiry / 1000 / 60)} minutes`);
+      
+      // Refresh if session expires in less than 5 minutes
+      if (timeUntilExpiry < 5 * 60 * 1000) {
+        console.log('🔄 Session nearing expiry, attempting refresh...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError) {
+          console.error('❌ Session refresh failed:', refreshError);
+          throw new Error('Session expired. Please log in again.');
+        }
+        
+        console.log('✅ Session refreshed successfully');
+        return refreshedSession;
+      }
+      
+      return session;
+    } catch (error) {
+      console.error(`💥 Session validation failed for ${operation}:`, error);
+      throw error;
+    }
+  };
+
+  // Enhanced error handler with session recovery suggestions
+  const handleOperationError = (error, operation) => {
+    console.error(`❌ ${operation} failed:`, error);
+    
+    // Handle session-related errors
+    if (error.message?.includes('session') || 
+        error.message?.includes('auth') || 
+        error.message?.includes('JWT') ||
+        error.code === 401) {
+      const sessionError = 'Your session has expired. Please refresh the page and try again.';
+      setError(sessionError);
+      throw new Error(sessionError);
+    }
+    
+    // Handle other errors
+    const errorMessage = error.message || `Failed to ${operation}`;
+    setError(errorMessage);
+    throw new Error(errorMessage);
+  };
 
   // Process product images to ensure full URLs
   const processProductImages = (product) => {
@@ -181,7 +256,6 @@ export function ProductProvider({ children }) {
       const { data, error: supabaseError } = await query;
 
       if (supabaseError) {
-        console.error('❌ Supabase error:', supabaseError);
         throw supabaseError;
       }
 
@@ -196,11 +270,7 @@ export function ProductProvider({ children }) {
       return processedProducts;
       
     } catch (err) {
-      const errorMessage = err.message || 'Failed to fetch products';
-      console.error('❌ Product fetch error:', errorMessage);
-      setError(errorMessage);
-      setProducts([]); // Set empty array to prevent undefined errors
-      throw new Error(errorMessage);
+      handleOperationError(err, 'fetch products');
     } finally {
       setLoading(false);
     }
@@ -212,8 +282,6 @@ export function ProductProvider({ children }) {
     
     if (!id) {
       console.log('⚠️ No artist_id available in profile');
-      console.log('Current profile artist_id:', profile?.artist_id);
-      console.log('Full profile:', profile);
       setArtistProducts([]);
       return [];
     }
@@ -222,6 +290,9 @@ export function ProductProvider({ children }) {
     setError(null);
     
     try {
+      // Validate session for artist-specific operations
+      await ensureValidSession('fetch artist products');
+      
       console.log(`🔄 Fetching products for artist_id: ${id} (INTEGER)`);
       
       const { data, error: supabaseError } = await supabase
@@ -231,7 +302,6 @@ export function ProductProvider({ children }) {
         .order('created_at', { ascending: false });
 
       if (supabaseError) {
-        console.error('❌ Supabase error:', supabaseError);
         throw supabaseError;
       }
 
@@ -243,11 +313,7 @@ export function ProductProvider({ children }) {
       return processedProducts;
       
     } catch (err) {
-      const errorMessage = err.message || 'Failed to fetch artist products';
-      console.error('❌ Artist products error:', errorMessage);
-      setError(errorMessage);
-      setArtistProducts([]);
-      throw new Error(errorMessage);
+      handleOperationError(err, 'fetch artist products');
     } finally {
       setLoading(false);
     }
@@ -275,10 +341,7 @@ export function ProductProvider({ children }) {
       return processProductImages(data);
       
     } catch (err) {
-      const errorMessage = err.message || 'Failed to fetch product';
-      console.error('❌ Single product error:', errorMessage);
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      handleOperationError(err, 'fetch product');
     } finally {
       setLoading(false);
     }
@@ -295,6 +358,9 @@ export function ProductProvider({ children }) {
     setError(null);
     
     try {
+      // Validate session for write operations
+      await ensureValidSession('create product');
+      
       // Use the INTEGER artist_id from profile
       const artistId = profile?.artist_id;
       
@@ -342,7 +408,7 @@ export function ProductProvider({ children }) {
           seo_title: productData.seo_title,
           seo_description: productData.seo_description,
           slug: productData.slug,
-          images: imageUrls, // Store image URLs/paths
+          images: imageUrls,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }])
@@ -350,7 +416,6 @@ export function ProductProvider({ children }) {
         .single();
 
       if (productError) {
-        console.error('❌ Product creation error:', productError);
         throw productError;
       }
 
@@ -365,10 +430,7 @@ export function ProductProvider({ children }) {
       return processProductImages(product);
       
     } catch (err) {
-      const errorMessage = err.message || 'Failed to create product';
-      console.error('❌ Product creation error:', errorMessage);
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      handleOperationError(err, 'create product');
     } finally {
       setLoading(false);
     }
@@ -379,6 +441,9 @@ export function ProductProvider({ children }) {
     setError(null);
     
     try {
+      // Validate session for write operations
+      await ensureValidSession('update product');
+      
       console.log(`🔄 Updating product: ${productId}`);
       
       let updatedImages = productData.images || [];
@@ -415,63 +480,45 @@ export function ProductProvider({ children }) {
       return processProductImages(data);
       
     } catch (err) {
-      const errorMessage = err.message || 'Failed to update product';
-      console.error('❌ Product update error:', errorMessage);
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      handleOperationError(err, 'update product');
     } finally {
       setLoading(false);
     }
   };
 
   const deleteProduct = async (productId) => {
+    console.log('🚀 deleteProduct with session validation...');
     setLoading(true);
     setError(null);
     
     try {
-      console.log(`🔄 Deleting product: ${productId}`);
-
-      // Get product first to delete associated images
-      const { data: product } = await supabase
-        .from('products')
-        .select('images')
-        .eq('id', productId)
-        .single();
-
-      // Delete images from storage
-      if (product && product.images) {
-        console.log('🗑️ Deleting product images from storage...');
-        const deletePromises = product.images.map(image => {
-          const imagePath = typeof image === 'string' 
-            ? image.split('/').pop() // Extract filename from URL
-            : image.path;
-          return ImageUploadService.deleteImage(imagePath);
-        });
-        await Promise.all(deletePromises);
-        console.log('✅ Product images deleted from storage');
-      }
-
-      // Delete product from database
-      const { error: supabaseError } = await supabase
+      // Validate session for destructive operations
+      await ensureValidSession('delete product');
+      
+      console.log('🔍 Making authenticated delete request...');
+      const { error: supabaseError, data } = await supabase
         .from('products')
         .delete()
-        .eq('id', productId);
+        .eq('id', productId)
+        .select();
 
-      if (supabaseError) throw supabaseError;
+      console.log('🔍 Delete response:', { error: supabaseError, data });
 
-      console.log('✅ Product deleted successfully');
+      if (supabaseError) {
+        throw supabaseError;
+      }
+
+      console.log('✅ DELETE SUCCESS!');
       
-      // Clear cache since products changed
       clearCache();
-      await getArtistProducts();
+      if (profile?.artist_id) {
+        await getArtistProducts(profile.artist_id);
+      }
       
       return { success: true };
       
     } catch (err) {
-      const errorMessage = err.message || 'Failed to delete product';
-      console.error('❌ Product deletion error:', errorMessage);
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      handleOperationError(err, 'delete product');
     } finally {
       setLoading(false);
     }
@@ -500,10 +547,7 @@ export function ProductProvider({ children }) {
       return (data || []).map(processProductImages);
       
     } catch (err) {
-      const errorMessage = err.message || 'Failed to fetch category products';
-      console.error('❌ Category products error:', errorMessage);
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      handleOperationError(err, 'fetch category products');
     } finally {
       setLoading(false);
     }
@@ -528,10 +572,7 @@ export function ProductProvider({ children }) {
       return (data || []).map(processProductImages);
       
     } catch (err) {
-      const errorMessage = err.message || 'Failed to search products';
-      console.error('❌ Product search error:', errorMessage);
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      handleOperationError(err, 'search products');
     } finally {
       setLoading(false);
     }
