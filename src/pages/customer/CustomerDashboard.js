@@ -32,6 +32,7 @@ import {
   Security,
   Support,
   Star,
+  Check,
   ViewModule,
   ViewList,
   Add,
@@ -42,7 +43,6 @@ import { useCart } from '../../contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Footer from '../../components/Footer';
-import ElegantNavbar from '../../components/ELegantNavbar';
 
 // Modern color palette
 const themeColors = {
@@ -68,7 +68,7 @@ const categories = [
   { id: '7', name: 'Stickers', count: 5, image: '/api/placeholder/80/80?text=Stickers' },
   { id: '8', name: 'Board Printing', count: 7, image: '/api/placeholder/80/80?text=Board+Printing' },
   { id: '9', name: 'Event Branding', count: 4, image: '/api/placeholder/80/80?text=Event+Branding' },
-  { id: '10', name: 'Door Signs', count: 31, image: '/api/placeholder/80/80?text=Door+Signs' }
+  { id: '10', name: 'Aesthetic Mirrors', count: 31, image: '/api/placeholder/80/80?text=Door+Signs' }
 ];
 
 const features = [
@@ -271,113 +271,132 @@ export default function ModernDashboard() {
     </Drawer>
   );
 
-  // Sleek Product Card Component with fixed Add to Cart button
-  const ProductCard = ({ product }) => {
-    const cartItem = cart.find(item => item.id === product.id);
-    const imageUrl = product.image_url || `/api/placeholder/300/300?text=${encodeURIComponent(product.name || 'Product')}`;
+// Enhanced Product Card Component with larger size for better product showcase
+const ProductCard = ({ product }) => {
+  const cartItem = cart.find(item => item.id === product.id);
+  const imageUrl = product.image_url || `/api/placeholder/400/400?text=${encodeURIComponent(product.name || 'Product')}`;
 
-    return (
-      <Card
-        onClick={() => handleProductClick(product.id)}
-        sx={{
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          border: `1px solid ${themeColors.border}`,
-          borderRadius: '12px',
-          overflow: 'hidden',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          cursor: 'pointer',
-          position: 'relative',
-          backgroundColor: 'white',
-          '&:hover': {
-            transform: 'translateY(-4px)',
-            boxShadow: '0 12px 24px rgba(0,0,0,0.15)',
-            borderColor: alpha(themeColors.primary, 0.3),
-            '& .product-image': {
-              transform: 'scale(1.05)'
-            }
+  return (
+    <Card
+      onClick={() => handleProductClick(product.id)}
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        border: `1px solid ${themeColors.border}`,
+        borderRadius: '16px',
+        overflow: 'hidden',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        cursor: 'pointer',
+        position: 'relative',
+        backgroundColor: 'white',
+        minHeight: 420, // Increased minimum height
+        '&:hover': {
+          transform: 'translateY(-6px)',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+          borderColor: alpha(themeColors.primary, 0.3),
+          '& .product-image': {
+            transform: 'scale(1.08)'
           }
+        }
+      }}
+    >
+      {/* Product Image Container - Larger */}
+      <Box
+        sx={{
+          position: 'relative',
+          paddingTop: '100%', // Square aspect ratio
+          backgroundColor: '#f8f9fa',
+          overflow: 'hidden',
+          flexShrink: 0
         }}
       >
-        {/* Product Image Container */}
+        <img
+          src={imageUrl}
+          alt={product.category_id}
+          className="product-image"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transition: 'transform 0.5s ease'
+          }}
+        />
+        
+        {/* Quick action buttons */}
         <Box
           sx={{
-            position: 'relative',
-            paddingTop: '100%', // Square aspect ratio
-            backgroundColor: '#f8f9fa',
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+            opacity: 0,
+            transition: 'opacity 0.3s ease',
+            '.MuiCard:hover &': {
+              opacity: 1
+            }
+          }}
+        >
+          <IconButton
+            size="small"
+            sx={{
+              backgroundColor: 'white',
+              '&:hover': {
+                backgroundColor: 'white',
+                transform: 'scale(1.1)'
+              }
+            }}
+          >
+            <Favorite sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Box>
+      </Box>
+
+      {/* Product Info - Enhanced spacing for larger card */}
+      <CardContent 
+        sx={{ 
+          p: 3, // Increased padding
+          flexGrow: 1, 
+          display: 'flex', 
+          flexDirection: 'column',
+          gap: 2, // Increased gap
+          height: 140 // Fixed height for content area
+        }}
+      >
+        {/* Product Name - Better typography for larger card */}
+        <Typography
+          variant="body1"
+          fontWeight="600"
+          sx={{
             overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            fontSize: '1rem', // Slightly larger font
+            lineHeight: 1.4,
+            color: themeColors.text,
+            minHeight: '2.8rem', // Fixed height for 2 lines
             flexShrink: 0
           }}
         >
-          <img
-            src={imageUrl}
-            alt={product.name}
-            className="product-image"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              transition: 'transform 0.5s ease'
-            }}
-          />
-        </Box>
+          {product.name}
+        </Typography>
 
-        {/* Product Info - Clean layout with Add to Cart under price */}
-        <CardContent 
-          sx={{ 
-            p: 2, 
-            flexGrow: 1, 
-            display: 'flex', 
-            flexDirection: 'column',
-            gap: 1
-          }}
-        >
-          {/* Product Name - Single line with ellipsis */}
-          <Typography
-            variant="body1"
-            fontWeight="600"
-            sx={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              fontSize: '0.9rem',
-              lineHeight: 1.3,
-              color: themeColors.text
-            }}
-          >
-            {product.name}
-          </Typography>
-
-          {/* Rating - Compact */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  sx={{
-                    fontSize: 12,
-                    color: star <= 4 ? '#FFD700' : '#E0E0E0'
-                  }}
-                />
-              ))}
-            </Box>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-              (24)
-            </Typography>
-          </Box>
-
-          {/* Price - Clean and prominent */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 'auto' }}>
+        {/* Price Section - More prominent */}
+        <Box sx={{ mt: 'auto', flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <Typography
-              variant="h6"
-              fontWeight="700"
+              variant="h5" // Larger price
+              fontWeight="800"
               sx={{ 
                 color: themeColors.primary,
-                fontSize: '1rem'
+                fontSize: '1.25rem'
               }}
             >
               Ksh {(product.price || 0).toLocaleString()}
@@ -388,7 +407,7 @@ export default function ModernDashboard() {
                 sx={{ 
                   color: themeColors.lightText, 
                   textDecoration: 'line-through',
-                  fontSize: '0.8rem'
+                  fontSize: '0.9rem'
                 }}
               >
                 Ksh {product.compare_price.toLocaleString()}
@@ -396,37 +415,45 @@ export default function ModernDashboard() {
             )}
           </Box>
 
-          {/* Add to Cart Button - Always visible under price */}
+          {/* Add to Cart Button - Larger and more prominent */}
           <Button
             variant="contained"
             fullWidth
-            size="small"
+            size="medium" // Changed to medium
             onClick={(e) => {
               e.stopPropagation();
               addToCart(product);
             }}
             disabled={cartItem}
+            startIcon={cartItem ? <Check /> : <ShoppingCart />}
             sx={{
               backgroundColor: cartItem ? themeColors.success : themeColors.primary,
               color: 'white',
-              borderRadius: '8px',
-              py: 1,
-              fontSize: '0.8rem',
-              fontWeight: '600',
+              borderRadius: '10px',
+              py: 1.5, // Increased padding
+              fontSize: '0.9rem', // Slightly larger font
+              fontWeight: '700',
               textTransform: 'none',
               transition: 'all 0.2s ease',
+              boxShadow: '0 4px 12px rgba(52, 152, 219, 0.3)',
               '&:hover': {
                 backgroundColor: cartItem ? themeColors.success : alpha(themeColors.primary, 0.9),
-                transform: 'translateY(-1px)'
+                transform: 'translateY(-2px)',
+                boxShadow: '0 6px 20px rgba(52, 152, 219, 0.4)'
+              },
+              '&.Mui-disabled': {
+                backgroundColor: themeColors.success,
+                color: 'white'
               }
             }}
           >
-            {cartItem ? '✓ Added to Cart' : '+ Add to Cart'}
+            {cartItem ? 'Added to Cart' : 'Add to Cart'}
           </Button>
-        </CardContent>
-      </Card>
-    );
-  };
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
 
   // Testimonial Card Component
   const TestimonialCard = ({ testimonial }) => (
@@ -499,7 +526,6 @@ export default function ModernDashboard() {
 
   return (
     <Box sx={{ background: themeColors.background, minHeight: '100vh' }}>
-      <ElegantNavbar />
       
       {/* Cart Drawer */}
       <CartDrawer />

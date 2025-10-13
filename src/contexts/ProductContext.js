@@ -2,6 +2,97 @@ import React, { createContext, useContext, useState, useCallback, useRef } from 
 import { useAuth } from './AuthContext';
 import { supabase } from '../utils/supabaseClient';
 
+// Image Upload Service
+class ImageUploadService {
+  static BUCKET_NAME = 'product-images';
+
+  static async uploadImage(file, folder = 'products') {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${folder}/${Math.random()}-${Date.now()}.${fileExt}`;
+      const filePath = fileName;
+
+      const { data, error } = await supabase.storage
+        .from(this.BUCKET_NAME)
+        .upload(filePath, file);
+
+      if (error) {
+        throw error;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from(this.BUCKET_NAME)
+        .getPublicUrl(filePath);
+
+      return {
+        success: true,
+        publicUrl,
+        filePath
+      };
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  static async uploadMultipleImages(files, folder = 'products') {
+    try {
+      const uploadPromises = files.map(file => this.uploadImage(file, folder));
+      const results = await Promise.all(uploadPromises);
+
+      const successfulUploads = results.filter(result => result.success);
+      const failedUploads = results.filter(result => !result.success);
+
+      return {
+        success: true,
+        images: successfulUploads.map(result => ({
+          url: result.publicUrl,
+          path: result.filePath
+        })),
+        failed: failedUploads
+      };
+    } catch (error) {
+      console.error('Error uploading multiple images:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  static async deleteImage(filePath) {
+    try {
+      const { error } = await supabase.storage
+        .from(this.BUCKET_NAME)
+        .remove([filePath]);
+
+      if (error) {
+        throw error;
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  static getImageUrl(filePath) {
+    const { data: { publicUrl } } = supabase.storage
+      .from(this.BUCKET_NAME)
+      .getPublicUrl(filePath);
+    
+    return publicUrl;
+  }
+}
+
 const ProductContext = createContext();
 
 export function useProducts() {
@@ -25,6 +116,36 @@ export function ProductProvider({ children }) {
     lastFetch: 0,
     cacheDuration: 2 * 60 * 1000 // 2 minutes cache
   });
+
+  // Process product images to ensure full URLs
+  const processProductImages = (product) => {
+    if (!product.images || !Array.isArray(product.images)) {
+      return {
+        ...product,
+        image_url: null,
+        images: []
+      };
+    }
+
+    const processedImages = product.images.map(img => {
+      if (typeof img === 'string') {
+        return img; // Already a URL
+      }
+      if (img.url) {
+        return img.url; // Use URL from image object
+      }
+      if (img.path) {
+        return ImageUploadService.getImageUrl(img.path); // Convert path to URL
+      }
+      return img;
+    });
+
+    return {
+      ...product,
+      image_url: processedImages.length > 0 ? processedImages[0] : null,
+      images: processedImages
+    };
+  };
 
   const getAllProducts = useCallback(async (filters = {}) => {
     // Check cache first
@@ -66,12 +187,13 @@ export function ProductProvider({ children }) {
 
       console.log(`✅ Successfully fetched ${data?.length || 0} products`);
       
-      // Update cache
-      cacheRef.current.allProducts = data || [];
+      // Process images and update cache
+      const processedProducts = (data || []).map(processProductImages);
+      cacheRef.current.allProducts = processedProducts;
       cacheRef.current.lastFetch = now;
 
-      setProducts(data || []);
-      return data || [];
+      setProducts(processedProducts);
+      return processedProducts;
       
     } catch (err) {
       const errorMessage = err.message || 'Failed to fetch products';
@@ -113,9 +235,12 @@ export function ProductProvider({ children }) {
         throw supabaseError;
       }
 
-      console.log(`✅ Found ${data?.length || 0} products for artist_id ${id}`);
-      setArtistProducts(data || []);
-      return data || [];
+      // Process images
+      const processedProducts = (data || []).map(processProductImages);
+      
+      console.log(`✅ Found ${processedProducts.length} products for artist_id ${id}`);
+      setArtistProducts(processedProducts);
+      return processedProducts;
       
     } catch (err) {
       const errorMessage = err.message || 'Failed to fetch artist products';
@@ -126,7 +251,7 @@ export function ProductProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [profile?.artist_id]); // ✅ Only depend on profile.artist_id
+  }, [profile?.artist_id]);
 
   const getProduct = async (productId) => {
     if (!productId) {
@@ -147,7 +272,7 @@ export function ProductProvider({ children }) {
 
       if (supabaseError) throw supabaseError;
 
-      return data;
+      return processProductImages(data);
       
     } catch (err) {
       const errorMessage = err.message || 'Failed to fetch product';
@@ -165,7 +290,7 @@ export function ProductProvider({ children }) {
     cacheRef.current.lastFetch = 0;
   };
 
-  const createProduct = async (productData) => {
+  const createProduct = async (productData, imageFiles = []) => {
     setLoading(true);
     setError(null);
     
@@ -179,6 +304,19 @@ export function ProductProvider({ children }) {
 
       console.log('🔄 Creating product with artist_id:', artistId);
       
+      // Upload images first
+      let imageUrls = [];
+      if (imageFiles.length > 0) {
+        console.log('📸 Uploading product images...');
+        const uploadResult = await ImageUploadService.uploadMultipleImages(imageFiles);
+        if (uploadResult.success) {
+          imageUrls = uploadResult.images;
+          console.log(`✅ Uploaded ${imageUrls.length} images`);
+        } else {
+          console.warn('⚠️ Failed to upload some images:', uploadResult.failed);
+        }
+      }
+
       const { data: product, error: productError } = await supabase
         .from('products')
         .insert([{
@@ -204,6 +342,7 @@ export function ProductProvider({ children }) {
           seo_title: productData.seo_title,
           seo_description: productData.seo_description,
           slug: productData.slug,
+          images: imageUrls, // Store image URLs/paths
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }])
@@ -223,7 +362,7 @@ export function ProductProvider({ children }) {
       // Refresh artist products
       await getArtistProducts();
       
-      return product;
+      return processProductImages(product);
       
     } catch (err) {
       const errorMessage = err.message || 'Failed to create product';
@@ -235,17 +374,30 @@ export function ProductProvider({ children }) {
     }
   };
 
-  const updateProduct = async (productId, productData) => {
+  const updateProduct = async (productId, productData, newImageFiles = []) => {
     setLoading(true);
     setError(null);
     
     try {
       console.log(`🔄 Updating product: ${productId}`);
       
+      let updatedImages = productData.images || [];
+
+      // Upload new images if provided
+      if (newImageFiles.length > 0) {
+        console.log('📸 Uploading new product images...');
+        const uploadResult = await ImageUploadService.uploadMultipleImages(newImageFiles);
+        if (uploadResult.success) {
+          updatedImages = [...updatedImages, ...uploadResult.images];
+          console.log(`✅ Uploaded ${uploadResult.images.length} new images`);
+        }
+      }
+
       const { data, error: supabaseError } = await supabase
         .from('products')
         .update({
           ...productData,
+          images: updatedImages,
           updated_at: new Date().toISOString()
         })
         .eq('id', productId)
@@ -260,7 +412,7 @@ export function ProductProvider({ children }) {
       clearCache();
       await getArtistProducts();
       
-      return data;
+      return processProductImages(data);
       
     } catch (err) {
       const errorMessage = err.message || 'Failed to update product';
@@ -278,7 +430,28 @@ export function ProductProvider({ children }) {
     
     try {
       console.log(`🔄 Deleting product: ${productId}`);
-      
+
+      // Get product first to delete associated images
+      const { data: product } = await supabase
+        .from('products')
+        .select('images')
+        .eq('id', productId)
+        .single();
+
+      // Delete images from storage
+      if (product && product.images) {
+        console.log('🗑️ Deleting product images from storage...');
+        const deletePromises = product.images.map(image => {
+          const imagePath = typeof image === 'string' 
+            ? image.split('/').pop() // Extract filename from URL
+            : image.path;
+          return ImageUploadService.deleteImage(imagePath);
+        });
+        await Promise.all(deletePromises);
+        console.log('✅ Product images deleted from storage');
+      }
+
+      // Delete product from database
       const { error: supabaseError } = await supabase
         .from('products')
         .delete()
@@ -324,7 +497,7 @@ export function ProductProvider({ children }) {
 
       if (supabaseError) throw supabaseError;
 
-      return data || [];
+      return (data || []).map(processProductImages);
       
     } catch (err) {
       const errorMessage = err.message || 'Failed to fetch category products';
@@ -352,7 +525,7 @@ export function ProductProvider({ children }) {
 
       if (supabaseError) throw supabaseError;
 
-      return data || [];
+      return (data || []).map(processProductImages);
       
     } catch (err) {
       const errorMessage = err.message || 'Failed to search products';

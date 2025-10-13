@@ -2,32 +2,59 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, TextField, Button, Grid, Card, CardContent, Typography,
   Switch, FormControlLabel, MenuItem, InputAdornment, Avatar,
-  CircularProgress, Alert, IconButton
+  CircularProgress, Alert, IconButton, FormControl, InputLabel, Select
 } from '@mui/material';
 import { Delete, Star, StarBorder } from '@mui/icons-material';
+import { useProducts } from '../contexts/ProductContext';
 
+// Complete categories list matching your database
 const categories = [
   { id: 1, name: 'Jewelry', slug: 'jewelry' },
   { id: 2, name: 'Paintings', slug: 'paintings' },
   { id: 3, name: 'Sculptures', slug: 'sculptures' },
-  { id: 4, name: 'Wood Carvings', slug: 'wood-carvings' }
+  { id: 4, name: 'Wood Carvings', slug: 'wood-carvings' },
+  { id: 5, name: 'Gift Items', slug: 'gift-items' },
+  { id: 6, name: 'Frames', slug: 'frames' },
+  { id: 7, name: 'Wall Art', slug: 'wall-art' },
+  { id: 8, name: 'Trophies & Awards', slug: 'trophies-awards' },
+  { id: 9, name: 'Signage', slug: 'signage' },
+  { id: 10, name: 'Banners', slug: 'banners' },
+  { id: 11, name: 'Adhesive Stickers', slug: 'adhesive-stickers' },
+  { id: 12, name: 'Board Printing', slug: 'board-printing' },
+  { id: 13, name: 'Event Branding', slug: 'event-branding' },
+  { id: 14, name: 'Door Signs', slug: 'door-signs' }
 ];
 
 export default function ProductForm({ product, onSubmit, loading }) {
+  const { createProduct, updateProduct } = useProducts();
   const [formData, setFormData] = useState({
-    name: '', description: '', price: '', compare_price: '', cost_per_item: '',
-    category_id: '', quantity: '0', sku: '', barcode: '', is_published: false,
-    is_featured: false, is_digital: false, requires_shipping: true,
-    allow_out_of_stock_purchases: false, weight: '', length: '', width: '',
-    height: '', seo_title: '', seo_description: ''
+    name: '', 
+    description: '', 
+    price: '', 
+    compare_price: '', 
+    cost_per_item: '',
+    category_id: '', 
+    quantity: '0', 
+    sku: '', 
+    barcode: '', 
+    is_published: false,
+    is_featured: false, 
+    is_digital: false, 
+    requires_shipping: true,
+    allow_out_of_stock_purchases: false, 
+    weight: '', 
+    length: '', 
+    width: '',
+    height: '', 
+    seo_title: '', 
+    seo_description: '',
+    slug: ''
   });
 
   const [images, setImages] = useState([]);
   const [imageFiles, setImageFiles] = useState([]);
   const [error, setError] = useState('');
-
-  // Backend base URL (configure in .env or hardcode for now)
-  const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (product) {
@@ -51,19 +78,20 @@ export default function ProductForm({ product, onSubmit, loading }) {
         width: product.width || '',
         height: product.height || '',
         seo_title: product.seo_title || '',
-        seo_description: product.seo_description || ''
+        seo_description: product.seo_description || '',
+        slug: product.slug || ''
       });
 
-      // Set existing images with full URLs
+      // Set existing images
       setImages((product.images || []).map((url, index) => ({
         url,
-        preview: `${BASE_URL}${url}`,
+        preview: url,
         filename: url.split('/').pop(),
         is_primary: index === 0,
         isNew: false
       })));
     }
-  }, [product, BASE_URL]);
+  }, [product]);
 
   const handleChange = (field) => (event) => {
     const value = event.target.value;
@@ -75,51 +103,83 @@ export default function ProductForm({ product, onSubmit, loading }) {
     }));
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError('');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSubmitting(true);
 
-  try {
-    const submitData = new FormData();
-    
-    // Convert all form data to strings for FormData
-    Object.keys(formData).forEach(key => {
-      let value = formData[key];
-      
-      // Convert booleans to strings
-      if (typeof value === 'boolean') {
-        value = value.toString();
-      }
-      
-      // Convert numbers to strings
-      if (typeof value === 'number') {
-        value = value.toString();
-      }
-      
-      if (value !== null && value !== undefined) {
-        submitData.append(key, value);
-      }
-    });
+    try {
+      // Prepare form data (convert to proper types)
+      const submitData = {
+        name: formData.name,
+        description: formData.description,
+        price: parseFloat(formData.price) || 0,
+        compare_price: formData.compare_price ? parseFloat(formData.compare_price) : null,
+        cost_per_item: formData.cost_per_item ? parseFloat(formData.cost_per_item) : null,
+        category_id: formData.category_id ? parseInt(formData.category_id) : null,
+        quantity: parseInt(formData.quantity) || 0,
+        sku: formData.sku,
+        barcode: formData.barcode,
+        is_published: formData.is_published,
+        is_featured: formData.is_featured,
+        is_digital: formData.is_digital,
+        requires_shipping: formData.requires_shipping,
+        allow_out_of_stock_purchases: formData.allow_out_of_stock_purchases,
+        weight: formData.weight ? parseFloat(formData.weight) : null,
+        length: formData.length ? parseFloat(formData.length) : null,
+        width: formData.width ? parseFloat(formData.width) : null,
+        height: formData.height ? parseFloat(formData.height) : null,
+        seo_title: formData.seo_title,
+        seo_description: formData.seo_description,
+        slug: formData.slug || generateSlug(formData.name),
+        images: images.filter(img => !img.isNew).map(img => img.url) // Existing images
+      };
 
-    // Debug: Log all form data entries
-    console.log('FormData entries:');
-    for (let [key, value] of submitData.entries()) {
-      console.log(key, value);
+      console.log('📦 Submitting product data:', submitData);
+      console.log('📸 Image files to upload:', imageFiles.length);
+
+      let result;
+      if (product) {
+        // Update existing product
+        result = await updateProduct(product.id, submitData, imageFiles);
+      } else {
+        // Create new product
+        result = await createProduct(submitData, imageFiles);
+      }
+
+      if (onSubmit) {
+        onSubmit(result);
+      }
+
+      // Reset form if it's a new product
+      if (!product) {
+        setFormData({
+          name: '', description: '', price: '', compare_price: '', cost_per_item: '',
+          category_id: '', quantity: '0', sku: '', barcode: '', is_published: false,
+          is_featured: false, is_digital: false, requires_shipping: true,
+          allow_out_of_stock_purchases: false, weight: '', length: '', width: '',
+          height: '', seo_title: '', seo_description: '', slug: ''
+        });
+        setImages([]);
+        setImageFiles([]);
+      }
+
+    } catch (err) {
+      setError(err.message || 'Failed to submit product');
+      console.error('❌ Product submission error:', err);
+    } finally {
+      setSubmitting(false);
     }
+  };
 
-    // Append new image files
-    imageFiles.forEach(file => {
-      console.log('Appending file:', file.name, file.size);
-      submitData.append('images', file);
-    });
-
-    await onSubmit(submitData);
-    setImageFiles([]);
-    
-  } catch (err) {
-    setError(err.message || 'Failed to submit product');
-  }
-};
+  const generateSlug = (name) => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9 -]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim();
+  };
 
   const handleImageUpload = (event) => {
     const files = Array.from(event.target.files);
@@ -144,7 +204,7 @@ export default function ProductForm({ product, onSubmit, loading }) {
       url: file.name,
       preview: URL.createObjectURL(file),
       filename: file.name,
-      is_primary: images.length === 0,
+      is_primary: images.length === 0 && imageFiles.length === 0, // Only set as primary if no images exist
       isNew: true
     }));
 
@@ -155,14 +215,18 @@ export default function ProductForm({ product, onSubmit, loading }) {
   const removeImage = (index) => {
     const imageToRemove = images[index];
     if (imageToRemove.isNew) {
+      // Remove from imageFiles
       const fileIndex = imageFiles.findIndex(file => file.name === imageToRemove.filename);
       if (fileIndex !== -1) {
         setImageFiles(prev => prev.filter((_, i) => i !== fileIndex));
       }
+      // Revoke object URL
       URL.revokeObjectURL(imageToRemove.preview);
     }
 
     setImages(prev => prev.filter((_, i) => i !== index));
+    
+    // Set new primary image if needed
     if (imageToRemove.is_primary && images.length > 1) {
       const newPrimaryIndex = index === 0 ? 0 : index - 1;
       setPrimaryImage(newPrimaryIndex);
@@ -193,6 +257,11 @@ export default function ProductForm({ product, onSubmit, loading }) {
               New - Ready to upload
             </Typography>
           )}
+          {image.is_primary && (
+            <Typography variant="caption" color="success.main">
+              Primary Image
+            </Typography>
+          )}
         </Box>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           <IconButton
@@ -200,6 +269,7 @@ export default function ProductForm({ product, onSubmit, loading }) {
             color={image.is_primary ? 'primary' : 'default'}
             onClick={() => setPrimaryImage(index)}
             title={image.is_primary ? 'Primary image' : 'Set as primary'}
+            disabled={image.is_primary}
           >
             {image.is_primary ? <Star /> : <StarBorder />}
           </IconButton>
@@ -225,6 +295,7 @@ export default function ProductForm({ product, onSubmit, loading }) {
       )}
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
+          {/* Basic Information Card */}
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -293,41 +364,22 @@ export default function ProductForm({ product, onSubmit, loading }) {
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <TextField
-                    required
-                    fullWidth
-                    select
-                    label="Category"
-                    value={formData.category_id}
-                    onChange={handleChange('category_id')}
-                  >
-                    <MenuItem value="">Select a category</MenuItem>
-                    {categories.map((category) => (
-                      <MenuItem key={category.id} value={category.id}>
-                        {category.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-          <Card sx={{ mt: 3 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Inventory
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    required
-                    fullWidth
-                    type="number"
-                    label="Quantity"
-                    value={formData.quantity}
-                    onChange={handleChange('quantity')}
-                    inputProps={{ min: 0 }}
-                  />
+                  <FormControl fullWidth required>
+                    <InputLabel>Category</InputLabel>
+                    <Select
+                      value={formData.category_id}
+                      label="Category"
+                      onChange={handleChange('category_id')}
+                      sx={{ textAlign: 'left' }}
+                    >
+                      <MenuItem value="">Select a category</MenuItem>
+                      {categories.map((category) => (
+                        <MenuItem key={category.id} value={category.id}>
+                          {category.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
@@ -347,6 +399,38 @@ export default function ProductForm({ product, onSubmit, loading }) {
                     placeholder="ISBN, UPC, etc."
                   />
                 </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Slug"
+                    value={formData.slug}
+                    onChange={handleChange('slug')}
+                    placeholder="product-url-slug"
+                    helperText="URL-friendly version of the product name"
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          {/* Inventory Card */}
+          <Card sx={{ mt: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Inventory
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    required
+                    fullWidth
+                    type="number"
+                    label="Quantity"
+                    value={formData.quantity}
+                    onChange={handleChange('quantity')}
+                    inputProps={{ min: 0 }}
+                  />
+                </Grid>
                 <Grid item xs={12}>
                   <FormControlLabel
                     control={
@@ -361,6 +445,8 @@ export default function ProductForm({ product, onSubmit, loading }) {
               </Grid>
             </CardContent>
           </Card>
+
+          {/* Shipping Card */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -430,6 +516,8 @@ export default function ProductForm({ product, onSubmit, loading }) {
               )}
             </CardContent>
           </Card>
+
+          {/* SEO Settings Card */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -460,8 +548,11 @@ export default function ProductForm({ product, onSubmit, loading }) {
             </CardContent>
           </Card>
         </Grid>
+
+        {/* Sidebar - Images and Status */}
         <Grid item xs={12} md={4}>
-          <Card sx={{ mt: 3 }}>
+          {/* Product Images Card */}
+          <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Product Images
@@ -493,7 +584,9 @@ export default function ProductForm({ product, onSubmit, loading }) {
               </Box>
             </CardContent>
           </Card>
-          <Card>
+
+          {/* Status Card */}
+          <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Status
@@ -521,10 +614,10 @@ export default function ProductForm({ product, onSubmit, loading }) {
                 variant="contained"
                 fullWidth
                 sx={{ mt: 2 }}
-                disabled={loading}
-                startIcon={loading && <CircularProgress size={20} />}
+                disabled={submitting || loading}
+                startIcon={(submitting || loading) && <CircularProgress size={20} />}
               >
-                {loading ? 'Saving...' : (product ? 'Update Product' : 'Create Product')}
+                {(submitting || loading) ? 'Saving...' : (product ? 'Update Product' : 'Create Product')}
               </Button>
             </CardContent>
           </Card>
