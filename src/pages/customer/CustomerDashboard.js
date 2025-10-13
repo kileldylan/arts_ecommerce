@@ -156,7 +156,7 @@ export default function ModernDashboard() {
       }
     });
 
-  const productsPerPage = isMobile ? 8 : 12;
+  const productsPerPage = isMobile ? 8 : 10;
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
   const paginatedProducts = filteredProducts.slice(
     (currentPage - 1) * productsPerPage,
@@ -267,6 +267,7 @@ export default function ModernDashboard() {
   );
 
 // Enhanced Product Card Component with larger size for better product showcase
+// Optimized Product Card Component - No Extra White Space
 const ProductCard = ({ product }) => {
   const cartItem = cart.find(item => item.id === product.id);
   const imageUrl = product.image_url || `/api/placeholder/400/400?text=${encodeURIComponent(product.name || 'Product')}`;
@@ -281,29 +282,24 @@ const ProductCard = ({ product }) => {
         border: `1px solid ${themeColors.border}`,
         borderRadius: '16px',
         overflow: 'hidden',
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         cursor: 'pointer',
-        position: 'relative',
         backgroundColor: 'white',
-        minHeight: 420, // Increased minimum height
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         '&:hover': {
           transform: 'translateY(-6px)',
           boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
           borderColor: alpha(themeColors.primary, 0.3),
-          '& .product-image': {
-            transform: 'scale(1.08)'
-          }
+          '& .product-image': { transform: 'scale(1.08)' }
         }
       }}
     >
-      {/* Product Image Container - Larger */}
+      {/* Product Image */}
       <Box
         sx={{
           position: 'relative',
-          paddingTop: '100%', // Square aspect ratio
+          paddingTop: '100%',
           backgroundColor: '#f8f9fa',
-          overflow: 'hidden',
-          flexShrink: 0
+          overflow: 'hidden'
         }}
       >
         <img
@@ -320,31 +316,26 @@ const ProductCard = ({ product }) => {
             transition: 'transform 0.5s ease'
           }}
         />
-        
-        {/* Quick action buttons */}
+
+        {/* Quick Action Buttons */}
         <Box
           sx={{
             position: 'absolute',
-            top: 12,
-            right: 12,
+            top: 10,
+            right: 10,
             display: 'flex',
             flexDirection: 'column',
-            gap: 1,
+            gap: 0.5,
             opacity: 0,
             transition: 'opacity 0.3s ease',
-            '.MuiCard:hover &': {
-              opacity: 1
-            }
+            '.MuiCard:hover &': { opacity: 1 }
           }}
         >
           <IconButton
             size="small"
             sx={{
               backgroundColor: 'white',
-              '&:hover': {
-                backgroundColor: 'white',
-                transform: 'scale(1.1)'
-              }
+              '&:hover': { transform: 'scale(1.1)' }
             }}
           >
             <Favorite sx={{ fontSize: 18 }} />
@@ -352,57 +343,66 @@ const ProductCard = ({ product }) => {
         </Box>
       </Box>
 
-      {/* Product Info - Enhanced spacing for larger card */}
-      <CardContent 
-        sx={{ 
-          p: 3, // Increased padding
-          flexGrow: 1, 
-          display: 'flex', 
+      {/* Product Info - Tightened Layout */}
+      <CardContent
+        sx={{
+          p: '10px 14px 14px 14px',
+          display: 'flex',
           flexDirection: 'column',
-          gap: 2, // Increased gap
-          height: 140 // Fixed height for content area
+          justifyContent: 'space-between',
+          flexGrow: 1
         }}
       >
-        {/* Product Name - Better typography for larger card */}
+        {/* Product Name */}
         <Typography
           variant="body1"
-          fontWeight="600"
+          fontWeight={600}
           sx={{
+            fontSize: '0.9rem',
+            lineHeight: 1.2,
+            color: themeColors.text,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
-            fontSize: '1rem', // Slightly larger font
-            lineHeight: 1.4,
-            color: themeColors.text,
-            minHeight: '2.8rem', // Fixed height for 2 lines
-            flexShrink: 0
+            mb: 1 // Reduced margin below name
           }}
         >
           {product.name}
         </Typography>
 
-        {/* Price Section - More prominent */}
-        <Box sx={{ mt: 'auto', flexShrink: 0 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        {/* Price + Button (Tightly Aligned) */}
+        <Box sx={{ mt: 0.2 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              mb: 0.6 // Very minimal gap before button
+            }}
+          >
             <Typography
-              variant="h5" // Larger price
+              variant="h6"
               fontWeight="800"
-              sx={{ 
+              sx={{
                 color: themeColors.primary,
-                fontSize: '1.25rem'
+                fontSize: '0.95rem',
+                lineHeight: 1,
+                mb: 1
               }}
             >
               Ksh {(product.price || 0).toLocaleString()}
             </Typography>
+
             {product.compare_price && (
               <Typography
                 variant="body2"
-                sx={{ 
-                  color: themeColors.lightText, 
+                sx={{
+                  color: themeColors.lightText,
                   textDecoration: 'line-through',
-                  fontSize: '0.9rem'
+                  fontSize: '0.7rem',
+                  lineHeight: 1
                 }}
               >
                 Ksh {product.compare_price.toLocaleString()}
@@ -410,11 +410,10 @@ const ProductCard = ({ product }) => {
             )}
           </Box>
 
-          {/* Add to Cart Button - Larger and more prominent */}
           <Button
             variant="contained"
             fullWidth
-            size="medium" // Changed to medium
+            size="small"
             onClick={(e) => {
               e.stopPropagation();
               addToCart(product);
@@ -424,25 +423,29 @@ const ProductCard = ({ product }) => {
             sx={{
               backgroundColor: cartItem ? themeColors.success : themeColors.primary,
               color: 'white',
-              borderRadius: '10px',
-              py: 1.5, // Increased padding
-              fontSize: '0.9rem', // Slightly larger font
-              fontWeight: '700',
+              borderRadius: '8px',
+              py: 0.8,
+              mb: 0.6,
+              fontSize: '0.8rem',
+              fontWeight: 600,
               textTransform: 'none',
               transition: 'all 0.2s ease',
-              boxShadow: '0 4px 12px rgba(52, 152, 219, 0.3)',
+              boxShadow: '0 2px 8px rgba(52, 152, 219, 0.3)',
               '&:hover': {
-                backgroundColor: cartItem ? themeColors.success : alpha(themeColors.primary, 0.9),
-                transform: 'translateY(-2px)',
-                boxShadow: '0 6px 20px rgba(52, 152, 219, 0.4)'
+                backgroundColor: cartItem
+                  ? themeColors.success
+                  : alpha(themeColors.primary, 0.9),
+                transform: 'translateY(-1px)',
+                boxShadow: '0 4px 12px rgba(52, 152, 219, 0.4)'
               },
               '&.Mui-disabled': {
                 backgroundColor: themeColors.success,
                 color: 'white'
-              }
+              },
+              m: 0
             }}
           >
-            {cartItem ? 'Added to Cart' : 'Add to Cart'}
+            {cartItem ? 'Added' : 'Add to Cart'}
           </Button>
         </Box>
       </CardContent>
