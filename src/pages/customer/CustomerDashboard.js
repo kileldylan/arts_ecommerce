@@ -21,7 +21,8 @@ import {
   alpha,
   useTheme,
   useMediaQuery,
-  Drawer
+  Drawer,
+  LinearProgress
 } from '@mui/material';
 import {
   Search,
@@ -387,7 +388,7 @@ const ProductCard = ({ product }) => {
               fontWeight="800"
               sx={{
                 color: themeColors.primary,
-                fontSize: '0.95rem',
+                fontSize: '1.1rem',
                 lineHeight: 1,
                 mb: 1
               }}
@@ -538,7 +539,7 @@ const ProductCard = ({ product }) => {
           backgroundRepeat: 'no-repeat',
           color: 'white',
           py: { xs: 6, md: 8 },
-          mb: 6,
+          mb: 0.5,
           overflow: 'hidden'
         }}
       >
@@ -567,6 +568,7 @@ const ProductCard = ({ product }) => {
               sx={{
                 maxWidth: 500,
                 mx: 'auto',
+                mb: 0.25,
                 '& .MuiOutlinedInput-root': {
                   backgroundColor: 'white',
                   borderRadius: '50px',
@@ -589,8 +591,8 @@ const ProductCard = ({ product }) => {
 
       <Container maxWidth="xl" sx={{ py: 4 }}>
         {/* Categories Section */}
-        <Box sx={{ mb: 8 }}>
-          <Typography variant="h4" fontWeight="700" sx={{ mb: 4, textAlign: 'center' }}>
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h4" fontWeight="700" sx={{ mb: 2, textAlign: 'center' }}>
             Shop by Category
           </Typography>
           <Grid container spacing={2} justifyContent="center">
@@ -627,7 +629,7 @@ const ProductCard = ({ product }) => {
           </Grid>
 
         </Box>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
             {/* Sort Filter */}
             <FormControl sx={{ minWidth: 150 }} size="small">
               <InputLabel>Sort By</InputLabel>
@@ -647,13 +649,13 @@ const ProductCard = ({ product }) => {
         {/* Products Grid */}
         {loading ? (
           <Box sx={{ textAlign: 'center', py: 8 }}>
-            <Typography>Loading products...</Typography>
+            <LinearProgress/>
           </Box>
         ) : (
           <>
             <Grid container spacing={2}>
               {paginatedProducts.map((product) => (
-                <Grid item xs={6} sm={4} md={3} lg={2.4} key={product.id}>
+                <Grid itefm xs={6} sm={4} md={3} lg={2.4} key={product.id}>
                   <ProductCard product={product} />
                 </Grid>
               ))}
@@ -672,7 +674,7 @@ const ProductCard = ({ product }) => {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 4 }}>
                 <Pagination
                   count={totalPages}
                   page={currentPage}
@@ -695,7 +697,7 @@ const ProductCard = ({ product }) => {
         )}
 
         {/* Features Section */}
-        <Grid container spacing={4} sx={{ mb: 8 }}>
+        <Grid container spacing={4} sx={{ mb: 6}}>
           {features.map((feature, index) => (
             <Grid item xs={12} md={4} key={index}>
               <Box sx={{ textAlign: 'center', px: 2 }}>

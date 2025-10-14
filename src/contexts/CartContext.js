@@ -1,6 +1,6 @@
 /////// src/contexts/CartContext.js
 // This remains unchanged as it's client-side only
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const CartContext = createContext();
 
@@ -47,17 +47,22 @@ export function CartProvider({ children }) {
     setCart(prevCart => prevCart.filter(item => item.id !== productId));
   };
 
-  const updateQuantity = (productId, quantity) => {
-    if (quantity === 0) {
-      removeFromCart(productId);
-    } else {
-      setCart(prevCart =>
-        prevCart.map(item =>
-          item.id === productId ? { ...item, quantity } : item
-        )
+  const updateCartQuantity = (productId, newQuantity) => {
+    setCart((prevCart) => {
+      if (newQuantity <= 0) {
+        return prevCart.filter(item => item.id !== productId);
+      }
+      return prevCart.map(item =>
+        item.id === productId ? { ...item, quantity: newQuantity } : item
       );
-    }
+    });
   };
+
+  const getCartTotalAmount = useCallback(() => {
+    return cart.reduce((total, item) => {
+      return total + (item.price || 0) * (item.quantity || 1);
+    }, 0);
+  }, [cart]);
 
   const clearCart = () => {
     setCart([]);
@@ -75,10 +80,11 @@ export function CartProvider({ children }) {
     cart,
     addToCart,
     removeFromCart,
-    updateQuantity,
+    updateCartQuantity,
     clearCart,
     getCartTotal,
-    getCartItemsCount
+    getCartItemsCount,
+    getCartTotalAmount
   };
 
   return (
