@@ -17,7 +17,6 @@ import {
   InputAdornment,
   Select,
   MenuItem,
-  Chip,
   alpha,
   useTheme,
   useMediaQuery,
@@ -28,15 +27,11 @@ import {
   Search,
   ShoppingCart,
   Favorite,
-  Share,
   LocalShipping,
   Security,
   Support,
   Star,
   Check,
-  ViewModule,
-  ViewList,
-  Add,
   Close
 } from '@mui/icons-material';
 import { useProducts } from '../../contexts/ProductContext';
@@ -478,7 +473,7 @@ const ProductCard = ({ product }) => {
         variant="body1"
         sx={{
           fontStyle: 'italic',
-          mb: 2,
+          mb: 3,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           display: '-webkit-box',

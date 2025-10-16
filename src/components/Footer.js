@@ -114,7 +114,7 @@ const Footer = () => {
         {/* Footer Bottom */}
         <Box sx={{ mt: 3, textAlign: 'center', borderTop: `1px solid ${themeColors.border}`, pt: 1.5 }}>
           <Typography variant="caption" sx={{ color: themeColors.lightText }}>
-            © {new Date().getFullYear()} Rio Gift Shop
+            © {new Date().getFullYear()}  Branchi Arts and Gifts
           </Typography>
         </Box>
       </Container>
