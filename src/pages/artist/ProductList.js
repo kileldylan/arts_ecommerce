@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   Grid,
-  Chip,
   IconButton,
   Dialog,
   DialogTitle,
@@ -24,7 +23,7 @@ import {
   Select,
   MenuItem
 } from '@mui/material';
-import { Add, Edit, Delete, Visibility, VisibilityOff, Search, Image as ImageIcon } from '@mui/icons-material';
+import { Add, Edit, Delete, Search, Image as ImageIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../../contexts/ProductContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -100,7 +99,7 @@ export default function ProductList() {
   const [successMessage, setSuccessMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('0');
-  const [deletingProductId, setDeletingProductId] = useState(null); 
+  const [setDeletingProductId] = useState(null); 
 
   useEffect(() => {
     if (profile?.artist_id) {
@@ -147,10 +146,6 @@ export default function ProductList() {
     console.warn('⚠️ Delete dialog is null - this should not happen');
   }
 };
-
-  const handleTogglePublish = async (product) => {
-    await togglePublishProduct(product.id, !product.is_published);
-  };
 
   // Apply filters
   const filteredProducts = artistProducts.filter((product) => {

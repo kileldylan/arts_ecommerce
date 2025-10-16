@@ -141,8 +141,18 @@ export function AuthProvider({ children }) {
       try {
         setLoading(true);
         console.log('🚀 Initializing auth...');
-        
-        await refreshSession();
+        // On cold start, ensure we don't show a stale user from a previous run
+        // If Supabase has no valid session, clear any locally cached state/tokens
+        const { data: { session: bootSession } } = await supabase.auth.getSession();
+        if (!bootSession) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          localStorage.removeItem('supabase.auth.token');
+          sessionStorage.removeItem('supabase.auth.token');
+        } else {
+          await refreshSession();
+        }
         
       } catch (error) {
         console.error('❌ Auth initialization error:', error);

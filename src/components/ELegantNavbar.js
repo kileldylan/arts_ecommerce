@@ -19,7 +19,7 @@ import {
   Avatar,
   useScrollTrigger,
   Slide,
-  alpha
+  
 } from '@mui/material';
 import {
   Menu as MenuIcon,

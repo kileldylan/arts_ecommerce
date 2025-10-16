@@ -88,7 +88,7 @@ const features = [
 const testimonials = [
   {
     id: 1,
-    name: 'Sarah Johnson',
+    name: 'Joy Muthoni',
     role: 'Interior Designer',
     content: 'The quality of frames and wall art exceeded my expectations. My clients are always impressed!',
     rating: 5,
@@ -96,7 +96,7 @@ const testimonials = [
   },
   {
     id: 2,
-    name: 'Mike Chen',
+    name: 'Mike Oduor',
     role: 'Office Manager',
     content: 'Perfect signage solutions for our corporate office. Professional and durable.',
     rating: 5,
@@ -104,7 +104,7 @@ const testimonials = [
   },
   {
     id: 3,
-    name: 'Emily Davis',
+    name: 'Emily Chepchumba',
     role: 'Home Owner',
     content: 'Transformed my living space with beautiful wall decor. The customization options are amazing!',
     rating: 4,
@@ -538,7 +538,9 @@ const ProductCard = ({ product }) => {
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
           color: 'white',
-          height: { xs: 280, sm: 320, md: 420 },
+          minHeight: { xs: 300, sm: 340, md: 420 },
+          mt: { xs: 7, sm: 8, md: 0 },
+          pt: { xs: 1 },
           display: 'flex',
           alignItems: 'center',
           mb: 1,

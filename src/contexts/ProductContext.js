@@ -108,7 +108,7 @@ export function ProductProvider({ children }) {
   const [artistProducts, setArtistProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { user, profile, validateSession } = useAuth();
+  const { profile, validateSession } = useAuth();
 
   // Simple frontend cache to prevent unnecessary re-fetches
   const cacheRef = useRef({
@@ -274,7 +274,7 @@ export function ProductProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [validateSession]);
 
   const getArtistProducts = useCallback(async (artistId = null) => {
     // Use ONLY the integer artist_id from profile

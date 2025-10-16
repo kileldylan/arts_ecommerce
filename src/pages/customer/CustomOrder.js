@@ -12,8 +12,7 @@ import {
   Avatar,
   Divider,
   Tabs,
-  Tab,
-  CircularProgress
+  Tab
 } from '@mui/material';
 import {
   ShoppingBag,

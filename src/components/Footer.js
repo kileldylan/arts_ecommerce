@@ -42,38 +42,32 @@ const Footer = () => {
       sx={{
         backgroundColor: themeColors.primary,
         color: themeColors.white,
-        py: 6,
+        py: { xs: 3, md: 4 },
         mt: 'auto',
         borderTop: `1px solid ${themeColors.border}`,
       }}
     >
       <Container maxWidth="lg">
-        <Grid container spacing={4}>
+        <Grid container spacing={3} alignItems="flex-start">
           {/* Contact Information */}
           <Grid item xs={12} md={4}>
-            <Typography variant="h6" gutterBottom sx={{ color: themeColors.white, fontWeight: 700 }}>
-              Contact Us
+            <Typography variant="subtitle1" gutterBottom sx={{ color: themeColors.white, fontWeight: 700 }}>
+              Contact
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <IconButton size="small" sx={{ color: themeColors.accent }}>
-                <Email />
-              </IconButton>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+              <Email fontSize="small" />
               <Typography variant="body2" sx={{ ml: 1, color: themeColors.lightText }}>
-                Email: info@riogiftshop.co.ke
+                info@branchiartsgifts.co.ke
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <IconButton size="small" sx={{ color: themeColors.accent }}>
-                <Phone />
-              </IconButton>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+              <Phone fontSize="small" />
               <Typography variant="body2" sx={{ ml: 1, color: themeColors.lightText }}>
-                Phone: +254 712 345 678
+                +254 716769050
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <IconButton size="small" sx={{ color: themeColors.accent }}>
-                <LocationOn />
-              </IconButton>
+              <LocationOn fontSize="small" />
               <Typography variant="body2" sx={{ ml: 1, color: themeColors.lightText }}>
                 {shopLocation.address}
               </Typography>
@@ -82,64 +76,34 @@ const Footer = () => {
 
           {/* Quick Links */}
           <Grid item xs={12} md={4}>
-            <Typography variant="h6" gutterBottom sx={{ color: themeColors.white, fontWeight: 700 }}>
-              Quick Links
+            <Typography variant="subtitle1" gutterBottom sx={{ color: themeColors.white, fontWeight: 700 }}>
+              Links
             </Typography>
-            <Box>
-              <Link href="/about" underline="hover" sx={{ display: 'block', mb: 1, color: themeColors.lightText }}>
-                About Us
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Link href="/dashboard" underline="hover" sx={{ color: themeColors.lightText, fontSize: '0.9rem' }}>
+                Home
               </Link>
-              <Link href="/shop" underline="hover" sx={{ display: 'block', mb: 1, color: themeColors.lightText }}>
-                Shop
+              <Link href="/customer/orders" underline="hover" sx={{ color: themeColors.lightText, fontSize: '0.9rem' }}>
+                Orders
               </Link>
-              <Link href="/contact" underline="hover" sx={{ display: 'block', mb: 1, color: themeColors.lightText }}>
+              <Link href="/contact" underline="hover" sx={{ color: themeColors.lightText, fontSize: '0.9rem' }}>
                 Contact
-              </Link>
-              <Link href="/faq" underline="hover" sx={{ display: 'block', mb: 1, color: themeColors.lightText }}>
-                FAQ
               </Link>
             </Box>
           </Grid>
 
-          {/* Social Media and Map */}
+          {/* Map */}
           <Grid item xs={12} md={4}>
-            <Typography variant="h6" gutterBottom sx={{ color: themeColors.white, fontWeight: 700 }}>
-              Follow Us
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-              <IconButton
-                href="https://facebook.com"
-                target="_blank"
-                sx={{ color: themeColors.white, '&:hover': { color: themeColors.accent } }}
-              >
-                <Facebook />
-              </IconButton>
-              <IconButton
-                href="https://twitter.com"
-                target="_blank"
-                sx={{ color: themeColors.white, '&:hover': { color: themeColors.accent } }}
-              >
-                <Twitter />
-              </IconButton>
-              <IconButton
-                href="https://instagram.com"
-                target="_blank"
-                sx={{ color: themeColors.white, '&:hover': { color: themeColors.accent } }}
-              >
-                <Instagram />
-              </IconButton>
-            </Box>
-            <Typography variant="h6" gutterBottom sx={{ color: themeColors.white, fontWeight: 700 }}>
+            <Typography variant="subtitle1" gutterBottom sx={{ color: themeColors.white, fontWeight: 700 }}>
               Visit Us
             </Typography>
-            <Box sx={{ position: 'relative', width: '100%', height: 200 }}>
+            <Box sx={{ position: 'relative', width: '100%', height: 160, borderRadius: 2, overflow: 'hidden', border: `1px solid ${themeColors.border}` }}>
               <iframe
                 title="Shop Location"
-                src={`https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15946.735643819508!2d${shopLocation.longitude}!3d${shopLocation.latitude}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f1758a34a6b6b%3A0x1e9c9c9c9c9c9c9c!2s${encodeURIComponent(shopLocation.name)}!5e0!3m2!1sen!2ske!4v1696413000000`}
+                src={`https://www.google.com/maps?q=${shopLocation.latitude},${shopLocation.longitude}&z=14&output=embed`}
                 width="100%"
                 height="100%"
-                style={{ border: 0, borderRadius: 8 }}
-                allowFullScreen=""
+                style={{ border: 0 }}
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
               ></iframe>
@@ -148,9 +112,9 @@ const Footer = () => {
         </Grid>
 
         {/* Footer Bottom */}
-        <Box sx={{ mt: 4, textAlign: 'center', borderTop: `1px solid ${themeColors.border}`, pt: 2 }}>
-          <Typography variant="body2" sx={{ color: themeColors.lightText }}>
-            &copy; {new Date().getFullYear()} Rio Gift Shop. All rights reserved.
+        <Box sx={{ mt: 3, textAlign: 'center', borderTop: `1px solid ${themeColors.border}`, pt: 1.5 }}>
+          <Typography variant="caption" sx={{ color: themeColors.lightText }}>
+            © {new Date().getFullYear()} Rio Gift Shop
           </Typography>
         </Box>
       </Container>
