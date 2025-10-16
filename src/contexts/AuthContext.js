@@ -90,6 +90,51 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Enhanced logout function with error handling
+  const logout = async () => {
+    try {
+      console.log('🚪 Attempting logout...');
+      
+      // Clear local state first
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      
+      // Try to sign out from Supabase with error handling
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        // If it's a session missing error, it might already be logged out
+        if (error.message.includes('AuthSessionMissingError') || 
+            error.message.includes('session missing')) {
+          console.log('ℹ️ Session already invalidated, continuing with local logout');
+          return { success: true };
+        }
+        throw error;
+      }
+      
+      console.log('✅ Logout successful');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      
+      // Even if Supabase logout fails, ensure local state is cleared
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      
+      // Clear any residual tokens/local storage
+      localStorage.removeItem('supabase.auth.token');
+      sessionStorage.removeItem('supabase.auth.token');
+      
+      return { 
+        success: false, 
+        error: error.message,
+        localCleared: true // Indicate local state was cleared anyway
+      };
+    }
+  };
+
   // Enhanced auth state listener
   useEffect(() => {
     const initializeAuth = async () => {
@@ -128,6 +173,12 @@ export function AuthProvider({ children }) {
             break;
             
           case 'SIGNED_OUT':
+            console.log('✅ Signed out event received');
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+            break;
+            
           case 'USER_DELETED':
             setSession(null);
             setUser(null);
@@ -237,15 +288,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-    } catch (error) {
-      throw error;
-    }
-  };
-
   // Session validation function for other components to use
   const validateSession = async () => {
     return await refreshSession();
@@ -261,10 +303,10 @@ export function AuthProvider({ children }) {
     login,
     register,
     loginWithGoogle,
-    logout,
+    logout, // Enhanced logout function
     loading,
     refreshProfile: () => user && fetchUserProfile(user.id),
-    validateSession, // Export session validation
+    validateSession,
   };
 
   return (

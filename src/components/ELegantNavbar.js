@@ -169,7 +169,7 @@ export default function ElegantNavbar() {
                   cursor: 'pointer',
                   mr: 4
                 }}
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/dashboard')}
               >
                 Branchi Arts & Gifts
               </Typography>

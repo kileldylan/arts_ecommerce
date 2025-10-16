@@ -60,7 +60,7 @@ const themeColors = {
 
 const categories = [
   { id: '0', name: 'All Products', count: 0 },
-  { id: '1', name: 'Wooden Intarshia', count: 21, image: '/api/placeholder/80/80?text=Wallpaper' },
+  { id: '1', name: 'Wood Intarsia', count: 21, image: '/api/placeholder/80/80?text=Wallpaper' },
   { id: '2', name: 'Frames', count: 9, image: '/api/placeholder/80/80?text=Frames' },
   { id: '3', name: 'Wall Art', count: 3, image: '/api/placeholder/80/80?text=Wall+Art' },
   { id: '4', name: 'Sculptures', count: 3, image: '/api/placeholder/80/80?text=Wall+Art' },
@@ -533,56 +533,51 @@ const ProductCard = ({ product }) => {
       <Box
         sx={{
           position: 'relative',
-          backgroundImage: 'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("/api/placeholder/1920/600?text=Art+Decor+Background")',
+          backgroundImage: 'url("/hero.jpg")',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
           color: 'white',
-          py: { xs: 6, md: 8 },
-          mb: 0.5,
-          overflow: 'hidden'
+          height: { xs: 280, sm: 320, md: 420 },
+          display: 'flex',
+          alignItems: 'center',
+          mb: 1,
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.22) 40%, rgba(0,0,0,0.42) 100%)'
+          }
         }}
       >
-        <Container maxWidth="lg">
-          <Box sx={{ textAlign: 'center', maxWidth: 600, mx: 'auto' }}>
-            <Typography
-              variant="h3"
-              fontWeight="700"
-              sx={{ mb: 2, fontSize: { xs: '2rem', md: '2.5rem' } }}
-            >
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+          <Box sx={{ textAlign: 'center', maxWidth: 720, mx: 'auto', px: { xs: 2, md: 0 } }}>
+            <Typography variant="h4" fontWeight="800" sx={{ mb: 1.5, textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>
               Discover Unique Art & Decor
             </Typography>
-            <Typography
-              variant="h6"
-              sx={{ mb: 4, opacity: 0.9, fontWeight: 400 }}
-            >
-              Transform your space with our curated collection of premium frames, wall art, and custom signage
+            <Typography variant="subtitle1" sx={{ mb: 2.5, fontWeight: 400, opacity: 0.95 }}>
+              Transform your space with curated wall art, frames, and sculptures.
             </Typography>
-            
-            {/* Search Bar */}
             <TextField
               fullWidth
-              placeholder="Search for frames, wall art, signage..."
+              placeholder="Search for art, frames, decor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               sx={{
-                maxWidth: 500,
+                maxWidth: 520,
                 mx: 'auto',
-                mb: 0.25,
                 '& .MuiOutlinedInput-root': {
                   backgroundColor: 'white',
                   borderRadius: '50px',
-                  '& fieldset': { border: 'none' },
-                  '&:hover fieldset': { border: 'none' },
-                  '&.Mui-focused fieldset': { border: 'none' }
+                  '& fieldset': { border: 'none' }
                 }
               }}
               InputProps={{
                 startAdornment: (
-                  <InputAdornment position="start" sx={{ ml: 1 }}>
+                  <InputAdornment position="start">
                     <Search sx={{ color: themeColors.lightText }} />
                   </InputAdornment>
-                ),
+                )
               }}
             />
           </Box>
@@ -592,42 +587,32 @@ const ProductCard = ({ product }) => {
       <Container maxWidth="xl" sx={{ py: 4 }}>
         {/* Categories Section */}
         <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" fontWeight="700" sx={{ mb: 2, textAlign: 'center' }}>
-            Shop by Category
-          </Typography>
-          <Grid container spacing={2} justifyContent="center">
-            {categories.slice(1).map((category) => (
-              <Grid item xs={6} sm={4} md={3} lg={2} key={category.id}>
-                <Card
-                  onClick={() => setSelectedCategory(category.id)}
-                  sx={{
-                    textAlign: 'center',
-                    p: 2,
-                    cursor: 'pointer',
-                    height: '100%',
-                    border: selectedCategory === category.id ? `2px solid ${themeColors.primary}` : `1px solid ${themeColors.border}`,
-                    transition: 'all 0.2s ease-in-out',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    '&:hover': {
-                      borderColor: themeColors.primary,
-                      transform: 'translateY(-4px)',
-                      boxShadow: '0 8px 20px rgba(0,0,0,0.1)'
-                    }
-                  }}
-                >
-                  <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 0.5 }}>
+          <Box sx={{ maxWidth: 900, mx: 'auto', px: 2 }}>
+            <Grid container spacing={1} justifyContent="center">
+              {categories.slice(1).map((category) => (
+                <Grid item xs="auto" key={category.id}>
+                  <Button
+                    variant="text"
+                    onClick={() => setSelectedCategory(category.id)}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: selectedCategory === category.id ? 800 : 600,
+                      color: selectedCategory === category.id ? themeColors.primary : themeColors.text,
+                      px: 1.5,
+                      py: 0.75,
+                      borderRadius: 999,
+                      '&:hover': {
+                        backgroundColor: alpha(themeColors.primary, 0.08),
+                        color: themeColors.primary
+                      }
+                    }}
+                  >
                     {category.name}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {category.count} items
-                  </Typography>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-
+                  </Button>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
         </Box>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
             {/* Sort Filter */}
@@ -653,9 +638,9 @@ const ProductCard = ({ product }) => {
           </Box>
         ) : (
           <>
-            <Grid container spacing={2}>
+            <Grid container spacing={2} justifyContent="center" alignItems="stretch">
               {paginatedProducts.map((product) => (
-                <Grid itefm xs={6} sm={4} md={3} lg={2.4} key={product.id}>
+                <Grid item xs={12} sm={6} md={4} lg={3} xl={2} key={product.id}>
                   <ProductCard product={product} />
                 </Grid>
               ))}
@@ -697,21 +682,33 @@ const ProductCard = ({ product }) => {
         )}
 
         {/* Features Section */}
-        <Grid container spacing={4} sx={{ mb: 6}}>
-          {features.map((feature, index) => (
-            <Grid item xs={12} md={4} key={index}>
-              <Box sx={{ textAlign: 'center', px: 2 }}>
-                {feature.icon}
-                <Typography variant="h6" fontWeight="600" sx={{ mt: 2, mb: 1 }}>
-                  {feature.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {feature.description}
-                </Typography>
-              </Box>
+        <Box sx={{ mb: 6 }}>
+          <Container maxWidth="lg">
+            <Grid container spacing={4} justifyContent="center" alignItems="stretch">
+              {features.map((feature, index) => (
+                <Grid item xs={12} sm={6} md={4} key={index}>
+                  <Box sx={{
+                    textAlign: 'center',
+                    px: 3,
+                    py: 3,
+                    border: `1px solid ${themeColors.border}`,
+                    borderRadius: 3,
+                    backgroundColor: 'white',
+                    height: '100%'
+                  }}>
+                    {feature.icon}
+                    <Typography variant="h6" fontWeight="700" sx={{ mt: 2, mb: 1 }}>
+                      {feature.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {feature.description}
+                    </Typography>
+                  </Box>
+                </Grid>
+              ))}
             </Grid>
-          ))}
-        </Grid>
+          </Container>
+        </Box>
 
         {/* Testimonials Section */}
         <Box sx={{ mb: 8 }}>
