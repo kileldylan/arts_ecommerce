@@ -528,10 +528,7 @@ const ProductCard = ({ product }) => {
       <Box
         sx={{
           position: 'relative',
-          backgroundImage: 'url("/hero.jpg")',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
+          backgroundColor: '#e9e6df',
           color: 'white',
           minHeight: { xs: 300, sm: 340, md: 420 },
           mt: { xs: 7, sm: 8, md: 0 },
@@ -539,14 +536,33 @@ const ProductCard = ({ product }) => {
           display: 'flex',
           alignItems: 'center',
           mb: 1,
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.22) 40%, rgba(0,0,0,0.42) 100%)'
-          }
+          overflow: 'hidden'
         }}
       >
+        {/* Hero Background Image */}
+        <img
+          src="/heroimage.jpg"
+          alt="Hero"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center',
+            transform: 'scale(1.06)',
+            transformOrigin: 'center',
+            willChange: 'transform'
+          }}
+        />
+        {/* Gradient Overlay */}
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.18) 45%, rgba(0,0,0,0) 100%)'
+          }}
+        />
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
           <Box sx={{ textAlign: 'center', maxWidth: 720, mx: 'auto', px: { xs: 2, md: 0 } }}>
             <Typography variant="h4" fontWeight="800" sx={{ mb: 1.5, textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>
