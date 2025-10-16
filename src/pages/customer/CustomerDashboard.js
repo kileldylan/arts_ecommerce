@@ -530,7 +530,7 @@ const ProductCard = ({ product }) => {
           position: 'relative',
           backgroundColor: '#e9e6df',
           color: 'white',
-          minHeight: { xs: 300, sm: 340, md: 420 },
+          minHeight: { xs: 280, sm: 320, md: 400 },
           mt: { xs: 7, sm: 8, md: 0 },
           pt: { xs: 1 },
           display: 'flex',
@@ -540,17 +540,18 @@ const ProductCard = ({ product }) => {
         }}
       >
         {/* Hero Background Image */}
-        <img
+        <Box
+          component="img"
           src="/heroimage.jpg"
           alt="Hero"
-          style={{
+          sx={{
             position: 'absolute',
             inset: 0,
             width: '100%',
             height: '100%',
             objectFit: 'cover',
             objectPosition: 'center',
-            transform: 'scale(1.06)',
+            transform: { xs: 'scale(1.02)', sm: 'scale(1.02)', md: 'scale(1.02)' },
             transformOrigin: 'center',
             willChange: 'transform'
           }}
@@ -569,7 +570,7 @@ const ProductCard = ({ product }) => {
               Discover Unique Art & Decor
             </Typography>
             <Typography variant="subtitle1" sx={{ mb: 2.5, fontWeight: 400, opacity: 0.95 }}>
-              Transform your space with curated wall art, frames, and sculptures.
+              Transform your space with art that speaks and gifts that lasts.
             </Typography>
             <TextField
               fullWidth
