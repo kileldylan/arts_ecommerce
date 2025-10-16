@@ -31,6 +31,7 @@ import {
 import { useOrders } from '../../contexts/OrderContext';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePayment } from '../../contexts/PaymentContext';
 
 // Modern color palette
 const themeColors = {
@@ -62,6 +63,7 @@ export default function Checkout() {
   const { createOrder } = useOrders();
   const { cart, getCartTotal, clearCart } = useCart();
   const { user } = useAuth();
+  const { initiateStkPush, pollPaymentStatus: pollStatusViaFn } = usePayment();
   const navigate = useNavigate();
 
   // ✅ Order totals (no tax)
@@ -75,7 +77,7 @@ export default function Checkout() {
     }
   }, [cart, navigate]);
 
-  // ✅ Handle M-Pesa payment
+  // ✅ Handle M-Pesa payment (via Supabase Edge Function)
   const handleMpesaPayment = async () => {
     setPaymentProcessing(true);
     setError('');
@@ -112,25 +114,25 @@ export default function Checkout() {
           mpesaPhone = '254' + mpesaPhone;
         }
 
-        const response = await fetch('http://localhost:5000/api/mpesa/stkpush', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${user.token}`
-          },
-          body: JSON.stringify({
-            phoneNumber: mpesaPhone,
-            amount: Math.max(1, Math.floor(total)), // ✅ ensure valid integer
-            orderId: orderResponse.id
-          })
+        const initRes = await initiateStkPush({
+          phone: mpesaPhone,
+          amount: Math.max(1, Math.floor(total)),
+          orderId: orderResponse.id,
+          accountReference: 'ORDER',
+          description: 'Order Payment'
         });
 
-        const data = await response.json();
-
-        if (data.success) {
-          pollPaymentStatus(orderResponse.id);
+        if (initRes.success) {
+          const checkoutRequestId = initRes.data?.CheckoutRequestID || initRes.data?.checkoutRequestId;
+          // If your backend uses callbacks and updates orders, you may skip polling
+          if (checkoutRequestId) {
+            await pollPaymentStatus(orderResponse.id, checkoutRequestId);
+          } else {
+            // Fallback: start simple periodic check by order id
+            await pollPaymentStatus(orderResponse.id);
+          }
         } else {
-          setError('Failed to initiate M-Pesa payment: ' + (data.message || 'Unknown error'));
+          setError('Failed to initiate M-Pesa payment: ' + (initRes.error || 'Unknown error'));
           setPaymentProcessing(false);
         }
       } else {
@@ -143,17 +145,19 @@ export default function Checkout() {
     }
   };
 
-  // ✅ Poll payment status
-  const pollPaymentStatus = async (orderId) => {
+  // ✅ Poll payment status (via Supabase Edge Function or order updates)
+  const pollPaymentStatus = async (orderId, checkoutRequestId) => {
     const checkStatus = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/mpesa/status/${orderId}`, {
-          headers: {
-            'Authorization': `Bearer ${user.token}`
-          }
-        });
-        
-        const data = await response.json();
+        let data;
+        if (checkoutRequestId) {
+          const res = await pollStatusViaFn({ checkoutRequestId, orderId });
+          if (!res.success) throw new Error(res.error || 'Status check failed');
+          data = res.data || {};
+        } else {
+          // Optional: if your backend updates order status, you could fetch order here
+          data = { success: false };
+        }
         
         if (data.success) {
           if (data.paymentStatus === 'paid') {

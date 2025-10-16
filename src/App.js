@@ -5,6 +5,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProductProvider } from './contexts/ProductContext';
+import { PaymentProvider } from './contexts/PaymentContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import CustomerDashboard from './pages/customer/CustomerDashboard';
@@ -143,9 +144,11 @@ function App() {
           <OrderProvider>
             <CartProvider>
               <WishlistProvider>
+                <PaymentProvider>
                 <Router>
                   <AppContent />
                 </Router>
+                </PaymentProvider>
               </WishlistProvider>
             </CartProvider>
           </OrderProvider>

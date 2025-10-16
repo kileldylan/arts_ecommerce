@@ -473,7 +473,7 @@ const ProductCard = ({ product }) => {
         variant="body1"
         sx={{
           fontStyle: 'italic',
-          mb: 3,
+          mb: 1,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           display: '-webkit-box',
