@@ -136,10 +136,7 @@ export default function ElegantNavbar() {
 
   const navItems = getNavItems();
 
-  // Don't render anything during initial auth loading
-  if (loading) {
-    return null;
-  }
+  // Render immediately; show guest actions if loading
 
   return (
     <>

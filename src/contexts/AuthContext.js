@@ -17,43 +17,26 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
 
-  // Enhanced profile fetcher with retry logic
-  const fetchUserProfile = async (userId, retries = 3) => {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        console.log(`🔍 Fetching profile (attempt ${attempt}/${retries})...`);
-        
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
-
-        if (error) {
-          if (error.code === 'PGRST116') {
-            // Profile doesn't exist
-            console.log('⚠️ Profile not found for user:', userId);
-            setProfile(null);
-            return null;
-          }
-          throw error;
-        }
-
-        console.log('✅ Profile fetched successfully:', data);
-        setProfile(data);
-        return data;
-      } catch (error) {
-        console.error(`❌ Profile fetch attempt ${attempt} failed:`, error);
-        
-        if (attempt === retries) {
-          console.error('💥 All profile fetch attempts failed');
+  // Lightweight, non-blocking profile fetcher
+  const fetchUserProfile = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      if (error) {
+        if (error.code === 'PGRST116') {
           setProfile(null);
           return null;
         }
-        
-        // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        throw error;
       }
+      setProfile(data);
+      return data;
+    } catch (error) {
+      setProfile(null);
+      return null;
     }
   };
 
@@ -73,7 +56,8 @@ export function AuthProvider({ children }) {
       if (currentSession?.user) {
         setSession(currentSession);
         setUser(currentSession.user);
-        await fetchUserProfile(currentSession.user.id);
+        // Fetch profile in background to avoid blocking UI
+        fetchUserProfile(currentSession.user.id);
       } else {
         setSession(null);
         setUser(null);
@@ -158,11 +142,8 @@ export function AuthProvider({ children }) {
           setUser(bootSession.user);
           setLoading(false);
 
-          // Fetch profile in background (non-blocking). Keep retries inside fetchUserProfile.
-          // Any errors will be logged but won't block the UI.
-          fetchUserProfile(bootSession.user.id).catch(err => {
-            console.error('Background profile fetch failed:', err);
-          });
+          // Fetch profile in background (non-blocking)
+          fetchUserProfile(bootSession.user.id).catch(() => {});
         }
       } catch (error) {
         console.error('❌ Auth initialization error:', error);
@@ -187,8 +168,8 @@ export function AuthProvider({ children }) {
             if (currentSession?.user) {
               setSession(currentSession);
               setUser(currentSession.user);
-              // In these events we can await profile fetch because it's user-triggered
-              await fetchUserProfile(currentSession.user.id);
+              // Non-blocking
+              fetchUserProfile(currentSession.user.id);
             }
             break;
 
@@ -209,10 +190,8 @@ export function AuthProvider({ children }) {
             if (currentSession?.user) {
               setSession(currentSession);
               setUser(currentSession.user);
-              // fetch in background to avoid blocking UI during initial session replay
-              fetchUserProfile(currentSession.user.id).catch(err => {
-                console.error('Background profile fetch failed (INITIAL_SESSION):', err);
-              });
+              // Non-blocking
+              fetchUserProfile(currentSession.user.id).catch(() => {});
             }
             break;
         }
