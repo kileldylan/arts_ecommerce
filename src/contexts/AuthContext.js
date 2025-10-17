@@ -150,16 +150,25 @@ export function AuthProvider({ children }) {
           setProfile(null);
           localStorage.removeItem('supabase.auth.token');
           sessionStorage.removeItem('supabase.auth.token');
+          // Do not block — we can finish initialization now
+          setLoading(false);
         } else {
-          await refreshSession();
+          // Fast path: set user/session immediately so UI can render
+          setSession(bootSession);
+          setUser(bootSession.user);
+          setLoading(false);
+
+          // Fetch profile in background (non-blocking). Keep retries inside fetchUserProfile.
+          // Any errors will be logged but won't block the UI.
+          fetchUserProfile(bootSession.user.id).catch(err => {
+            console.error('Background profile fetch failed:', err);
+          });
         }
-        
       } catch (error) {
         console.error('❌ Auth initialization error:', error);
         setUser(null);
         setProfile(null);
         setSession(null);
-      } finally {
         setLoading(false);
       }
     };
@@ -170,7 +179,7 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log('🔐 Auth state change:', event, currentSession ? 'Has session' : 'No session');
-        
+
         switch (event) {
           case 'SIGNED_IN':
           case 'TOKEN_REFRESHED':
@@ -178,32 +187,36 @@ export function AuthProvider({ children }) {
             if (currentSession?.user) {
               setSession(currentSession);
               setUser(currentSession.user);
+              // In these events we can await profile fetch because it's user-triggered
               await fetchUserProfile(currentSession.user.id);
             }
             break;
-            
+
           case 'SIGNED_OUT':
             console.log('✅ Signed out event received');
             setSession(null);
             setUser(null);
             setProfile(null);
             break;
-            
+
           case 'USER_DELETED':
             setSession(null);
             setUser(null);
             setProfile(null);
             break;
-            
+
           case 'INITIAL_SESSION':
             if (currentSession?.user) {
               setSession(currentSession);
               setUser(currentSession.user);
-              await fetchUserProfile(currentSession.user.id);
+              // fetch in background to avoid blocking UI during initial session replay
+              fetchUserProfile(currentSession.user.id).catch(err => {
+                console.error('Background profile fetch failed (INITIAL_SESSION):', err);
+              });
             }
             break;
         }
-        
+
         setLoading(false);
       }
     );
