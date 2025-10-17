@@ -134,17 +134,24 @@ export function OrderProvider({ children }) {
     setError(null);
     try {
       // Create order
-      const { data: order, error: orderError } = await supabase
+        const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert([{
-          customer_id: user.id,
+          order_number: `ORD-${Date.now()}`, // ✅ generate a unique order number
+          customer_id: user.id,              // ✅ required
+          artist_id: orderData.items[0]?.artistId || null, // ✅ take from first product
           total_amount: orderData.totalAmount,
-          status: 'pending',
+          subtotal: orderData.subtotal || orderData.totalAmount,
+          tax_amount: orderData.tax_amount || 0,
+          shipping_amount: orderData.shipping_amount || 0,
+          discount_amount: orderData.discount_amount || 0,
+          payment_method: orderData.payment_method || 'mpesa',
           payment_status: 'pending',
-          shipping_address_id: orderData.shippingAddressId,
+          shipping_address: orderData.shippingAddress || {},
+          status: 'pending',
         }])
         .select()
-        .single();
+        .single();    
 
       if (orderError) throw orderError;
 

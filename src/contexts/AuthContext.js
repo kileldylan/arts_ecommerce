@@ -276,19 +276,28 @@ export function AuthProvider({ children }) {
 
   const loginWithGoogle = async (userType = 'customer') => {
     try {
+      // ✅ Sanitize the origin to prevent malformed URLs (fixes "lochttps" bug)
+      let origin = window.location.origin;
+  
+      // Fix any common malformed cases (like "lochttps" or "vercel.appalhost")
+      origin = origin.replace('lochttps', 'https').replace('httphttp', 'http').replace('httpshttps', 'https');
+      origin = origin.replace('vercel.appalhost', 'vercel.app'); // Just in case the domain got merged
+  
+      const redirectTo = `${origin}/oauth-success`;
+  
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/oauth-success`,
-        },
+        options: { redirectTo },
       });
-
+  
       if (error) throw error;
       return { success: true };
     } catch (error) {
+      console.error('❌ Google login error:', error);
       return { success: false, error: error.message };
     }
   };
+  
 
   // Session validation function for other components to use
   const validateSession = async () => {
