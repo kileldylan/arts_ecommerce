@@ -16,9 +16,10 @@ export function PaymentProvider({ children }) {
   const [lastResult, setLastResult] = useState(null);
 
   const invokeFunction = useCallback(async (name, payload) => {
-    const { data, error: fnError } = await supabase.functions.invoke(name, {
-      body: payload
-    });
+  const { data, error: fnError } = await supabase.functions.invoke(name, {
+    body: payload,
+    headers: { 'Content-Type': 'application/json' },
+  });
     if (fnError) throw fnError;
     return data;
   }, []);
@@ -30,7 +31,10 @@ export function PaymentProvider({ children }) {
     try {
       const payload = { phone, amount, orderId, accountReference, description };
       setLastRequest(payload);
-      const data = await invokeFunction('mpesa-stk', payload);
+      const data = await invokeFunction('mpesa', {
+        ...payload,
+        route: 'stkpush'
+      });
       setLastResult(data);
       return { success: true, data };
     } catch (e) {
@@ -43,7 +47,7 @@ export function PaymentProvider({ children }) {
 
   const pollPaymentStatus = useCallback(async ({ checkoutRequestId, orderId }) => {
     try {
-      const data = await invokeFunction('mpesa-status', { checkoutRequestId, orderId });
+      const data = await invokeFunction('mpesa', { checkoutRequestId, orderId });
       return { success: true, data };
     } catch (e) {
       return { success: false, error: e.message };

@@ -84,21 +84,15 @@ export default function Checkout() {
 
     try {
       const orderData = {
-        artist_id: cart[0].artist_id,
-        total_amount: total,
-        subtotal: subtotal,
-        tax_amount: 0, // removed tax
-        shipping_amount: shipping,
-        discount_amount: 0,
-        payment_method: 'mpesa',
-        shipping_address: shippingAddress,
+        totalAmount: total, // ✅ matches what createOrder expects
+        shippingAddressId: null, // or use an actual ID if you store addresses separately
         items: cart.map(item => ({
-          product_id: item.id,
-          product_name: item.name,
-          product_price: item.price,
+          productId: item.id,      // ✅ correct naming
           quantity: item.quantity,
-          total_price: item.quantity * item.price
-        }))
+          unitPrice: item.price,   // ✅ correct naming
+          artistId: item.artist_id // ✅ added to support artist linkage
+        })),
+        shippingAddress: shippingAddress, // ✅ optional if your backend stores address JSON
       };
 
       const orderResponse = await createOrder(orderData);

@@ -8,6 +8,11 @@
 # testing
 /coverage
 
+.env
+.env.local
+.env.*.local
+supabase/.env
+
 # production
 /build
 
