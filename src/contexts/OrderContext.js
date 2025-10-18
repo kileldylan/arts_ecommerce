@@ -1,4 +1,4 @@
-/////// src/contexts/OrderContext.js
+// src/contexts/OrderContext.js
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../utils/supabaseClient';
@@ -19,12 +19,10 @@ export function OrderProvider({ children }) {
   const [error, setError] = useState(null);
   const { user } = useAuth();
 
-  // In OrderContext.js - update the getOrders function
   const getOrders = useCallback(async (filters = {}) => {
     setLoading(true);
     setError(null);
     try {
-      // Build the base query without shipping_address first
       let baseQuery = supabase
         .from('orders')
         .select(`
@@ -37,7 +35,6 @@ export function OrderProvider({ children }) {
         `)
         .order('created_at', { ascending: false });
 
-      // Apply filters based on user role
       if (user?.user_type === 'artist') {
         const { data: artistProducts } = await supabase
           .from('products')
@@ -45,7 +42,6 @@ export function OrderProvider({ children }) {
           .eq('artist_id', user.id);
 
         const productIds = artistProducts?.map(p => p.id) || [];
-        
         if (productIds.length > 0) {
           baseQuery = baseQuery.filter('order_items.product_id', 'in', `(${productIds.join(',')})`);
         } else {
@@ -56,26 +52,22 @@ export function OrderProvider({ children }) {
         baseQuery = baseQuery.eq('customer_id', user.id);
       }
 
-      // Apply status filter
       if (filters.status) {
         baseQuery = baseQuery.eq('status', filters.status);
       }
 
       const { data, error: supabaseError } = await baseQuery;
-
       if (supabaseError) throw supabaseError;
 
-      // If shipping_address relationship exists, fetch it separately
       const ordersWithShipping = await Promise.all(
         (data || []).map(async (order) => {
           if (order.shipping_address_id) {
             try {
               const { data: shippingAddress } = await supabase
-                .from('shipping_addresses') // Note the table name might be plural
+                .from('shipping_addresses')
                 .select('*')
                 .eq('id', order.shipping_address_id)
                 .single();
-              
               return { ...order, shipping_address: shippingAddress };
             } catch (error) {
               console.warn('Could not fetch shipping address:', error);
@@ -90,6 +82,7 @@ export function OrderProvider({ children }) {
       return ordersWithShipping;
     } catch (err) {
       const errorMessage = err.message || 'Failed to fetch orders';
+      console.error('Get orders error:', err);
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -122,6 +115,7 @@ export function OrderProvider({ children }) {
       return data;
     } catch (err) {
       const errorMessage = err.message || 'Failed to fetch order';
+      console.error('Get order error:', err);
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -133,13 +127,13 @@ export function OrderProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      // Create order
-        const { data: order, error: orderError } = await supabase
+      console.log('Creating order with data:', orderData);
+      const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert([{
-          order_number: `ORD-${Date.now()}`, // ✅ generate a unique order number
-          customer_id: user.id,              // ✅ required
-          artist_id: orderData.items[0]?.artistId || null, // ✅ take from first product
+          order_number: `ORD-${Date.now()}`,
+          customer_id: user.id, // UUID from auth.users
+          artist_id: orderData.items[0]?.artistId || null, // UUID from profiles.id
           total_amount: orderData.totalAmount,
           subtotal: orderData.subtotal || orderData.totalAmount,
           tax_amount: orderData.tax_amount || 0,
@@ -151,11 +145,13 @@ export function OrderProvider({ children }) {
           status: 'pending',
         }])
         .select()
-        .single();    
+        .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error('Order creation error:', orderError);
+        throw orderError;
+      }
 
-      // Create order items
       const orderItems = orderData.items.map(item => ({
         order_id: order.id,
         product_id: item.productId,
@@ -168,10 +164,14 @@ export function OrderProvider({ children }) {
         .from('order_items')
         .insert(orderItems);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('Order items error:', itemsError);
+        throw itemsError;
+      }
 
       return order;
     } catch (err) {
+      console.error('Create order failed:', err);
       const errorMessage = err.message || 'Failed to create order';
       setError(errorMessage);
       return null;
@@ -193,7 +193,6 @@ export function OrderProvider({ children }) {
 
       if (supabaseError) throw supabaseError;
 
-      // Add to order history if note provided
       if (note) {
         await supabase
           .from('order_history')
@@ -207,6 +206,7 @@ export function OrderProvider({ children }) {
 
       return data;
     } catch (err) {
+      console.error('Update order status error:', err);
       const errorMessage = err.message || 'Failed to update order status';
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -231,6 +231,7 @@ export function OrderProvider({ children }) {
       if (supabaseError) throw supabaseError;
       return data || [];
     } catch (err) {
+      console.error('Get order history error:', err);
       const errorMessage = err.message || 'Failed to fetch order history';
       setError(errorMessage);
       throw new Error(errorMessage);

@@ -198,29 +198,6 @@ export default function ElegantNavbar() {
 
               {/* Right Actions */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {/* Search Icon */}
-                <IconButton 
-                  sx={{ 
-                    color: 'text.primary',
-                    '&:hover': { backgroundColor: 'rgba(44, 62, 80, 0.04)' }
-                  }}
-                >
-                  <Search />
-                </IconButton>
-
-                {/* Cart Icon */}
-                <IconButton 
-                  onClick={() => navigate('/customer/dashboard?cart=true')}
-                  sx={{ 
-                    color: 'text.primary',
-                    '&:hover': { backgroundColor: 'rgba(44, 62, 80, 0.04)' }
-                  }}
-                >
-                  <Badge badgeContent={getCartItemsCount()} color="error">
-                    <ShoppingCart />
-                  </Badge>
-                </IconButton>
-
                 {/* User Account */}
                 {isAuthenticated ? (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>

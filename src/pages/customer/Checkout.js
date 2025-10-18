@@ -1,39 +1,17 @@
+// src/components/Checkout.js
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Container,
-  Typography,
-  Box,
-  Card,
-  CardContent,
-  Grid,
-  Button,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Divider,
-  Alert,
-  Chip,
-  alpha,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  CircularProgress
+  Container, Typography, Box, Card, CardContent, Grid, Button, TextField,
+  FormControl, InputLabel, Select, MenuItem, Divider, Alert, Chip, alpha,
+  Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress
 } from '@mui/material';
-import {
-  ShoppingCart,
-  LocationOn,
-  Payment,
-} from '@mui/icons-material';
+import { ShoppingCart, LocationOn, Payment } from '@mui/icons-material';
 import { useOrders } from '../../contexts/OrderContext';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePayment } from '../../contexts/PaymentContext';
 
-// Modern color palette
 const themeColors = {
   primary: '#2C3E50',
   secondary: '#E74C3C',
@@ -66,9 +44,8 @@ export default function Checkout() {
   const { initiateStkPush, pollPaymentStatus: pollStatusViaFn } = usePayment();
   const navigate = useNavigate();
 
-  // ✅ Order totals (no tax)
   const subtotal = getCartTotal();
-  const shipping = subtotal > 100 ? 0 : 150; // Example: free shipping over 100
+  const shipping = subtotal > 100 ? 0 : 150;
   const total = subtotal + shipping;
 
   useEffect(() => {
@@ -77,28 +54,26 @@ export default function Checkout() {
     }
   }, [cart, navigate]);
 
-  // ✅ Handle M-Pesa payment (via Supabase Edge Function)
   const handleMpesaPayment = async () => {
     setPaymentProcessing(true);
     setError('');
 
     try {
       const orderData = {
-        totalAmount: total, // ✅ matches what createOrder expects
-        shippingAddressId: null, // or use an actual ID if you store addresses separately
+        totalAmount: total,
+        shippingAddressId: null,
         items: cart.map(item => ({
-          productId: item.id,      // ✅ correct naming
+          productId: item.id,
           quantity: item.quantity,
-          unitPrice: item.price,   // ✅ correct naming
-          artistId: item.artist_id // ✅ added to support artist linkage
+          unitPrice: item.price,
+          artistId: item.artist_id // Must be UUID from profiles.id
         })),
-        shippingAddress: shippingAddress, // ✅ optional if your backend stores address JSON
+        shippingAddress: shippingAddress,
       };
 
       const orderResponse = await createOrder(orderData);
 
       if (orderResponse && orderResponse.id) {
-        // format phone
         let mpesaPhone = phoneNumber.replace(/\D/g, '');
         if (mpesaPhone.startsWith('0')) {
           mpesaPhone = '254' + mpesaPhone.substring(1);
@@ -118,11 +93,9 @@ export default function Checkout() {
 
         if (initRes.success) {
           const checkoutRequestId = initRes.data?.CheckoutRequestID || initRes.data?.checkoutRequestId;
-          // If your backend uses callbacks and updates orders, you may skip polling
           if (checkoutRequestId) {
             await pollPaymentStatus(orderResponse.id, checkoutRequestId);
           } else {
-            // Fallback: start simple periodic check by order id
             await pollPaymentStatus(orderResponse.id);
           }
         } else {
@@ -134,12 +107,12 @@ export default function Checkout() {
         setPaymentProcessing(false);
       }
     } catch (error) {
+      console.error('M-Pesa payment error:', error);
       setError('Error processing M-Pesa payment: ' + error.message);
       setPaymentProcessing(false);
     }
   };
 
-  // ✅ Poll payment status (via Supabase Edge Function or order updates)
   const pollPaymentStatus = async (orderId, checkoutRequestId) => {
     const checkStatus = async () => {
       try {
@@ -149,10 +122,9 @@ export default function Checkout() {
           if (!res.success) throw new Error(res.error || 'Status check failed');
           data = res.data || {};
         } else {
-          // Optional: if your backend updates order status, you could fetch order here
           data = { success: false };
         }
-        
+
         if (data.success) {
           if (data.paymentStatus === 'paid') {
             setPaymentStatus('completed');
@@ -190,32 +162,31 @@ export default function Checkout() {
 
     try {
       const orderData = {
-        artist_id: cart[0].artist_id,
-        total_amount: total,
+        totalAmount: total,
         subtotal: subtotal,
-        tax_amount: 0, // removed tax
+        tax_amount: 0,
         shipping_amount: shipping,
         discount_amount: 0,
         payment_method: paymentMethod,
-        shipping_address: shippingAddress,
+        shippingAddress: shippingAddress,
         items: cart.map(item => ({
-          product_id: item.id,
-          product_name: item.name,
-          product_price: item.price,
+          productId: item.id,
           quantity: item.quantity,
-          total_price: item.quantity * item.price
+          unitPrice: item.price,
+          artistId: item.artist_id // Must be UUID from profiles.id
         }))
       };
 
       const orderResponse = await createOrder(orderData);
-      
-      if (orderResponse && orderResponse.success) {
+
+      if (orderResponse && orderResponse.id) {
         clearCart();
         navigate('/order-success');
       } else {
         setError('Failed to create order: ' + (orderResponse?.message || 'Unknown error'));
       }
     } catch (error) {
+      console.error('Order submission error:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -228,8 +199,8 @@ export default function Checkout() {
         <Typography variant="h4" sx={{ color: themeColors.text, mb: 2 }}>
           Your cart is empty
         </Typography>
-        <Button 
-          variant="contained" 
+        <Button
+          variant="contained"
           onClick={() => navigate('/')}
           sx={{
             backgroundColor: themeColors.primary,
@@ -243,260 +214,241 @@ export default function Checkout() {
   }
 
   return (
-    <>
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Typography variant="h3" fontWeight="bold" gutterBottom sx={{ color: themeColors.text }}>
-          Checkout
-        </Typography>
-
-        <Grid container spacing={4}>
-          {/* Shipping + Payment */}
-          <Grid item xs={12} md={8}>
-            <Card sx={{ borderRadius: '16px', border: `1px solid ${themeColors.border}` }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  color: themeColors.text,
-                  mb: 3
-                }}>
-                  <LocationOn sx={{ mr: 1, color: themeColors.accent }} /> Shipping Address
-                </Typography>
-                
-                <form onSubmit={handleSubmit}>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12}>
-                      <TextField
-                        required
-                        fullWidth
-                        label="Street Address"
-                        value={shippingAddress.street}
-                        onChange={(e) => setShippingAddress({...shippingAddress, street: e.target.value})}
-                        sx={{ mb: 2 }}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        required
-                        fullWidth
-                        label="City"
-                        value={shippingAddress.city}
-                        onChange={(e) => setShippingAddress({...shippingAddress, city: e.target.value})}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        required
-                        fullWidth
-                        label="State/Province"
-                        value={shippingAddress.state}
-                        onChange={(e) => setShippingAddress({...shippingAddress, state: e.target.value})}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        required
-                        fullWidth
-                        label="Postal Code"
-                        value={shippingAddress.postal_code}
-                        onChange={(e) => setShippingAddress({...shippingAddress, postal_code: e.target.value})}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        required
-                        fullWidth
-                        label="Country"
-                        value={shippingAddress.country}
-                        onChange={(e) => setShippingAddress({...shippingAddress, country: e.target.value})}
-                      />
-                    </Grid>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Typography variant="h3" fontWeight="bold" gutterBottom sx={{ color: themeColors.text }}>
+        Checkout
+      </Typography>
+      <Grid container spacing={4}>
+        <Grid item xs={12} md={8}>
+          <Card sx={{ borderRadius: '16px', border: `1px solid ${themeColors.border}` }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom sx={{
+                display: 'flex',
+                alignItems: 'center',
+                color: themeColors.text,
+                mb: 3
+              }}>
+                <LocationOn sx={{ mr: 1, color: themeColors.accent }} /> Shipping Address
+              </Typography>
+              <form onSubmit={handleSubmit}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <TextField
+                      required
+                      fullWidth
+                      label="Street Address"
+                      value={shippingAddress.street}
+                      onChange={(e) => setShippingAddress({ ...shippingAddress, street: e.target.value })}
+                      sx={{ mb: 2 }}
+                    />
                   </Grid>
-
-                  <Divider sx={{ my: 4 }} />
-
-                  <Typography variant="h6" gutterBottom sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    color: themeColors.text,
-                    mb: 3
-                  }}>
-                    <Payment sx={{ mr: 1, color: themeColors.accent }} /> Payment Method
-                  </Typography>
-
-                  <FormControl fullWidth sx={{ mb: 3 }}>
-                    <InputLabel>Payment Method</InputLabel>
-                    <Select
-                      value={paymentMethod}
-                      label="Payment Method"
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      sx={{ borderRadius: '8px' }}
-                    >
-                      <MenuItem value="mpesa">M-Pesa</MenuItem>
-                      <MenuItem value="card">Credit/Debit Card</MenuItem>
-                      <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
-                      <MenuItem value="cash_on_delivery">Cash on Delivery</MenuItem>
-                    </Select>
-                  </FormControl>
-
-                  {error && (
-                    <Alert severity="error" sx={{ mb: 3, borderRadius: '8px' }}>
-                      {error}
-                    </Alert>
-                  )}
-
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    size="large"
-                    fullWidth
-                    disabled={loading}
-                    sx={{
-                      backgroundColor: themeColors.primary,
-                      py: 2,
-                      borderRadius: '12px',
-                      fontSize: '1.1rem',
-                      fontWeight: '600',
-                      '&:hover': {
-                        backgroundColor: alpha(themeColors.primary, 0.9),
-                        transform: 'translateY(-2px)'
-                      },
-                      transition: 'all 0.2s ease-in-out'
-                    }}
-                  >
-                    {loading ? 'Processing...' : `Place Order - Ksh${total.toFixed(2)}`}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Order Summary */}
-          <Grid item xs={12} md={4}>
-            <Card sx={{ borderRadius: '16px', border: `1px solid ${themeColors.border}` }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ 
-                  display: 'flex', 
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      required
+                      fullWidth
+                      label="City"
+                      value={shippingAddress.city}
+                      onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      required
+                      fullWidth
+                      label="State/Province"
+                      value={shippingAddress.state}
+                      onChange={(e) => setShippingAddress({ ...shippingAddress, state: e.target.value })}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      required
+                      fullWidth
+                      label="Postal Code"
+                      value={shippingAddress.postal_code}
+                      onChange={(e) => setShippingAddress({ ...shippingAddress, postal_code: e.target.value })}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      required
+                      fullWidth
+                      label="Country"
+                      value={shippingAddress.country}
+                      onChange={(e) => setShippingAddress({ ...shippingAddress, country: e.target.value })}
+                    />
+                  </Grid>
+                </Grid>
+                <Divider sx={{ my: 4 }} />
+                <Typography variant="h6" gutterBottom sx={{
+                  display: 'flex',
                   alignItems: 'center',
                   color: themeColors.text,
                   mb: 3
                 }}>
-                  <ShoppingCart sx={{ mr: 1, color: themeColors.accent }} /> Order Summary
+                  <Payment sx={{ mr: 1, color: themeColors.accent }} /> Payment Method
                 </Typography>
-
-                <Box sx={{ mb: 3 }}>
-                  {cart.map((item, index) => (
-                    <Box key={index} sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      mb: 2,
-                      p: 2,
-                      backgroundColor: alpha(themeColors.background, 0.5),
-                      borderRadius: '8px'
-                    }}>
-                      <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="subtitle2" sx={{ color: themeColors.text }}>
-                          {item.name}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: themeColors.lightText }}>
-                          {item.quantity} × Ksh{item.price}
-                        </Typography>
-                      </Box>
+                <FormControl fullWidth sx={{ mb: 3 }}>
+                  <InputLabel>Payment Method</InputLabel>
+                  <Select
+                    value={paymentMethod}
+                    label="Payment Method"
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    sx={{ borderRadius: '8px' }}
+                  >
+                    <MenuItem value="mpesa">M-Pesa</MenuItem>
+                    <MenuItem value="card">Credit/Debit Card</MenuItem>
+                    <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
+                    <MenuItem value="cash_on_delivery">Cash on Delivery</MenuItem>
+                  </Select>
+                </FormControl>
+                {error && (
+                  <Alert severity="error" sx={{ mb: 3, borderRadius: '8px' }}>
+                    {error}
+                  </Alert>
+                )}
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  disabled={loading}
+                  sx={{
+                    backgroundColor: themeColors.primary,
+                    py: 2,
+                    borderRadius: '12px',
+                    fontSize: '1.1rem',
+                    fontWeight: '600',
+                    '&:hover': {
+                      backgroundColor: alpha(themeColors.primary, 0.9),
+                      transform: 'translateY(-2px)'
+                    },
+                    transition: 'all 0.2s ease-in-out'
+                  }}
+                >
+                  {loading ? 'Processing...' : `Place Order - Ksh${total.toFixed(2)}`}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Card sx={{ borderRadius: '16px', border: `1px solid ${themeColors.border}` }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom sx={{
+                display: 'flex',
+                alignItems: 'center',
+                color: themeColors.text,
+                mb: 3
+              }}>
+                <ShoppingCart sx={{ mr: 1, color: themeColors.accent }} /> Order Summary
+              </Typography>
+              <Box sx={{ mb: 3 }}>
+                {cart.map((item, index) => (
+                  <Box key={index} sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    mb: 2,
+                    p: 2,
+                    backgroundColor: alpha(themeColors.background, 0.5),
+                    borderRadius: '8px'
+                  }}>
+                    <Box sx={{ flexGrow: 1 }}>
                       <Typography variant="subtitle2" sx={{ color: themeColors.text }}>
-                        Ksh{(item.quantity * item.price).toFixed(2)}
+                        {item.name}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: themeColors.lightText }}>
+                        {item.quantity} × Ksh{item.price}
                       </Typography>
                     </Box>
-                  ))}
-                </Box>
-
-                <Divider sx={{ my: 3 }} />
-
-                <Box sx={{ mb: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                    <Typography variant="body1">Subtotal</Typography>
-                    <Typography variant="body1">Ksh{subtotal.toFixed(2)}</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                    <Typography variant="body1">Shipping</Typography>
-                    <Typography variant="body1">
-                      {shipping === 0 ? (
-                        <Chip label="FREE" size="small" color="success" />
-                      ) : (
-                        `Ksh${shipping.toFixed(2)}`
-                      )}
+                    <Typography variant="subtitle2" sx={{ color: themeColors.text }}>
+                      Ksh{(item.quantity * item.price).toFixed(2)}
                     </Typography>
                   </Box>
+                ))}
+              </Box>
+              <Divider sx={{ my: 3 }} />
+              <Box sx={{ mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                  <Typography variant="body1">Subtotal</Typography>
+                  <Typography variant="body1">Ksh{subtotal.toFixed(2)}</Typography>
                 </Box>
-
-                <Divider sx={{ my: 3 }} />
-
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography variant="h6" sx={{ color: themeColors.text }}>
-                    Total
-                  </Typography>
-                  <Typography variant="h6" sx={{ color: themeColors.primary }}>
-                    Ksh{total.toFixed(2)}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                  <Typography variant="body1">Shipping</Typography>
+                  <Typography variant="body1">
+                    {shipping === 0 ? (
+                      <Chip label="FREE" size="small" color="success" />
+                    ) : (
+                      `Ksh${shipping.toFixed(2)}`
+                    )}
                   </Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* M-Pesa Payment Dialog */}
-        <Dialog open={mpesaDialogOpen} onClose={() => !paymentProcessing && setMpesaDialogOpen(false)}>
-          <DialogTitle>M-Pesa Payment</DialogTitle>
-          <DialogContent>
-            <Typography variant="body1" gutterBottom>
-              Enter your M-Pesa phone number to receive a payment prompt:
-            </Typography>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Phone Number"
-              type="tel"
-              fullWidth
-              variant="outlined"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="e.g., 07XX XXX XXX"
-              disabled={paymentProcessing}
-              sx={{ mt: 2 }}
-            />
-            {paymentProcessing && (
-              <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
-                <CircularProgress size={20} sx={{ mr: 2 }} />
-                <Typography variant="body2">
-                  {paymentStatus === 'pending' 
-                    ? 'Waiting for payment confirmation...' 
-                    : 'Processing payment...'}
+              </Box>
+              <Divider sx={{ my: 3 }} />
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h6" sx={{ color: themeColors.text }}>
+                  Total
+                </Typography>
+                <Typography variant="h6" sx={{ color: themeColors.primary }}>
+                  Ksh{total.toFixed(2)}
                 </Typography>
               </Box>
-            )}
-            {error && (
-              <Alert severity="error" sx={{ mt: 2 }}>
-                {error}
-              </Alert>
-            )}
-          </DialogContent>
-          <DialogActions>
-            <Button 
-              onClick={() => setMpesaDialogOpen(false)} 
-              disabled={paymentProcessing}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleMpesaPayment} 
-              disabled={!phoneNumber || paymentProcessing}
-              variant="contained"
-            >
-              {paymentProcessing ? 'Processing...' : 'Pay with M-Pesa'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </Container>
-    </>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+      <Dialog open={mpesaDialogOpen} onClose={() => !paymentProcessing && setMpesaDialogOpen(false)}>
+        <DialogTitle>M-Pesa Payment</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            Enter your M-Pesa phone number to receive a payment prompt:
+          </Typography>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Phone Number"
+            type="tel"
+            fullWidth
+            variant="outlined"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            placeholder="e.g., 07XX XXX XXX"
+            disabled={paymentProcessing}
+            sx={{ mt: 2 }}
+          />
+          {paymentProcessing && (
+            <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
+              <CircularProgress size={20} sx={{ mr: 2 }} />
+              <Typography variant="body2">
+                {paymentStatus === 'pending'
+                  ? 'Waiting for payment confirmation...'
+                  : 'Processing payment...'}
+              </Typography>
+            </Box>
+          )}
+          {error && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {error}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setMpesaDialogOpen(false)}
+            disabled={paymentProcessing}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleMpesaPayment}
+            disabled={!phoneNumber || paymentProcessing}
+            variant="contained"
+          >
+            {paymentProcessing ? 'Processing...' : 'Pay with M-Pesa'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Container>
   );
 }
