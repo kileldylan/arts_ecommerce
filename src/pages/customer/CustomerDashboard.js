@@ -112,12 +112,10 @@ export default function ModernDashboard() {
   const [selectedCategory, setSelectedCategory] = useState('0');
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState('grid');
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const { products, getAllProducts, loading } = useProducts();
   const { cart, addToCart, getCartItemsCount, removeFromCart, updateCartQuantity } = useCart();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
