@@ -2,29 +2,10 @@ const db = require('../config/db');
 const path = require('path');
 const fs = require('fs');
 
-// Helper: generate slug
+// Helper: generate slug (no uniqueness requirement)
 const generateSlug = (name) =>
   name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
-const generateUniqueSlug = (name, callback) => {
-  const baseSlug = generateSlug(name);
-  let slug = baseSlug;
-  let counter = 1;
-
-  const checkSlug = () => {
-    db.query('SELECT COUNT(*) as count FROM products WHERE slug = ?', [slug], (err, results) => {
-      if (err) return callback(err);
-      if (results[0].count > 0) {
-        slug = `${baseSlug}-${counter++}`;
-        checkSlug();
-      } else {
-        callback(null, slug);
-      }
-    });
-  };
-
-  checkSlug();
-};
 
 // Safe JSON parse
 const safeJsonParse = (str) => {
@@ -102,10 +83,7 @@ const Product = {
     };
 
     if (slug) handleCreate(slug);
-    else generateUniqueSlug(name, (err, finalSlug) => {
-      if (err) return callback(err);
-      handleCreate(finalSlug);
-    });
+    else handleCreate(generateSlug(name));
   },
 
   findById: (id, callback) => {

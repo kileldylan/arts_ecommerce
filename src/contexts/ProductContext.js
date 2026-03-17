@@ -385,8 +385,7 @@ export function ProductProvider({ children }) {
 
       const { data: product, error: productError } = await supabase
         .from('products')
-        .insert([{
-          name: productData.name,
+        .insert([{ name: productData.name,
           description: productData.description,
           price: productData.price,
           compare_price: productData.compare_price,

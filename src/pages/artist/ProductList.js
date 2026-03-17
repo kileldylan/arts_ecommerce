@@ -99,7 +99,8 @@ export default function ProductList() {
   const [successMessage, setSuccessMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('0');
-  const [setDeletingProductId] = useState(null); 
+  const [deletingProductId, setDeletingProductId] = useState(null);
+ 
 
   useEffect(() => {
     if (profile?.artist_id) {

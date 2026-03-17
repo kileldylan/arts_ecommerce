@@ -10,27 +10,9 @@ const ProductHelpers = {
       .replace(/(^-|-$)+/g, '');
   },
 
-  // Generate unique slug
-  generateUniqueSlug: async (name) => {
-    const baseSlug = ProductHelpers.generateSlug(name);
-    let slug = baseSlug;
-    let counter = 1;
-
-    while (true) {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id')
-        .eq('slug', slug)
-        .limit(1);
-
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        return slug;
-      }
-
-      slug = `${baseSlug}-${counter++}`;
-    }
+  // Generate slug (no uniqueness requirement)
+  generateUniqueSlug: (name) => {
+    return ProductHelpers.generateSlug(name);
   },
 
   // Safe JSON parse for images
