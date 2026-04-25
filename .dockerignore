@@ -3,6 +3,6 @@ npm-debug.log
 .git
 .env
 .DS_Store
-dist
-build
 *.log
+# Keep build directory for production deployment
+# build
