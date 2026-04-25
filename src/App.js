@@ -9,6 +9,7 @@ import { PaymentProvider } from './contexts/PaymentContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import CustomerDashboard from './pages/customer/CustomerDashboard';
+import ProductDetail from './pages/customer/ProductDetail';
 import OAuthSuccess from './pages/OAuthSuccess';
 import ProductList from './pages/artist/ProductList';
 import AddProduct from './pages/artist/AddProduct';
@@ -103,6 +104,7 @@ function AppContent() {
           <Route path="/oauth-success" element={<OAuthSuccess />} />
           
           <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
           
           <Route 
             path="/dashboard" 

@@ -131,6 +131,10 @@ export default function ModernDashboard() {
     }
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, searchTerm, sortBy]);
+
   // Filter and sort products
   const filteredProducts = products
     .filter((product) => {
@@ -150,7 +154,7 @@ export default function ModernDashboard() {
       }
     });
 
-  const productsPerPage = isMobile ? 8 : 10;
+  const productsPerPage = isMobile ? 6 : 12;
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
   const paginatedProducts = filteredProducts.slice(
     (currentPage - 1) * productsPerPage,
@@ -540,7 +544,7 @@ const ProductCard = ({ product }) => {
         {/* Hero Background Image */}
         <Box
           component="img"
-          src="/heroimage.jpg"
+          src="/hero_image.jpg"
           alt="Hero"
           sx={{
             position: 'absolute',
@@ -650,13 +654,23 @@ const ProductCard = ({ product }) => {
           </Box>
         ) : (
           <>
-            <Grid container spacing={2} justifyContent="center" alignItems="stretch">
+            <Box
+              sx={{
+                display: 'grid',
+                gap: 2,
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(2, minmax(0, 1fr))',
+                  md: 'repeat(4, minmax(0, 1fr))'
+                }
+              }}
+            >
               {paginatedProducts.map((product) => (
-                <Grid item xs={12} sm={6} md={4} lg={3} xl={2} key={product.id}>
+                <Box key={product.id} sx={{ width: '100%' }}>
                   <ProductCard product={product} />
-                </Grid>
+                </Box>
               ))}
-            </Grid>
+            </Box>
 
             {paginatedProducts.length === 0 && (
               <Box sx={{ textAlign: 'center', py: 8 }}>
