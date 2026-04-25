@@ -173,7 +173,7 @@ export function ProductProvider({ children }) {
   };
 
   // Enhanced error handler with session recovery suggestions
-  const handleOperationError = (error, operation) => {
+  const handleOperationError = useCallback((error, operation) => {
     console.error(`❌ ${operation} failed:`, error);
     
     // Handle session-related errors
@@ -190,10 +190,10 @@ export function ProductProvider({ children }) {
     const errorMessage = error.message || `Failed to ${operation}`;
     setError(errorMessage);
     throw new Error(errorMessage);
-  };
+  }, [setError]);
 
   // Process product images to ensure full URLs
-  const processProductImages = (product) => {
+  const processProductImages = useCallback((product) => {
     if (!product.images || !Array.isArray(product.images)) {
       return {
         ...product,
@@ -220,7 +220,7 @@ export function ProductProvider({ children }) {
       image_url: processedImages.length > 0 ? processedImages[0] : null,
       images: processedImages
     };
-  };
+  }, []);
 
   const getAllProducts = useCallback(async (filters = {}) => {
     // Check cache first
@@ -319,7 +319,7 @@ export function ProductProvider({ children }) {
     }
   }, [profile?.artist_id]);
 
-  const getProduct = async (productId) => {
+  const getProduct = useCallback(async (productId) => {
     if (!productId) {
       throw new Error('Product ID is required');
     }
@@ -345,7 +345,7 @@ export function ProductProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [handleOperationError, processProductImages]);
 
   // Clear cache when products are modified
   const clearCache = () => {

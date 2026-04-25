@@ -10,8 +10,7 @@ import {
   Chip,
   CircularProgress,
   Stack,
-  Divider,
-  Rating
+  Divider
 } from '@mui/material';
 import {
   ArrowBack,
@@ -132,50 +131,9 @@ export default function ProductDetail() {
           Back to Shop
         </Button>
 
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={6}>
-            <Box sx={{ borderRadius: 4, overflow: 'hidden', border: `1px solid ${themeColors.border}`, backgroundColor: '#fff' }}>
-              <Box sx={{ position: 'relative', pt: '75%', backgroundColor: '#f5f5f5' }}>
-                <Box
-                  component="img"
-                  src={imageGallery[activeImage] || '/api/placeholder/800/800?text=Product'}
-                  alt={product.name}
-                  sx={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover'
-                  }}
-                />
-              </Box>
-            </Box>
-
-            {imageGallery.length > 1 && (
-              <Stack direction="row" spacing={1} sx={{ mt: 2, overflowX: 'auto', pb: 1 }}>
-                {imageGallery.map((image, index) => (
-                  <Box
-                    key={index}
-                    component="img"
-                    src={image}
-                    alt={`${product.name} ${index + 1}`}
-                    onClick={() => setActiveImage(index)}
-                    sx={{
-                      width: 96,
-                      height: 96,
-                      borderRadius: 3,
-                      objectFit: 'cover',
-                      cursor: 'pointer',
-                      border: index === activeImage ? `2px solid ${themeColors.primary}` : `1px solid ${themeColors.border}`
-                    }}
-                  />
-                ))}
-              </Stack>
-            )}
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Grid container spacing={4} alignItems="stretch">
+          <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
               <Typography variant="overline" sx={{ color: themeColors.secondary, fontWeight: 700 }}>
                 Product Details
               </Typography>
@@ -283,6 +241,58 @@ export default function ProductDetail() {
                 </Box>
               </Box>
             </Box>
+          </Grid>
+
+          <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <Box sx={{ position: 'relative', borderRadius: 4, overflow: 'hidden', flex: 1, minHeight: 520, backgroundColor: '#f5f5f5' }}>
+              <Box
+                component="img"
+                src={imageGallery[activeImage] || '/api/placeholder/800/800?text=Product'}
+                alt={product.name}
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block'
+                }}
+              />
+              <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.28))' }} />
+              <Box sx={{ position: 'absolute', inset: 0, p: 4, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                <Box sx={{ bgcolor: 'rgba(255,255,255,0.88)', borderRadius: 3, p: 3, maxWidth: 420 }}>
+                  <Typography variant="overline" sx={{ color: themeColors.secondary, fontWeight: 700 }}>
+                    Selected Image
+                  </Typography>
+                  <Typography variant="h4" fontWeight={800} sx={{ mt: 1, mb: 1 }}>
+                    {product.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {product.description ? product.description.slice(0, 120) + '...' : 'A beautiful product ready for your space.'}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            {imageGallery.length > 1 && (
+              <Stack direction="row" spacing={1} sx={{ mt: 2, overflowX: 'auto', pb: 1 }}>
+                {imageGallery.map((image, index) => (
+                  <Box
+                    key={index}
+                    component="img"
+                    src={image}
+                    alt={`${product.name} ${index + 1}`}
+                    onClick={() => setActiveImage(index)}
+                    sx={{
+                      width: 96,
+                      height: 96,
+                      borderRadius: 3,
+                      objectFit: 'cover',
+                      cursor: 'pointer',
+                      border: index === activeImage ? `2px solid ${themeColors.primary}` : `1px solid ${themeColors.border}`
+                    }}
+                  />
+                ))}
+              </Stack>
+            )}
           </Grid>
         </Grid>
 
