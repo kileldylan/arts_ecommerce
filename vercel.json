@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "nodeVersion": "18",
   "builds": [
     {
       "src": "package.json",
