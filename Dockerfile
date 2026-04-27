@@ -2,16 +2,16 @@
 FROM node:24-alpine
 
 # Set working directory
-WORKDIR /app
+WORKDIR /app/frontend
 
 # Copy package files
-COPY package*.json ./
+COPY frontend/package*.json ./
 
 # Install dependencies
 RUN npm install
 
 # Copy rest of the application
-COPY . .
+COPY frontend/ .
 
 # Build the application
 RUN npm run build
