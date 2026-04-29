@@ -5,12 +5,8 @@ import {
   Box,
   Typography,
   Link,
-  IconButton,
 } from '@mui/material';
 import {
-  Facebook,
-  Twitter,
-  Instagram,
   Email,
   Phone,
   LocationOn,

@@ -32,7 +32,6 @@ import {
   TrackChanges
 } from '@mui/icons-material';
 import { useOrders } from '../contexts/OrderContext';
-import { useAuth } from '../contexts/AuthContext';
 
 // Enhanced color palette
 const themeColors = {
@@ -120,7 +119,6 @@ export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getOrder, getOrderHistory, loading } = useOrders();
-  const { user } = useAuth();
   const [order, setOrder] = useState(null);
   const [history, setHistory] = useState([]);
 

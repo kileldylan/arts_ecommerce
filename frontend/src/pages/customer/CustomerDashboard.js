@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Grid,
@@ -37,10 +37,8 @@ import {
 import { useProducts } from '../../contexts/ProductContext';
 import { useCart } from '../../contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 import Footer from '../../components/Footer';
 
-// Modern color palette
 const themeColors = {
   primary: '#2C3E50',
   secondary: '#3498DB',
@@ -53,13 +51,14 @@ const themeColors = {
   success: '#27AE60'
 };
 
+// Fixed categories - NOW INCLUDING "All Products"
 const categories = [
-  { id: '0', name: 'All Products', count: 0 },
-  { id: '1', name: 'Wood Intarsia', count: 21, image: '/api/placeholder/80/80?text=Wallpaper' },
-  { id: '2', name: 'Frames', count: 9, image: '/api/placeholder/80/80?text=Frames' },
-  { id: '3', name: 'Wall Art', count: 3, image: '/api/placeholder/80/80?text=Wall+Art' },
-  { id: '4', name: 'Sculptures', count: 3, image: '/api/placeholder/80/80?text=Wall+Art' },
-  { id: '5', name: 'Aesthetic Mirrors', count: 31, image: '/api/placeholder/80/80?text=Door+Signs' }
+  { id: '0', name: 'All Products'},
+  { id: '1', name: 'Wood Intarsia'},
+  { id: '2', name: 'Frames'},
+  { id: '3', name: 'Wall Art' },
+  { id: '4', name: 'Sculptures'},
+  { id: '5', name: 'Aesthetic Mirrors' }
 ];
 
 const features = [
@@ -118,6 +117,7 @@ export default function ModernDashboard() {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const productsGridRef = useRef(null); // Ref for scrolling to top
 
   useEffect(() => {
     getAllProducts();
@@ -131,9 +131,27 @@ export default function ModernDashboard() {
     }
   }, []);
 
+  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedCategory, searchTerm, sortBy]);
+
+  // Scroll to products when page changes - AFTER render
+  useEffect(() => {
+    if (productsGridRef.current) {
+      setTimeout(() => {
+        productsGridRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }, 0);
+    }
+  }, [currentPage]);
+
+  // Scroll to top when page changes - FIX FOR PAGINATION SCROLL ISSUE
+  const handlePageChange = (event, value) => {
+    setCurrentPage(value);
+  };
 
   // Filter and sort products
   const filteredProducts = products
@@ -264,192 +282,162 @@ export default function ModernDashboard() {
     </Drawer>
   );
 
-// Enhanced Product Card Component with larger size for better product showcase
-// Optimized Product Card Component - No Extra White Space
-const ProductCard = ({ product }) => {
-  const cartItem = cart.find(item => item.id === product.id);
-  const imageUrl = product.image_url || `/api/placeholder/400/400?text=${encodeURIComponent(product.name || 'Product')}`;
+  // Enhanced Product Card Component
+  const ProductCard = ({ product }) => {
+    const cartItem = cart.find(item => item.id === product.id);
+    const imageUrl = product.image_url || `/api/placeholder/400/400?text=${encodeURIComponent(product.name || 'Product')}`;
 
-  return (
-    <Card
-      onClick={() => handleProductClick(product.id)}
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        border: `1px solid ${themeColors.border}`,
-        borderRadius: '16px',
-        overflow: 'hidden',
-        cursor: 'pointer',
-        backgroundColor: 'white',
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        '&:hover': {
-          transform: 'translateY(-6px)',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-          borderColor: alpha(themeColors.primary, 0.3),
-          '& .product-image': { transform: 'scale(1.08)' }
-        }
-      }}
-    >
-      {/* Product Image */}
-      <Box
+    return (
+      <Card
+        onClick={() => handleProductClick(product.id)}
         sx={{
-          position: 'relative',
-          paddingTop: '100%',
-          backgroundColor: '#f8f9fa',
-          overflow: 'hidden'
-        }}
-      >
-        <img
-          src={imageUrl}
-          alt={product.category_id}
-          className="product-image"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            transition: 'transform 0.5s ease'
-          }}
-        />
-
-        {/* Quick Action Buttons */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 10,
-            right: 10,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 0.5,
-            opacity: 0,
-            transition: 'opacity 0.3s ease',
-            '.MuiCard:hover &': { opacity: 1 }
-          }}
-        >
-          <IconButton
-            size="small"
-            sx={{
-              backgroundColor: 'white',
-              '&:hover': { transform: 'scale(1.1)' }
-            }}
-          >
-            <Favorite sx={{ fontSize: 18 }} />
-          </IconButton>
-        </Box>
-      </Box>
-
-      {/* Product Info - Tightened Layout */}
-      <CardContent
-        sx={{
-          p: '10px 14px 14px 14px',
+          height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'space-between',
-          flexGrow: 1
+          border: `1px solid ${themeColors.border}`,
+          borderRadius: '16px',
+          overflow: 'hidden',
+          cursor: 'pointer',
+          backgroundColor: 'white',
+          transition: 'box-shadow 0.3s ease, border-color 0.3s ease',
+          willChange: 'box-shadow',
+          '&:hover': {
+            boxShadow: '0 12px 24px rgba(0,0,0,0.12)',
+            borderColor: alpha(themeColors.primary, 0.3)
+          }
         }}
       >
-        {/* Product Name */}
-        <Typography
-          variant="body1"
-          fontWeight={600}
+        <Box
           sx={{
-            fontSize: '0.9rem',
-            lineHeight: 1.2,
-            color: themeColors.text,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            mb: 1 // Reduced margin below name
+            position: 'relative',
+            paddingTop: '100%',
+            backgroundColor: '#f8f9fa',
+            overflow: 'hidden'
           }}
         >
-          {product.name}
-        </Typography>
-
-        {/* Price + Button (Tightly Aligned) */}
-        <Box sx={{ mt: 0.2 }}>
+          <img
+            src={imageUrl}
+            alt={product.name}
+            className="product-image"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transition: 'transform 0.4s ease-out',
+              willChange: 'transform'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          />
           <Box
+            className="favorite-button-overlay"
             sx={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
               display: 'flex',
-              alignItems: 'center',
+              flexDirection: 'column',
               gap: 0.5,
-              mb: 0.6 // Very minimal gap before button
+              opacity: 0,
+              transition: 'opacity 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '1';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '0';
             }}
           >
-            <Typography
-              variant="h6"
-              fontWeight="800"
+            <IconButton
+              size="small"
               sx={{
-                color: themeColors.primary,
-                fontSize: '1.1rem',
-                lineHeight: 1,
-                mb: 1
+                backgroundColor: 'white',
+                '&:hover': { transform: 'scale(1.1)' }
               }}
             >
-              Ksh {(product.price || 0).toLocaleString()}
-            </Typography>
-
-            {product.compare_price && (
-              <Typography
-                variant="body2"
-                sx={{
-                  color: themeColors.lightText,
-                  textDecoration: 'line-through',
-                  fontSize: '0.7rem',
-                  lineHeight: 1
-                }}
-              >
-                Ksh {product.compare_price.toLocaleString()}
-              </Typography>
-            )}
+              <Favorite sx={{ fontSize: 18 }} />
+            </IconButton>
           </Box>
+        </Box>
 
-          <Button
-            variant="contained"
-            fullWidth
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              addToCart(product);
-            }}
-            disabled={cartItem}
-            startIcon={cartItem ? <Check /> : <ShoppingCart />}
+        <CardContent sx={{ p: '10px 14px 14px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flexGrow: 1 }}>
+          <Typography
+            variant="body1"
+            fontWeight={600}
             sx={{
-              backgroundColor: cartItem ? themeColors.success : themeColors.primary,
-              color: 'white',
-              borderRadius: '8px',
-              py: 0.8,
-              mb: 0.6,
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 2px 8px rgba(52, 152, 219, 0.3)',
-              '&:hover': {
-                backgroundColor: cartItem
-                  ? themeColors.success
-                  : alpha(themeColors.primary, 0.9),
-                transform: 'translateY(-1px)',
-                boxShadow: '0 4px 12px rgba(52, 152, 219, 0.4)'
-              },
-              '&.Mui-disabled': {
-                backgroundColor: themeColors.success,
-                color: 'white'
-              },
-              m: 0
+              fontSize: '0.9rem',
+              lineHeight: 1.2,
+              color: themeColors.text,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              mb: 1
             }}
           >
-            {cartItem ? 'Added' : 'Add to Cart'}
-          </Button>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-};
+            {product.name}
+          </Typography>
+
+          <Box sx={{ mt: 0.2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.6 }}>
+              <Typography variant="h6" fontWeight="800" sx={{ color: themeColors.primary, fontSize: '1.1rem', lineHeight: 1, mb: 1 }}>
+                Ksh {(product.price || 0).toLocaleString()}
+              </Typography>
+              {product.compare_price && (
+                <Typography variant="body2" sx={{ color: themeColors.lightText, textDecoration: 'line-through', fontSize: '0.7rem', lineHeight: 1 }}>
+                  Ksh {product.compare_price.toLocaleString()}
+                </Typography>
+              )}
+            </Box>
+
+            <Button
+              variant="contained"
+              fullWidth
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                addToCart(product);
+              }}
+              disabled={cartItem}
+              startIcon={cartItem ? <Check /> : <ShoppingCart />}
+              sx={{
+                backgroundColor: cartItem ? themeColors.success : themeColors.primary,
+                color: 'white',
+                borderRadius: '8px',
+                py: 0.8,
+                mb: 0.6,
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                textTransform: 'none',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 8px rgba(52, 152, 219, 0.3)',
+                '&:hover': {
+                  backgroundColor: cartItem ? themeColors.success : alpha(themeColors.primary, 0.9),
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 4px 12px rgba(52, 152, 219, 0.4)'
+                },
+                '&.Mui-disabled': {
+                  backgroundColor: themeColors.success,
+                  color: 'white'
+                },
+                m: 0
+              }}
+            >
+              {cartItem ? 'Added' : 'Add to Cart'}
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  };
 
   // Testimonial Card Component
   const TestimonialCard = ({ testimonial }) => (
@@ -532,7 +520,7 @@ const ProductCard = ({ product }) => {
           position: 'relative',
           backgroundColor: '#e9e6df',
           color: 'white',
-          minHeight: { xs: 280, sm: 320, md: 400 },
+          minHeight: { xs: 280, sm: 350, md: 450, lg: 500 },
           mt: { xs: 7, sm: 8, md: 0 },
           pt: { xs: 1 },
           display: 'flex',
@@ -541,7 +529,6 @@ const ProductCard = ({ product }) => {
           overflow: 'hidden'
         }}
       >
-        {/* Hero Background Image */}
         <Box
           component="img"
           src="/hero_image.jpg"
@@ -552,26 +539,41 @@ const ProductCard = ({ product }) => {
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            objectPosition: 'center',
-            transform: { xs: 'scale(1.02)', sm: 'scale(1.02)', md: 'scale(1.02)' },
+            objectPosition: { xs: 'center 30%', sm: 'center 40%', md: 'center' },
+            transform: { xs: 'scale(1.05)', sm: 'scale(1.03)', md: 'scale(1.02)', lg: 'scale(1)' },
             transformOrigin: 'center',
             willChange: 'transform'
           }}
         />
-        {/* Gradient Overlay */}
         <Box
           sx={{
             position: 'absolute',
             inset: 0,
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.18) 45%, rgba(0,0,0,0) 100%)'
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 45%, rgba(0,0,0,0.05) 100%)'
           }}
         />
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
           <Box sx={{ textAlign: 'center', maxWidth: 720, mx: 'auto', px: { xs: 2, md: 0 } }}>
-            <Typography variant="h4" fontWeight="800" sx={{ mb: 1.5, textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>
+            <Typography 
+              variant="h4" 
+              fontWeight="800" 
+              sx={{ 
+                mb: 1.5, 
+                textShadow: '0 2px 12px rgba(0,0,0,0.4)',
+                fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem' }
+              }}
+            >
               Discover Unique Art & Decor
             </Typography>
-            <Typography variant="subtitle1" sx={{ mb: 2.5, fontWeight: 400, opacity: 0.95 }}>
+            <Typography 
+              variant="subtitle1" 
+              sx={{ 
+                mb: 2.5, 
+                fontWeight: 400, 
+                opacity: 0.95,
+                fontSize: { xs: '0.875rem', sm: '1rem', md: '1.1rem' }
+              }}
+            >
               Transform your space with art that speaks and gifts that lasts.
             </Typography>
             <TextField
@@ -585,13 +587,14 @@ const ProductCard = ({ product }) => {
                 '& .MuiOutlinedInput-root': {
                   backgroundColor: 'white',
                   borderRadius: '50px',
+                  height: { xs: 48, sm: 56 },
                   '& fieldset': { border: 'none' }
                 }
               }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Search sx={{ color: themeColors.lightText }} />
+                    <Search sx={{ color: themeColors.lightText, fontSize: { xs: 20, sm: 24 } }} />
                   </InputAdornment>
                 )
               }}
@@ -601,37 +604,46 @@ const ProductCard = ({ product }) => {
       </Box>
 
       <Container maxWidth="xl" sx={{ py: 4 }}>
-        {/* Categories Section */}
+        {/* Categories Section - NOW INCLUDING ALL PRODUCTS */}
         <Box sx={{ mb: 4 }}>
           <Box sx={{ maxWidth: 900, mx: 'auto', px: 2 }}>
             <Grid container spacing={1} justifyContent="center">
-              {categories.slice(1).map((category) => (
+              {/* Changed: Now showing ALL categories including "All Products" */}
+              {categories.map((category) => (
                 <Grid item xs="auto" key={category.id}>
                   <Button
-                    variant="text"
+                    variant={selectedCategory === category.id ? "contained" : "text"}
                     onClick={() => setSelectedCategory(category.id)}
                     sx={{
                       textTransform: 'none',
-                      fontWeight: selectedCategory === category.id ? 800 : 600,
-                      color: selectedCategory === category.id ? themeColors.primary : themeColors.text,
-                      px: 1.5,
+                      fontWeight: selectedCategory === category.id ? 700 : 600,
+                      backgroundColor: selectedCategory === category.id ? themeColors.primary : 'transparent',
+                      color: selectedCategory === category.id ? 'white' : themeColors.text,
+                      px: 2,
                       py: 0.75,
                       borderRadius: 999,
                       '&:hover': {
-                        backgroundColor: alpha(themeColors.primary, 0.08),
-                        color: themeColors.primary
+                        backgroundColor: selectedCategory === category.id ? themeColors.primary : alpha(themeColors.primary, 0.08),
+                        color: selectedCategory === category.id ? 'white' : themeColors.primary
                       }
                     }}
                   >
                     {category.name}
+                    {category.count > 0 && selectedCategory !== category.id && (
+                      <Typography component="span" sx={{ ml: 0.5, fontSize: '0.75rem', opacity: 0.7 }}>
+                        ({category.count})
+                      </Typography>
+                    )}
                   </Button>
                 </Grid>
               ))}
             </Grid>
           </Box>
         </Box>
+        
+        {/* Products Section - Added ref for scrolling */}
+        <div ref={productsGridRef}>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
-            {/* Sort Filter */}
             <FormControl sx={{ minWidth: 150 }} size="small">
               <InputLabel>Sort By</InputLabel>
               <Select
@@ -645,70 +657,80 @@ const ProductCard = ({ product }) => {
                 <MenuItem value="name">Name A-Z</MenuItem>
               </Select>
             </FormControl>
+            
+            {/* Results count */}
+            <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto' }}>
+              Showing {paginatedProducts.length} of {filteredProducts.length} products
+            </Typography>
           </Box>
 
-        {/* Products Grid */}
-        {loading ? (
-          <Box sx={{ textAlign: 'center', py: 8 }}>
-            <LinearProgress/>
-          </Box>
-        ) : (
-          <>
-            <Box
-              sx={{
-                display: 'grid',
-                gap: 2,
-                gridTemplateColumns: {
-                  xs: '1fr',
-                  sm: 'repeat(2, minmax(0, 1fr))',
-                  md: 'repeat(4, minmax(0, 1fr))'
-                }
-              }}
-            >
-              {paginatedProducts.map((product) => (
-                <Box key={product.id} sx={{ width: '100%' }}>
-                  <ProductCard product={product} />
-                </Box>
-              ))}
+          {/* Products Grid */}
+          {loading ? (
+            <Box sx={{ textAlign: 'center', py: 8 }}>
+              <LinearProgress />
             </Box>
-
-            {paginatedProducts.length === 0 && (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
-                <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-                  No products found
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Try adjusting your search criteria or browse different categories
-                </Typography>
+          ) : (
+            <>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gap: 2,
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, minmax(0, 1fr))',
+                    md: 'repeat(4, minmax(0, 1fr))'
+                  }
+                }}
+              >
+                {paginatedProducts.map((product) => (
+                  <Box key={product.id} sx={{ width: '100%' }}>
+                    <ProductCard product={product} />
+                  </Box>
+                ))}
               </Box>
-            )}
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 4 }}>
-                <Pagination
-                  count={totalPages}
-                  page={currentPage}
-                  onChange={(event, value) => setCurrentPage(value)}
-                  color="primary"
-                  sx={{
-                    '& .MuiPaginationItem-root': {
-                      borderRadius: '8px',
-                      margin: '0 4px',
-                      '&.Mui-selected': {
-                        backgroundColor: themeColors.primary,
-                        color: 'white'
+              {paginatedProducts.length === 0 && (
+                <Box sx={{ textAlign: 'center', py: 8 }}>
+                  <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                    No products found
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Try adjusting your search criteria or browse different categories
+                  </Typography>
+                </Box>
+              )}
+
+              {/* Pagination - FIXED to scroll to top */}
+              {totalPages > 1 && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 4 }}>
+                  <Pagination
+                    count={totalPages}
+                    page={currentPage}
+                    onChange={handlePageChange}
+                    color="primary"
+                    size={isMobile ? "medium" : "large"}
+                    sx={{
+                      '& .MuiPaginationItem-root': {
+                        borderRadius: '8px',
+                        margin: '0 4px',
+                        '&.Mui-selected': {
+                          backgroundColor: themeColors.primary,
+                          color: 'white',
+                          '&:hover': {
+                            backgroundColor: alpha(themeColors.primary, 0.9)
+                          }
+                        }
                       }
-                    }
-                  }}
-                />
-              </Box>
-            )}
-          </>
-        )}
+                    }}
+                  />
+                </Box>
+              )}
+            </>
+          )}
+        </div>
 
         {/* Features Section */}
-        <Box sx={{ mb: 6 }}>
+        <Box sx={{ mb: 6, mt: 6 }}>
           <Container maxWidth="lg">
             <Grid container spacing={4} justifyContent="center" alignItems="stretch">
               {features.map((feature, index) => (

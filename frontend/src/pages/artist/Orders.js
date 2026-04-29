@@ -13,13 +13,10 @@ import {
   Divider,
   Tabs,
   Tab,
-  Menu,
-  MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  CircularProgress,
   TextField,
   LinearProgress
 } from '@mui/material';
@@ -28,7 +25,6 @@ import {
   LocalShipping,
   CheckCircle,
   Pending,
-  MoreVert
 } from '@mui/icons-material';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -82,11 +78,6 @@ export default function ArtistOrders() {
   const handleMenuClose = () => {
     setAnchorEl(null);
     setSelectedOrder(null);
-  };
-
-  const handleStatusChange = (newStatus) => {
-    setStatusDialog(true);
-    handleMenuClose();
   };
 
   const confirmStatusChange = async () => {

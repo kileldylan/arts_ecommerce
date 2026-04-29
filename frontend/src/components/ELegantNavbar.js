@@ -5,7 +5,6 @@ import {
   Typography,
   Button,
   IconButton,
-  Badge,
   Box,
   Container,
   Drawer,
@@ -23,9 +22,7 @@ import {
 } from '@mui/material';
 import {
   Menu as MenuIcon,
-  ShoppingCart,
   Person,
-  Search,
   Close,
   ExitToApp,
   Dashboard,
@@ -37,7 +34,6 @@ import {
   AccountCircle,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 
 // Hide app bar on scroll
@@ -56,7 +52,6 @@ export default function ElegantNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
-  const { getCartItemsCount } = useCart();
   const { isAuthenticated, user, profile, userType, logout, loading } = useAuth();
 
   const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);

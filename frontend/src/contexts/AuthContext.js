@@ -285,7 +285,7 @@ export function AuthProvider({ children }) {
   
       const redirectTo = `${origin}/oauth-success`;
   
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo },
       });

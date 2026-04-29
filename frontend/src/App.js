@@ -29,7 +29,7 @@ import { WishlistProvider } from './contexts/WIshlistContext';
 import WishlistPage from './pages/customer/WishlistPage';
 import Dashboard from './pages/Dashboard';
 import AnalyticsDashboard from "./pages/artist/ArtistAnalytics";
-import ArtistDashboard from "./pages/ArtistDashboard";
+import ArtistDashboard from "./pages/artist/ArtistDashboard";
 import ElegantNavbar from "./components/ELegantNavbar";
 
 const theme = createTheme({

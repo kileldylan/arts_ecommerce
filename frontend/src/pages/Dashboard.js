@@ -1,7 +1,7 @@
 // src/pages/Dashboard.js
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import ArtistDashboard from '../pages/ArtistDashboard';
+import ArtistDashboard from '../pages/artist/ArtistDashboard';
 import AdminDashboard from '../pages/AdminDashboard';
 import { Box } from '@mui/material';
 import CustomerDashboard from './customer/CustomerDashboard';

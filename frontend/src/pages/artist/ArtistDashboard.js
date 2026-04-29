@@ -1,5 +1,5 @@
 // src/components/dashboard/ArtistDashboard.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Box,
   Container,
@@ -22,9 +22,9 @@ import {
   Star,
   Brush
 } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useProducts } from '../contexts/ProductContext';
+import { useProducts } from '../../contexts/ProductContext';
 
 // Modern color palette
 const themeColors = {
@@ -42,38 +42,45 @@ export default function ArtistDashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const { artistProducts, loading, getArtistProducts } = useProducts();
-  const [stats, setStats] = useState({
-    totalProducts: 0,
-    publishedProducts: 0,
-    totalSales: 0,
-    totalViews: 0,
-    averageRating: 0
-  });
+  const lastFetchedArtistIdRef = useRef(null);
 
   useEffect(() => {
-    if (profile) {
-      getArtistProducts(profile.artist_id);
+    const artistId = profile?.artist_id;
+    if (artistId && lastFetchedArtistIdRef.current !== artistId) {
+      lastFetchedArtistIdRef.current = artistId;
+      getArtistProducts(artistId);
     }
-  }, [profile, getArtistProducts]);
+  }, [profile?.artist_id, getArtistProducts]);
 
-  useEffect(() => {
-    if (artistProducts.length > 0) {
-      const published = artistProducts.filter(p => p.is_published).length;
-      const totalSales = artistProducts.reduce((sum, p) => sum + (p.sales_count || 0), 0);
-      const totalViews = artistProducts.reduce((sum, p) => sum + (p.view_count || 0), 0);
-      const avgRating =
-        artistProducts.reduce((sum, p) => sum + (p.average_rating || 0), 0) /
-        artistProducts.length;
-
-      setStats({
-        totalProducts: artistProducts.length,
-        publishedProducts: published,
-        totalSales,
-        totalViews,
-        averageRating: avgRating || 0
-      });
+  // Memoize stats calculation to prevent unnecessary re-renders
+  const stats = useMemo(() => {
+    if (artistProducts.length === 0) {
+      return {
+        totalProducts: 0,
+        publishedProducts: 0,
+        totalSales: 0,
+        totalViews: 0,
+        averageRating: 0
+      };
     }
+
+    const published = artistProducts.filter(p => p.is_published).length;
+    const totalSales = artistProducts.reduce((sum, p) => sum + (p.sales_count || 0), 0);
+    const totalViews = artistProducts.reduce((sum, p) => sum + (p.view_count || 0), 0);
+    const avgRating =
+      artistProducts.reduce((sum, p) => sum + (p.average_rating || 0), 0) /
+      artistProducts.length;
+
+    return {
+      totalProducts: artistProducts.length,
+      publishedProducts: published,
+      totalSales,
+      totalViews,
+      averageRating: avgRating || 0
+    };
   }, [artistProducts]);
+
+  // Remove the old useEffect that was recalculating stats
 
   const StatCard = ({ icon, title, value, subtitle, color = 'primary' }) => (
     <Card

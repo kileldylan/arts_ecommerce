@@ -306,18 +306,20 @@ export function ProductProvider({ children }) {
       }
 
       // Process images
-      const processedProducts = (data || []).map(processProductImages);
+      const processedProducts = (data || []).map(img => processProductImages(img));
       
       console.log(`✅ Found ${processedProducts.length} products for artist_id ${id}`);
       setArtistProducts(processedProducts);
       return processedProducts;
       
     } catch (err) {
-      handleOperationError(err, 'fetch artist products');
+      console.error('Error fetching artist products:', err);
+      const errorMessage = err.message || 'Failed to fetch artist products';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [profile?.artist_id]);
+  }, []);
 
   const getProduct = useCallback(async (productId) => {
     if (!productId) {

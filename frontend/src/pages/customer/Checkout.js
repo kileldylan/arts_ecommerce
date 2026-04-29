@@ -40,7 +40,6 @@ export default function Checkout() {
   const [paymentStatus, setPaymentStatus] = useState('');
   const { createOrder } = useOrders();
   const { cart, getCartTotal, clearCart } = useCart();
-  const { user } = useAuth();
   const { initiateStkPush, pollPaymentStatus: pollStatusViaFn } = usePayment();
   const navigate = useNavigate();
 
