@@ -1,4 +1,4 @@
-// src/components/Checkout.js
+// src/pages/customer/Checkout.js - Fixed version
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -38,13 +38,15 @@ export default function Checkout() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('');
+  
   const { createOrder } = useOrders();
   const { cart, getCartTotal, clearCart } = useCart();
+  const { getToken } = useAuth(); // ✅ Get getToken at component level
   const { initiateStkPush, pollPaymentStatus: pollStatusViaFn } = usePayment();
   const navigate = useNavigate();
 
   const subtotal = getCartTotal();
-  const shipping = subtotal > 100 ? 0 : 150;
+  const shipping = 0
   const total = subtotal + shipping;
 
   useEffect(() => {
@@ -53,100 +55,150 @@ export default function Checkout() {
     }
   }, [cart, navigate]);
 
-  const handleMpesaPayment = async () => {
-    setPaymentProcessing(true);
-    setError('');
+const handleMpesaPayment = async () => {
+  setPaymentProcessing(true);
+  setError('');
 
-    try {
-      const orderData = {
-        totalAmount: total,
-        shippingAddressId: null,
-        items: cart.map(item => ({
-          productId: item.id,
-          quantity: item.quantity,
-          unitPrice: item.price,
-          artistId: item.artist_id // Must be UUID from profiles.id
-        })),
-        shippingAddress: shippingAddress,
-      };
-
-      const orderResponse = await createOrder(orderData);
-
-      if (orderResponse && orderResponse.id) {
-        let mpesaPhone = phoneNumber.replace(/\D/g, '');
-        if (mpesaPhone.startsWith('0')) {
-          mpesaPhone = '254' + mpesaPhone.substring(1);
-        } else if (mpesaPhone.startsWith('+254')) {
-          mpesaPhone = mpesaPhone.substring(1);
-        } else if (mpesaPhone.length === 9) {
-          mpesaPhone = '254' + mpesaPhone;
-        }
-
-        const initRes = await initiateStkPush({
-          phone: mpesaPhone,
-          amount: Math.max(1, Math.floor(total)),
-          orderId: orderResponse.id,
-          accountReference: 'ORDER',
-          description: 'Order Payment'
-        });
-
-        if (initRes.success) {
-          const checkoutRequestId = initRes.data?.CheckoutRequestID || initRes.data?.checkoutRequestId;
-          if (checkoutRequestId) {
-            await pollPaymentStatus(orderResponse.id, checkoutRequestId);
-          } else {
-            await pollPaymentStatus(orderResponse.id);
-          }
-        } else {
-          setError('Failed to initiate M-Pesa payment: ' + (initRes.error || 'Unknown error'));
-          setPaymentProcessing(false);
-        }
-      } else {
-        setError('Failed to create order: ' + (orderResponse?.message || 'Unknown error'));
-        setPaymentProcessing(false);
-      }
-    } catch (error) {
-      console.error('M-Pesa payment error:', error);
-      setError('Error processing M-Pesa payment: ' + error.message);
-      setPaymentProcessing(false);
+  try {
+    // Format phone number
+    let mpesaPhone = phoneNumber.replace(/\D/g, '');
+    if (mpesaPhone.startsWith('0')) {
+      mpesaPhone = '254' + mpesaPhone.substring(1);
+    } else if (mpesaPhone.startsWith('+254')) {
+      mpesaPhone = mpesaPhone.substring(1);
+    } else if (mpesaPhone.length === 9) {
+      mpesaPhone = '254' + mpesaPhone;
     }
-  };
 
-  const pollPaymentStatus = async (orderId, checkoutRequestId) => {
-    const checkStatus = async () => {
-      try {
-        let data;
-        if (checkoutRequestId) {
-          const res = await pollStatusViaFn({ checkoutRequestId, orderId });
-          if (!res.success) throw new Error(res.error || 'Status check failed');
-          data = res.data || {};
-        } else {
-          data = { success: false };
-        }
-
-        if (data.success) {
-          if (data.paymentStatus === 'paid') {
-            setPaymentStatus('completed');
-            setPaymentProcessing(false);
-            setMpesaDialogOpen(false);
-            clearCart();
-            navigate('/customer/orders');
-          } else if (data.transactionStatus === 'failed') {
-            setPaymentStatus('failed');
-            setPaymentProcessing(false);
-            setError('M-Pesa payment failed. Please try again.');
-          } else if (data.paymentStatus === 'pending') {
-            setTimeout(checkStatus, 3000);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking payment status:', error);
-        setTimeout(checkStatus, 3000);
-      }
+    // Include phone in orderData
+    const orderData = {
+      totalAmount: total,
+      subtotal: subtotal,
+      tax_amount: 0,
+      shipping_amount: shipping,
+      discount_amount: 0,
+      payment_method: 'mpesa',
+      shippingAddress: shippingAddress,
+      phone: mpesaPhone,
+      items: cart.map(item => ({
+        productId: item.id,
+        name: item.name,
+        unitPrice: item.price,
+        quantity: item.quantity,
+        artistId: item.artist_id
+      }))
     };
 
-    checkStatus();
+    console.log('Creating order with phone:', orderData.phone);
+    console.log('Full order data:', orderData);
+
+    const orderResponse = await createOrder(orderData);
+    console.log('Order response:', orderResponse);
+
+    if (orderResponse && orderResponse.order?.id) {
+      const orderId = orderResponse.order.id;
+      // ✅ Fix: Check for checkout_request_id in the payment object
+      const checkoutRequestId = orderResponse.payment?.checkout_request_id;
+      
+      console.log('Checkout Request ID:', checkoutRequestId);
+      
+      if (checkoutRequestId) {
+        console.log('Payment initiated successfully, starting polling...');
+        setPaymentStatus('pending');
+        // Start polling for payment status
+        pollPaymentStatus(orderId, checkoutRequestId);
+      } else {
+        console.error('No checkout_request_id in response:', orderResponse);
+        setError('Payment initiated but no checkout ID received. Please check if you received an M-Pesa prompt.');
+        setPaymentProcessing(false);
+        // Still redirect to orders page after a delay
+        setTimeout(() => {
+          clearCart();
+          navigate('/customer/orders');
+        }, 3000);
+      }
+    } else {
+      setError('Failed to create order: ' + (orderResponse?.message || 'Unknown error'));
+      setPaymentProcessing(false);
+    }
+  } catch (error) {
+    console.error('M-Pesa payment error:', error);
+    setError('Error processing M-Pesa payment: ' + error.message);
+    setPaymentProcessing(false);
+  }
+};
+
+// Update pollPaymentStatus function to use the correct endpoint
+const pollPaymentStatus = async (orderId, checkoutRequestId) => {
+  console.log(`Starting polling for order ${orderId} with checkout ID ${checkoutRequestId}`);
+  
+  const checkStatus = async () => {
+    try {
+      const token = await getToken();
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+      
+      // Use the status endpoint that returns payment_status
+      const response = await fetch(`${backendUrl}/api/orders/${orderId}/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Payment status check:', data);
+      
+      if (data.payment_status === 'paid') {
+        console.log('Payment completed successfully!');
+        setPaymentStatus('completed');
+        setPaymentProcessing(false);
+        setMpesaDialogOpen(false);
+        
+        // Show success message
+        alert('Payment successful! Your order has been confirmed.');
+        
+        // Clear cart and redirect
+        clearCart();
+        navigate('/customer/orders');
+        return;
+      } 
+      
+      if (data.payment_status === 'failed') {
+        console.log('Payment failed');
+        setPaymentStatus('failed');
+        setPaymentProcessing(false);
+        setError('M-Pesa payment failed. Please try again or contact support.');
+        return;
+      }
+      
+      // Still pending - continue polling
+      console.log('Payment still pending, checking again in 3 seconds...');
+      setTimeout(checkStatus, 3000);
+      
+    } catch (error) {
+      console.error('Error checking payment status:', error);
+      // Continue polling even if there's an error (network issues)
+      setTimeout(checkStatus, 5000);
+    }
   };
+  
+  // Start polling
+  checkStatus();
+  
+  // Set a timeout to stop polling after 3 minutes
+  setTimeout(() => {
+    if (paymentStatus === 'pending') {
+      setPaymentProcessing(false);
+      setError('Payment is taking longer than expected. Your order has been created and will be confirmed once payment is received.');
+      setMpesaDialogOpen(false);
+      navigate('/customer/orders');
+    }
+  }, 180000); // 3 minutes timeout
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -170,17 +222,18 @@ export default function Checkout() {
         shippingAddress: shippingAddress,
         items: cart.map(item => ({
           productId: item.id,
-          quantity: item.quantity,
+          name: item.name,
           unitPrice: item.price,
-          artistId: item.artist_id // Must be UUID from profiles.id
+          quantity: item.quantity,
+          artistId: item.artist_id
         }))
       };
 
       const orderResponse = await createOrder(orderData);
 
-      if (orderResponse && orderResponse.id) {
+      if (orderResponse && orderResponse.order?.id) {
         clearCart();
-        navigate('/order-success');
+        navigate('/customer/orders');
       } else {
         setError('Failed to create order: ' + (orderResponse?.message || 'Unknown error'));
       }

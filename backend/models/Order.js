@@ -1,5 +1,5 @@
-// backend/models/Order.js
-const db = require('../config/db');
+// backend/models/Order.js - COMPLETE REWRITE FOR SUPABASE
+const supabase = require('../config/supabase');
 
 // Helper function to generate order number
 const generateOrderNumber = () => {
@@ -10,7 +10,7 @@ const generateOrderNumber = () => {
 
 const Order = {
   // Create new order
-  create: (orderData, callback) => {
+  create: async (orderData) => {
     const {
       customer_id,
       artist_id,
@@ -28,253 +28,237 @@ const Order = {
 
     const order_number = generateOrderNumber();
 
-    const query = `
-      INSERT INTO orders (
-        order_number, customer_id, artist_id, total_amount, subtotal,
-        tax_amount, shipping_amount, discount_amount, payment_method,
-        shipping_address, billing_address, customer_note
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    db.query(query, [
-      order_number,
+    console.log('Creating order with:', {
       customer_id,
       artist_id,
       total_amount,
-      subtotal,
-      tax_amount,
-      shipping_amount,
-      discount_amount,
-      payment_method,
-      JSON.stringify(shipping_address),
-      billing_address ? JSON.stringify(billing_address) : null,
-      customer_note
-    ], (err, results) => {
-      if (err) return callback(err);
-      
-      const orderId = results.insertId;
-      
-      // Add order items
-      if (items && items.length > 0) {
-        Order.addItems(orderId, items, (err) => {
-          if (err) return callback(err);
-          
-          // Get the complete order with items
-          Order.findById(orderId, (err, orderResults) => {
-            if (err) return callback(err);
-            callback(null, orderResults[0]);
-          });
-        });
-      } else {
-        Order.findById(orderId, (err, orderResults) => {
-          if (err) return callback(err);
-          callback(null, orderResults[0]);
-        });
+      order_number
+    });
+
+    // Step 1: Insert the order
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        order_number,
+        customer_id,
+        artist_id,
+        total_amount: parseFloat(total_amount),
+        subtotal: parseFloat(subtotal),
+        tax_amount: parseFloat(tax_amount),
+        shipping_amount: parseFloat(shipping_amount),
+        discount_amount: parseFloat(discount_amount),
+        payment_method,
+        payment_status: 'pending',
+        status: 'pending',
+        shipping_address: shipping_address,
+        billing_address: billing_address,
+        customer_note: customer_note,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (orderError) {
+      console.error('Order insert error:', orderError);
+      throw orderError;
+    }
+
+    console.log('Order created successfully:', order.id);
+
+    // Step 2: Insert order items
+    if (items && items.length > 0) {
+      const orderItems = items.map(item => ({
+        order_id: order.id,
+        product_id: item.product_id,
+        product_name: item.product_name,
+        product_price: parseFloat(item.product_price),
+        quantity: parseInt(item.quantity),
+        total_price: parseFloat(item.total_price),
+        variant_id: item.variant_id || null,
+        variant_name: item.variant_name || null,
+        created_at: new Date().toISOString()
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) {
+        console.error('Order items insert error:', itemsError);
+        // Rollback: delete the order
+        await supabase.from('orders').delete().eq('id', order.id);
+        throw itemsError;
       }
-    });
-  },
+    }
 
-  // Add order items
-  addItems: (orderId, items, callback) => {
-    const values = items.map(item => [
-      orderId,
-      item.product_id,
-      item.product_name,
-      item.product_price,
-      item.quantity,
-      item.total_price,
-      item.variant_id || null,
-      item.variant_name || null
-    ]);
+    // Step 3: Add status history
+    const { error: historyError } = await supabase
+      .from('order_status_history')
+      .insert({
+        order_id: order.id,
+        status: 'pending',
+        note: 'Order created',
+        created_at: new Date().toISOString()
+      });
 
-    const query = `
-      INSERT INTO order_items (
-        order_id, product_id, product_name, product_price, quantity,
-        total_price, variant_id, variant_name
-      ) VALUES ?
-    `;
+    if (historyError) {
+      console.error('Status history error:', historyError);
+      // Don't throw, just log - order is still created
+    }
 
-    db.query(query, [values], (err, results) => {
-      if (err) return callback(err);
-      callback(null, results);
-    });
+    // Return the complete order with items
+    const { data: completeOrder, error: fetchError } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        order_items (*)
+      `)
+      .eq('id', order.id)
+      .single();
+
+    if (fetchError) {
+      console.error('Fetch order error:', fetchError);
+      return order;
+    }
+
+    return completeOrder;
   },
 
   // Find order by ID
-  findById: (id, callback) => {
-    const query = `
-      SELECT o.*, 
-             c.name as customer_name, c.email as customer_email, c.phone as customer_phone,
-             a.name as artist_name, a.email as artist_email
-      FROM orders o
-      LEFT JOIN users c ON o.customer_id = c.id
-      LEFT JOIN users a ON o.artist_id = a.id
-      WHERE o.id = ?
-    `;
+  findById: async (id) => {
+    const { data: order, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        order_items (*),
+        customer:customer_id (name, email, phone),
+        artist:artist_id (name, email)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
     
-    db.query(query, [id], (err, orders) => {
-      if (err) return callback(err);
-      
-      if (orders.length === 0) {
-        return callback(null, []);
-      }
-
-      // Get order items
-      Order.getItems(id, (err, items) => {
-        if (err) return callback(err);
-        
-        const order = {
-          ...orders[0],
-          shipping_address: JSON.parse(orders[0].shipping_address),
-          billing_address: orders[0].billing_address ? JSON.parse(orders[0].billing_address) : null,
-          items: items
-        };
-
-        callback(null, [order]);
-      });
-    });
-  },
-
-  // Get order items
-  getItems: (orderId, callback) => {
-    const query = `
-      SELECT oi.*, p.slug as product_slug, p.images as product_images
-      FROM order_items oi
-      LEFT JOIN products p ON oi.product_id = p.id
-      WHERE oi.order_id = ?
-    `;
-    
-    db.query(query, [orderId], (err, results) => {
-      if (err) return callback(err);
-      
-      // Parse product images if they exist
-      const items = results.map(item => ({
-        ...item,
-        product_images: item.product_images ? JSON.parse(item.product_images) : []
-      }));
-      
-      callback(null, items);
-    });
+    return {
+      ...order,
+      shipping_address: typeof order.shipping_address === 'string' 
+        ? JSON.parse(order.shipping_address) 
+        : order.shipping_address
+    };
   },
 
   // Find orders with filters
-  findAll: (filters = {}, callback) => {
-    let query = `
-      SELECT o.*, 
-            c.name as customer_name, c.email as customer_email,
-            a.name as artist_name, a.email as artist_email
-      FROM orders o
-      LEFT JOIN users c ON o.customer_id = c.id
-      LEFT JOIN users a ON o.artist_id = a.id
-      WHERE 1=1
-    `;
-    const params = [];
+  findAll: async (filters = {}) => {
+    let query = supabase
+      .from('orders')
+      .select(`
+        *,
+        customer:customer_id (name, email),
+        artist:artist_id (name, email)
+      `)
+      .order('created_at', { ascending: false });
 
     if (filters.customer_id) {
-      query += ' AND o.customer_id = ?';
-      params.push(filters.customer_id);
+      query = query.eq('customer_id', filters.customer_id);
     }
 
     if (filters.artist_id) {
-      query += ' AND o.artist_id = ?';
-      params.push(filters.artist_id);
+      query = query.eq('artist_id', filters.artist_id);
     }
 
     if (filters.status) {
-      query += ' AND o.status = ?';
-      params.push(filters.status);
+      query = query.eq('status', filters.status);
     }
 
     if (filters.payment_status) {
-      query += ' AND o.payment_status = ?';
-      params.push(filters.payment_status);
+      query = query.eq('payment_status', filters.payment_status);
     }
 
-    if (filters.search) {
-      query += ' AND (o.order_number LIKE ? OR c.name LIKE ? OR c.email LIKE ?)';
-      params.push(`%${filters.search}%`, `%${filters.search}%`, `%${filters.search}%`);
-    }
-
-    // Add sorting
-    query += ' ORDER BY o.created_at DESC';
-
-    // Add pagination
     if (filters.limit) {
-      query += ' LIMIT ?';
-      params.push(filters.limit);
+      query = query.limit(filters.limit);
     }
 
     if (filters.offset) {
-      query += ' OFFSET ?';
-      params.push(filters.offset);
+      query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
     }
 
-    db.query(query, params, async (err, orders) => {
-      if (err) return callback(err);
+    const { data: orders, error } = await query;
+    if (error) throw error;
 
-      // Parse JSON fields
-      const parsedOrders = orders.map(order => ({
-        ...order,
-        shipping_address: JSON.parse(order.shipping_address),
-        billing_address: order.billing_address ? JSON.parse(order.billing_address) : null
-      }));
+    // Parse JSON fields
+    const parsedOrders = orders.map(order => ({
+      ...order,
+      shipping_address: typeof order.shipping_address === 'string' 
+        ? JSON.parse(order.shipping_address) 
+        : order.shipping_address,
+      billing_address: order.billing_address && typeof order.billing_address === 'string'
+        ? JSON.parse(order.billing_address)
+        : order.billing_address
+    }));
 
-      // Fetch items for each order
-      const ordersWithItems = await Promise.all(parsedOrders.map(order =>
-        new Promise((resolve) => {
-          Order.getItems(order.id, (itemErr, items) => {
-            order.items = items || [];
-            resolve(order);
-          });
-        })
-      ));
-
-      callback(null, ordersWithItems);
-    });
+    return parsedOrders;
   },
 
   // Update order status
-  updateStatus: (orderId, status, note, createdBy, callback) => {
-    const query = 'UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-    
-    db.query(query, [status, orderId], (err, results) => {
-      if (err) return callback(err);
-      
-      // Add to status history
-      if (note || createdBy) {
-        const historyQuery = `
-          INSERT INTO order_status_history (order_id, status, note, created_by)
-          VALUES (?, ?, ?, ?)
-        `;
-        db.query(historyQuery, [orderId, status, note, createdBy], (err) => {
-          if (err) console.error('Error adding status history:', err);
-        });
-      }
-      
-      callback(null, results);
-    });
+  updateStatus: async (orderId, status, note, createdBy) => {
+    // Update order status
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({ 
+        status, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', orderId);
+
+    if (updateError) throw updateError;
+
+    // Add status history
+    const { error: historyError } = await supabase
+      .from('order_status_history')
+      .insert({
+        order_id: orderId,
+        status,
+        note: note || `Status changed to ${status}`,
+        created_by: createdBy,
+        created_at: new Date().toISOString()
+      });
+
+    if (historyError) {
+      console.error('Error adding status history:', historyError);
+    }
+
+    return { success: true };
   },
 
   // Update payment status
-  updatePaymentStatus: (orderId, paymentStatus, callback) => {
-    const query = 'UPDATE orders SET payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-    db.query(query, [paymentStatus, orderId], callback);
+  updatePaymentStatus: async (orderId, paymentStatus) => {
+    const { error } = await supabase
+      .from('orders')
+      .update({ 
+        payment_status: paymentStatus,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId);
+
+    if (error) throw error;
+    return { success: true };
   },
 
   // Get order status history
-  getStatusHistory: (orderId, callback) => {
-    const query = `
-      SELECT h.*, u.name as created_by_name
-      FROM order_status_history h
-      LEFT JOIN users u ON h.created_by = u.id
-      WHERE h.order_id = ?
-      ORDER BY h.created_at DESC
-    `;
-    db.query(query, [orderId], callback);
+  getStatusHistory: async (orderId) => {
+    const { data: history, error } = await supabase
+      .from('order_status_history')
+      .select('*, created_by_user:created_by (name)')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return history;
   },
 
   // Add transaction
-  addTransaction: (transactionData, callback) => {
+  addTransaction: async (transactionData) => {
     const {
       order_id,
       transaction_ref,
@@ -284,19 +268,23 @@ const Order = {
       payment_details = null
     } = transactionData;
 
-    const query = `
-      INSERT INTO transactions (order_id, transaction_ref, amount, payment_method, status, payment_details)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `;
+    const { data: transaction, error } = await supabase
+      .from('transactions')
+      .insert({
+        order_id,
+        transaction_ref,
+        amount,
+        payment_method,
+        status,
+        payment_details,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
 
-    db.query(query, [
-      order_id,
-      transaction_ref,
-      amount,
-      payment_method,
-      status,
-      payment_details ? JSON.stringify(payment_details) : null
-    ], callback);
+    if (error) throw error;
+    return transaction;
   }
 };
 

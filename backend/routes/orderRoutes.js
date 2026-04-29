@@ -8,7 +8,8 @@ const {
   updateOrderStatus,
   updatePaymentStatus,
   getOrderHistory,
-  addTransaction
+  addTransaction,
+  getOrderStatus
 } = require('../controllers/orderController');
 const { auth } = require('../middleware/auth');
 const { cacheMiddleware } = require('../middleware/cache');
@@ -24,5 +25,6 @@ router.put('/:id/status', updateOrderStatus); // No cache for updates
 router.put('/:id/payment-status', updatePaymentStatus); // No cache for updates
 router.get('/:id/history', cacheMiddleware(180), getOrderHistory); // Cache for 3 minutes
 router.post('/:id/transactions', addTransaction); // No cache for transactions
+router.get('/:id/status', auth, getOrderStatus);
 
 module.exports = router;

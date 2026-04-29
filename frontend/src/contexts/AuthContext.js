@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { supabase } from '../utils/supabaseClient';
 
 const AuthContext = createContext();
@@ -304,6 +304,31 @@ export function AuthProvider({ children }) {
     return await refreshSession();
   };
 
+  const getToken = useCallback(async () => {
+  try {
+    // Try to get current session first
+    let { data: { session }, error } = await supabase.auth.getSession();
+    
+    // If no session, try to refresh
+    if (error || !session) {
+      console.log('🔄 No valid session, attempting refresh...');
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      
+      if (refreshError) {
+        console.error('❌ Token refresh failed:', refreshError);
+        return null;
+      }
+      
+      session = refreshData.session;
+    }
+    
+    return session?.access_token || null;
+  } catch (error) {
+    console.error('❌ Error getting token:', error);
+    return null;
+  }
+}, []);
+
   const value = {
     user,
     profile,
@@ -318,6 +343,7 @@ export function AuthProvider({ children }) {
     loading,
     refreshProfile: () => user && fetchUserProfile(user.id),
     validateSession,
+    getToken,
   };
 
   return (
