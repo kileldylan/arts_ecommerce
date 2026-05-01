@@ -46,7 +46,7 @@ export default function Checkout() {
   const navigate = useNavigate();
 
   const subtotal = getCartTotal();
-  const shipping = 0
+  const shipping = subtotal > 3000 ? 200 : 0;
   const total = subtotal + shipping;
 
   useEffect(() => {

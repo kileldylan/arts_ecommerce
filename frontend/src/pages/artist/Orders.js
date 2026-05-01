@@ -66,6 +66,22 @@ export default function ArtistOrders() {
     }
   }, [user, getOrders]);
 
+  // Safely get order items (handle different data structures)
+  const getOrderItems = (order) => {
+    // Check different possible locations for items
+    if (order.items && Array.isArray(order.items)) {
+      return order.items;
+    }
+    if (order.order_items && Array.isArray(order.order_items)) {
+      return order.order_items;
+    }
+    if (order.products && Array.isArray(order.products)) {
+      return order.products;
+    }
+    // Return empty array if no items found
+    return [];
+  };
+
   const filteredOrders = tabValue === 'all' 
     ? orders 
     : orders.filter(order => order.status === tabValue);
@@ -93,6 +109,25 @@ export default function ArtistOrders() {
 
   const OrderCard = ({ order }) => {
     const nextStatusOptions = nextStatusMap[order.status] || [];
+    const orderItems = getOrderItems(order);
+    const itemCount = orderItems.length;
+    
+    // Calculate total amount safely
+    const totalAmount = order.total_amount || 
+                        order.total || 
+                        order.amount || 
+                        (orderItems.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0)) || 
+                        0;
+
+    // Get customer name safely
+    const customerName = order.customer_name || 
+                         order.customer?.name || 
+                         order.user?.name || 
+                         'Customer';
+
+    // Format date safely
+    const orderDate = order.created_at || order.createdAt || order.date;
+    const formattedDate = orderDate ? new Date(orderDate).toLocaleDateString() : 'Date not available';
 
     return (
       <Card sx={{ mb: 2, transition: 'all 0.2s', '&:hover': { boxShadow: 3 } }}>
@@ -100,30 +135,30 @@ export default function ArtistOrders() {
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={3}>
               <Typography variant="h6" fontWeight="bold">
-                {order.order_number}
+                {order.order_number || order.id?.slice(0, 8) || 'N/A'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {new Date(order.created_at).toLocaleDateString()}
+                {formattedDate}
               </Typography>
               <Typography variant="body2">
-                Customer: {order.customer_name}
+                Customer: {customerName}
               </Typography>
             </Grid>
 
             <Grid item xs={12} md={2}>
               <Typography variant="body2" fontWeight="medium">
-                Ksh {order.total_amount}
+                Ksh {typeof totalAmount === 'number' ? totalAmount.toLocaleString() : totalAmount}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {order.items.length} item(s)
+                {itemCount} item(s)
               </Typography>
             </Grid>
 
             <Grid item xs={12} md={2}>
               <Chip
-                icon={statusConfig[order.status].icon}
-                label={statusConfig[order.status].label}
-                color={statusConfig[order.status].color}
+                icon={statusConfig[order.status]?.icon || <Pending />}
+                label={statusConfig[order.status]?.label || order.status}
+                color={statusConfig[order.status]?.color || 'default'}
                 size="small"
               />
             </Grid>
@@ -153,31 +188,42 @@ export default function ArtistOrders() {
             </Grid>
           </Grid>
 
-          <Divider sx={{ my: 2 }} />
-
-          <Grid container spacing={1}>
-            {order.items.slice(0, 3).map((item, index) => (
-              <Grid item xs={12} sm={6} md={4} key={index}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Avatar
-                    src={item.product_images?.[0]?.image_url}
-                    sx={{ width: 40, height: 40 }}
-                    variant="rounded"
-                  >
-                    <ShoppingBag />
-                  </Avatar>
-                  <Box>
-                    <Typography variant="body2" noWrap>
-                      {item.product_name}
+          {orderItems.length > 0 && (
+            <>
+              <Divider sx={{ my: 2 }} />
+              
+              <Grid container spacing={1}>
+                {orderItems.slice(0, 3).map((item, index) => (
+                  <Grid item xs={12} sm={6} md={4} key={index}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Avatar
+                        src={item.product_images?.[0]?.image_url || item.image_url || item.image}
+                        sx={{ width: 40, height: 40 }}
+                        variant="rounded"
+                      >
+                        <ShoppingBag />
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2" noWrap>
+                          {item.product_name || item.name || item.title || 'Product'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {item.quantity || 1} × Ksh {item.product_price || item.price || 0}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                ))}
+                {orderItems.length > 3 && (
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      +{orderItems.length - 3} more items
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {item.quantity} × Ksh {item.product_price}
-                    </Typography>
-                  </Box>
-                </Box>
+                  </Grid>
+                )}
               </Grid>
-            ))}
-          </Grid>
+            </>
+          )}
         </CardContent>
       </Card>
     );
@@ -192,7 +238,6 @@ export default function ArtistOrders() {
   }
 
   return (
-    <>
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h3" fontWeight="bold" gutterBottom>
         Order Management
@@ -260,6 +305,5 @@ export default function ArtistOrders() {
         </DialogActions>
       </Dialog>
     </Container>
-    </>
   );
 }

@@ -210,9 +210,64 @@ export function OrderProvider({ children }) {
     }
   }, [getToken]);
 
-  // Keep other methods as needed
+  // Fetch single order by ID
   const getOrder = useCallback(async (orderId) => {
-    // Implementation...
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+      
+      const response = await fetch(`${backendUrl}/api/orders/${orderId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error('Failed to fetch order');
+      }
+      
+      const data = await response.json();
+      console.log('Order received:', data);
+      return data;
+    } catch (err) {
+      console.error('Get order error:', err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [getToken]);
+
+  // Fetch order history/timeline
+  const getOrderHistory = useCallback(async (orderId) => {
+    try {
+      const token = await getToken();
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+      
+      const response = await fetch(`${backendUrl}/api/orders/${orderId}/history`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        console.warn('Failed to fetch order history');
+        return []; // Return empty array if endpoint doesn't exist
+      }
+      
+      const data = await response.json();
+      console.log('Order history received:', data);
+      return data;
+    } catch (err) {
+      console.error('Get order history error:', err);
+      return []; // Return empty array on error
+    }
   }, [getToken]);
 
   const value = {
@@ -221,6 +276,7 @@ export function OrderProvider({ children }) {
     error,
     getOrders,
     getOrder,
+    getOrderHistory,
     createOrder,
     pollOrderStatus,
     updateOrderStatus,

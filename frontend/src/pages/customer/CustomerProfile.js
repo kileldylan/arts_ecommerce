@@ -7,19 +7,28 @@ import { Edit, Save, CameraAlt } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function CustomerProfile() {
-  const { user } = useAuth();
+  const { user, getToken } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [avatarFile, setAvatarFile] = useState(null);
 
-  const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-  const API_BASE = process.env.REACT_APP_API_BASE_URL;
+  const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/users/profile/${user?.id}`, {
+        if (!user?.id) {
+          setLoading(false);
+          return;
+        }
+        
+        const token = await getToken();
+        if (!token) {
+          throw new Error('No authentication token available');
+        }
+        
+        const res = await fetch(`${API_BASE}/api/users/profile/${user.id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
@@ -27,12 +36,14 @@ export default function CustomerProfile() {
         setProfileData(data);
       } catch (error) {
         console.error('Error fetching profile:', error);
+        setProfileData(null);
       } finally {
         setLoading(false);
       }
     };
-    if (user && token) fetchProfile();
-  }, [user, token, API_BASE]);
+    
+    fetchProfile();
+  }, [user?.id, getToken, API_BASE]);
 
   const handleAvatarChange = (e) => setAvatarFile(e.target.files[0]);
 
@@ -43,6 +54,11 @@ export default function CustomerProfile() {
     if (avatarFile) formData.append('avatar', avatarFile);
 
     try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
       const res = await fetch(`${API_BASE}/api/users/profile`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}` },
@@ -58,6 +74,7 @@ export default function CustomerProfile() {
       }
     } catch (err) {
       console.error('Update failed:', err);
+      alert('Failed to update profile. Please try again.');
     }
   };
 

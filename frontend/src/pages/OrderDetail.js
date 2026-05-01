@@ -349,59 +349,6 @@ export default function OrderDetail() {
           </InfoCard>
         </Grid>
       </Grid>
-
-      <Grid container spacing={3}>
-        {/* Right Column - Status History */}
-        <Grid item xs={12} lg={4}>
-          <InfoCard 
-            title="Status History" 
-            icon={<TrackChanges />}
-          >
-            <List sx={{ py: 0 }}>
-              {history.map((record, index) => (
-                <React.Fragment key={index}>
-                  <ListItem sx={{ px: 0, py: 2 }}>
-                    <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ width: '100%' }}>
-                      <Avatar sx={{ 
-                        bgcolor: themeColors.primary, 
-                        width: 40, 
-                        height: 40,
-                        mt: 0.5 
-                      }}>
-                        {statusConfig[record.status]?.icon}
-                      </Avatar>
-                      <Box sx={{ flex: 1 }}>
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                          <Chip
-                            label={statusConfig[record.status]?.label}
-                            color={statusConfig[record.status]?.color}
-                            size="small"
-                            sx={{ fontWeight: 600 }}
-                          />
-                          <Typography variant="body2" color={themeColors.textSecondary}>
-                            by {record.created_by_name}
-                          </Typography>
-                        </Stack>
-                        <Typography variant="body2" color={themeColors.textSecondary} sx={{ mb: 0.5 }}>
-                          {new Date(record.created_at).toLocaleString()}
-                        </Typography>
-                        {record.note && (
-                          <Typography variant="body2" color={themeColors.textPrimary} sx={{ fontStyle: 'italic' }}>
-                            {record.note}
-                          </Typography>
-                        )}
-                      </Box>
-                    </Stack>
-                  </ListItem>
-                  {index < history.length - 1 && (
-                    <Divider sx={{ borderColor: themeColors.border }} />
-                  )}
-                </React.Fragment>
-              ))}
-            </List>
-          </InfoCard>
-        </Grid>
-      </Grid>
     </Container>
   );
 }
