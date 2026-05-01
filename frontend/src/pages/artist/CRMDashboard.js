@@ -211,7 +211,7 @@ export default function CRMDashboard() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { user } = useAuth();
-
+loadi
   useEffect(() => {
     fetchCustomers();
   }, [filters]);
@@ -254,6 +254,14 @@ export default function CRMDashboard() {
   const avgOrderValue = totalRevenue / customers.reduce((sum, customer) => sum + (customer.total_orders || 0), 1);
   const vipCustomers = customers.filter(c => c.total_spent > 10000).length;
 
+    if (loading) {
+    return (
+      <Box sx={{ width: '100%' }}>
+        <LinearProgress />
+      </Box>
+    );
+  }
+  
   return (
     <>
     <Box sx={{ 

@@ -195,14 +195,11 @@ export default function ArtistProfile() {
   };
 
   // Show loading state
-  if (authLoading || loading) {
+  if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4, textAlign: 'center' }}>
-        <CircularProgress />
-        <Typography variant="body1" sx={{ mt: 2 }}>
-          Loading profile...
-        </Typography>
-      </Container>
+      <Box sx={{ width: '100%' }}>
+        <LinearProgress />
+      </Box>
     );
   }
 
