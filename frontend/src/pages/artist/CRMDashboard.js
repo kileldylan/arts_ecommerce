@@ -211,7 +211,6 @@ export default function CRMDashboard() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { user } = useAuth();
-loadi
   useEffect(() => {
     fetchCustomers();
   }, [filters]);

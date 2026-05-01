@@ -9,15 +9,13 @@ import {
   Typography,
   Chip,
   Divider,
-  List,
-  ListItem,
   Button,
-  Avatar,
   Stepper,
   Step,
   StepLabel,
-  CircularProgress,
-  Stack
+  LinearProgress,
+  Stack,
+  Alert
 } from '@mui/material';
 import {
   ArrowBack,
@@ -28,12 +26,10 @@ import {
   Pending,
   LocalShipping,
   CalendarToday,
-  Receipt,
-  TrackChanges
+  Receipt
 } from '@mui/icons-material';
 import { useOrders } from '../contexts/OrderContext';
 
-// Enhanced color palette
 const themeColors = {
   primary: '#2563eb',
   secondary: '#7c3aed',
@@ -54,43 +50,35 @@ const statusConfig = {
   processing: { label: 'Processing', color: 'primary', icon: <LocalShipping /> },
   shipped: { label: 'Shipped', color: 'secondary', icon: <LocalShipping /> },
   delivered: { label: 'Delivered', color: 'success', icon: <CheckCircle /> },
+  cancelled: { label: 'Cancelled', color: 'error', icon: <Pending /> },
+  refunded: { label: 'Refunded', color: 'default', icon: <CheckCircle /> }
 };
 
 const paymentConfig = {
   pending: { label: 'Pending', color: 'warning' },
   paid: { label: 'Paid', color: 'success' },
   failed: { label: 'Failed', color: 'error' },
-  refunded: { label: 'Refunded', color: 'default' },
+  refunded: { label: 'Refunded', color: 'default' }
 };
 
-// Status Badge Component
 const StatusBadge = ({ status, paymentStatus }) => (
   <Stack direction="row" spacing={1} alignItems="center">
     <Chip
       icon={statusConfig[status]?.icon}
-      label={statusConfig[status]?.label}
-      color={statusConfig[status]?.color}
+      label={statusConfig[status]?.label || status}
+      color={statusConfig[status]?.color || 'default'}
       variant="filled"
-      sx={{ 
-        fontWeight: 600, 
-        fontSize: '0.875rem',
-        height: 32
-      }}
+      sx={{ fontWeight: 600, fontSize: '0.875rem', height: 32 }}
     />
     <Chip
-      label={paymentConfig[paymentStatus]?.label}
-      color={paymentConfig[paymentStatus]?.color}
+      label={paymentConfig[paymentStatus]?.label || paymentStatus}
+      color={paymentConfig[paymentStatus]?.color || 'default'}
       variant="outlined"
-      sx={{ 
-        fontWeight: 600, 
-        fontSize: '0.875rem',
-        height: 32
-      }}
+      sx={{ fontWeight: 600, fontSize: '0.875rem', height: 32 }}
     />
   </Stack>
 );
 
-// Info Card Component
 const InfoCard = ({ title, icon, children, sx = {} }) => (
   <Card sx={{ 
     borderRadius: 2, 
@@ -120,39 +108,80 @@ export default function OrderDetail() {
   const navigate = useNavigate();
   const { getOrder, getOrderHistory, loading } = useOrders();
   const [order, setOrder] = useState(null);
-  const [history, setHistory] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchOrderData = async () => {
       try {
+        setError(null);
         const orderData = await getOrder(id);
+        
+        if (!orderData) {
+          setError('Order not found');
+          return;
+        }
+        
         setOrder(orderData);
-        const historyData = await getOrderHistory(id);
-        setHistory(historyData);
       } catch (error) {
         console.error('Error fetching order data:', error);
+        setError(error.message || 'Failed to load order details');
       }
     };
-    if (id) fetchOrderData();
-  }, [id, getOrder, getOrderHistory]);
+    
+    if (id) {
+      fetchOrderData();
+    }
+  }, [id, getOrder]);
 
   const getActiveStep = () => {
     if (!order) return 0;
-    return ['pending', 'confirmed', 'processing', 'shipped', 'delivered'].indexOf(order.status);
+    const steps = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+    const index = steps.indexOf(order.status);
+    return index === -1 ? 0 : index;
   };
 
-  if (loading || !order) {
+  // Show loading state
+  if (loading) {
     return (
-      <Container maxWidth="xl" sx={{ py: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <Stack alignItems="center" spacing={2}>
-          <CircularProgress sx={{ color: themeColors.primary }} size={40} />
-          <Typography variant="h6" color={themeColors.textSecondary}>
-            Loading order details...
-          </Typography>
-        </Stack>
+      <Box sx={{ width: '100%' }}>
+        <LinearProgress />
+      </Box>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+        <Button startIcon={<ArrowBack />} onClick={() => navigate('/customer/orders')}>
+          Back to Orders
+        </Button>
       </Container>
     );
   }
+
+  // If no order and not loading, show not found
+  if (!order) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Alert severity="warning">Order not found</Alert>
+        <Button startIcon={<ArrowBack />} onClick={() => navigate('/customer/orders')} sx={{ mt: 2 }}>
+          Back to Orders
+        </Button>
+      </Container>
+    );
+  }
+
+  // Parse shipping address if it's a string
+  const shippingAddress = typeof order.shipping_address === 'string' 
+    ? JSON.parse(order.shipping_address) 
+    : order.shipping_address;
+
+  // Get customer info from order
+  const customerName = order.customer?.first_name || order.last_name || 'Customer';
+  const customerEmail = order.customer?.email || order.customer_email || 'Not provided';
+  const customerPhone = order.customer?.phone || order.phone || order.customer_phone || 'Not provided';
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -160,7 +189,7 @@ export default function OrderDetail() {
       <Stack spacing={3} sx={{ mb: 4 }}>
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/customer/orders')}
           sx={{
             alignSelf: 'flex-start',
             color: themeColors.textSecondary,
@@ -193,12 +222,11 @@ export default function OrderDetail() {
                     <Stack direction="row" spacing={1} alignItems="center" color={themeColors.textSecondary}>
                       <CalendarToday sx={{ fontSize: 20 }} />
                       <Typography variant="body1">
-                        {new Date(order.created_at).toLocaleDateString('en-US', { 
-                          weekday: 'long', 
+                        {order.created_at ? new Date(order.created_at).toLocaleDateString('en-US', { 
                           year: 'numeric', 
                           month: 'long', 
                           day: 'numeric' 
-                        })}
+                        }) : 'Date not available'}
                       </Typography>
                     </Stack>
                   </Stack>
@@ -214,7 +242,7 @@ export default function OrderDetail() {
             {/* Progress Stepper */}
             <Box sx={{ mt: 4 }}>
               <Stepper activeStep={getActiveStep()} alternativeLabel>
-                {['Order Placed', 'Confirmed', 'Processing', 'Shipped', 'Delivered'].map((label, index) => (
+                {['Order Placed', 'Confirmed', 'Processing', 'Shipped', 'Delivered'].map((label) => (
                   <Step key={label}>
                     <StepLabel
                       sx={{
@@ -230,7 +258,7 @@ export default function OrderDetail() {
                         '& .Mui-completed .MuiStepLabel-label': { 
                           color: themeColors.success,
                           fontWeight: 600
-                        },
+                        }
                       }}
                     >
                       {label}
@@ -249,45 +277,25 @@ export default function OrderDetail() {
           <InfoCard title="Order Summary" icon={<Receipt />}>
             <Stack spacing={2}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color={themeColors.textSecondary}>
-                  Subtotal:
-                </Typography>
-                <Typography variant="body1" fontWeight={600} color={themeColors.textPrimary}>
-                  Ksh {order.subtotal}
-                </Typography>
+                <Typography variant="body2" color={themeColors.textSecondary}>Subtotal:</Typography>
+                <Typography variant="body1" fontWeight={600}>Ksh {order.subtotal?.toLocaleString() || 0}</Typography>
               </Stack>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color={themeColors.textSecondary}>
-                  Shipping:
-                </Typography>
-                <Typography variant="body1" fontWeight={600} color={themeColors.textPrimary}>
-                  Ksh {order.shipping_amount}
-                </Typography>
+                <Typography variant="body2" color={themeColors.textSecondary}>Shipping:</Typography>
+                <Typography variant="body1" fontWeight={600}>Ksh {order.shipping_amount?.toLocaleString() || 0}</Typography>
               </Stack>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color={themeColors.textSecondary}>
-                  Tax:
-                </Typography>
-                <Typography variant="body1" fontWeight={600} color={themeColors.textPrimary}>
-                  Ksh {order.tax_amount}
-                </Typography>
+                <Typography variant="body2" color={themeColors.textSecondary}>Tax:</Typography>
+                <Typography variant="body1" fontWeight={600}>Ksh {order.tax_amount?.toLocaleString() || 0}</Typography>
               </Stack>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color={themeColors.textSecondary}>
-                  Discount:
-                </Typography>
-                <Typography variant="body1" fontWeight={600} color={themeColors.error}>
-                  - Ksh {order.discount_amount}
-                </Typography>
+                <Typography variant="body2" color={themeColors.textSecondary}>Discount:</Typography>
+                <Typography variant="body1" fontWeight={600} color={themeColors.error}>- Ksh {order.discount_amount?.toLocaleString() || 0}</Typography>
               </Stack>
-              <Divider sx={{ borderColor: themeColors.border }} />
+              <Divider />
               <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="h6" fontWeight={700} color={themeColors.textPrimary}>
-                  Total:
-                </Typography>
-                <Typography variant="h6" fontWeight={700} color={themeColors.primary}>
-                  Ksh {order.total_amount}
-                </Typography>
+                <Typography variant="h6" fontWeight={700}>Total:</Typography>
+                <Typography variant="h6" fontWeight={700} color={themeColors.primary}>Ksh {order.total_amount?.toLocaleString() || 0}</Typography>
               </Stack>
             </Stack>
           </InfoCard>
@@ -296,17 +304,9 @@ export default function OrderDetail() {
         <Grid item xs={12} md={3}>
           <InfoCard title="Customer Information" icon={<Person />}>
             <Stack spacing={1}>
-              <Typography variant="body1" fontWeight={600} color={themeColors.textPrimary}>
-                {order.customer_name}
-              </Typography>
-              <Typography variant="body2" color={themeColors.textSecondary}>
-                {order.customer_email}
-              </Typography>
-              {order.customer_phone && (
-                <Typography variant="body2" color={themeColors.textSecondary}>
-                  {order.customer_phone}
-                </Typography>
-              )}
+              <Typography variant="body1" fontWeight={600}>{customerName}</Typography>
+              <Typography variant="body2" color={themeColors.textSecondary}>{customerEmail}</Typography>
+              <Typography variant="body2" color={themeColors.textSecondary}>{customerPhone}</Typography>
             </Stack>
           </InfoCard>
         </Grid>
@@ -314,18 +314,12 @@ export default function OrderDetail() {
         <Grid item xs={12} md={3}>
           <InfoCard title="Shipping Address" icon={<LocationOn />}>
             <Stack spacing={1}>
-              <Typography variant="body1" fontWeight={600} color={themeColors.textPrimary}>
-                {order.shipping_address.street}
-              </Typography>
+              <Typography variant="body1" fontWeight={600}>{shippingAddress?.street || 'Not provided'}</Typography>
               <Typography variant="body2" color={themeColors.textSecondary}>
-                {order.shipping_address.city}, {order.shipping_address.state}
+                {shippingAddress?.city || ''}, {shippingAddress?.state || ''}
               </Typography>
-              <Typography variant="body2" color={themeColors.textSecondary}>
-                {order.shipping_address.country}
-              </Typography>
-              <Typography variant="body2" color={themeColors.textSecondary}>
-                {order.shipping_address.postal_code}
-              </Typography>
+              <Typography variant="body2" color={themeColors.textSecondary}>{shippingAddress?.country || ''}</Typography>
+              <Typography variant="body2" color={themeColors.textSecondary}>{shippingAddress?.postal_code || ''}</Typography>
             </Stack>
           </InfoCard>
         </Grid>
@@ -333,22 +327,48 @@ export default function OrderDetail() {
         <Grid item xs={12} md={3}>
           <InfoCard title="Payment Information" icon={<Payment />}>
             <Stack spacing={1}>
-              <Typography variant="body1" fontWeight={600} color={themeColors.textPrimary} textTransform="capitalize">
-                {order.payment_method.replace('_', ' ')}
+              <Typography variant="body1" fontWeight={600} textTransform="capitalize">
+                {order.payment_method?.replace('_', ' ') || 'Not specified'}
               </Typography>
               <Chip
-                label={paymentConfig[order.payment_status]?.label}
-                color={paymentConfig[order.payment_status]?.color}
+                label={paymentConfig[order.payment_status]?.label || order.payment_status}
+                color={paymentConfig[order.payment_status]?.color || 'default'}
                 size="small"
-                sx={{ 
-                  fontWeight: 600,
-                  alignSelf: 'flex-start'
-                }}
+                sx={{ fontWeight: 600, alignSelf: 'flex-start' }}
               />
             </Stack>
           </InfoCard>
         </Grid>
       </Grid>
+
+      {/* Order Items Section */}
+      {order.order_items && order.order_items.length > 0 && (
+        <Card sx={{ borderRadius: 2, border: `1px solid ${themeColors.border}` }}>
+          <CardContent>
+            <Typography variant="h6" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
+              Order Items
+            </Typography>
+            <Stack spacing={2}>
+              {order.order_items.map((item, index) => (
+                <Box key={index}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1 }}>
+                    <Box>
+                      <Typography variant="body1" fontWeight={600}>{item.product_name}</Typography>
+                      <Typography variant="body2" color={themeColors.textSecondary}>
+                        Quantity: {item.quantity} × Ksh {item.product_price?.toLocaleString()}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body1" fontWeight={600}>
+                      Ksh {item.total_price?.toLocaleString()}
+                    </Typography>
+                  </Stack>
+                  {index < order.order_items.length - 1 && <Divider />}
+                </Box>
+              ))}
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
     </Container>
   );
 }

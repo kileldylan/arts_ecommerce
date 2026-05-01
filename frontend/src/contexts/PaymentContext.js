@@ -1,3 +1,4 @@
+// contexts/PaymentContext.js - Simplified (just for polling)
 import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
 import { supabase } from '../utils/supabaseClient';
 
@@ -12,56 +13,31 @@ export function usePayment() {
 export function PaymentProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [lastRequest, setLastRequest] = useState(null);
-  const [lastResult, setLastResult] = useState(null);
 
-  const invokeFunction = useCallback(async (name, payload) => {
-  const { data, error: fnError } = await supabase.functions.invoke(name, {
-    body: payload,
-    headers: { 'Content-Type': 'application/json' },
-  });
-    if (fnError) throw fnError;
-    return data;
-  }, []);
-
-  const initiateStkPush = useCallback(async ({ phone, amount, orderId, accountReference = 'ORDER', description = 'Order Payment' }) => {
-    setLoading(true);
-    setError(null);
-    setLastResult(null);
+  // Poll payment status using Supabase Edge Function
+  const pollPaymentStatus = useCallback(async (checkoutRequestId, orderId) => {
     try {
-      const payload = { phone, amount, orderId, accountReference, description };
-      setLastRequest(payload);
-      const data = await invokeFunction('mpesa', {
-        ...payload,
-        route: 'stkpush'
+      const { data, error: fnError } = await supabase.functions.invoke('mpesa', {
+        body: {
+          route: 'status',
+          checkoutRequestId,
+          orderId
+        }
       });
-      setLastResult(data);
+      
+      if (fnError) throw fnError;
       return { success: true, data };
     } catch (e) {
-      setError(e.message || 'Payment initiation failed');
-      return { success: false, error: e.message };
-    } finally {
-      setLoading(false);
-    }
-  }, [invokeFunction]);
-
-  const pollPaymentStatus = useCallback(async ({ checkoutRequestId, orderId }) => {
-    try {
-      const data = await invokeFunction('mpesa', { checkoutRequestId, orderId });
-      return { success: true, data };
-    } catch (e) {
+      console.error('Polling error:', e);
       return { success: false, error: e.message };
     }
-  }, [invokeFunction]);
+  }, []);
 
   const value = useMemo(() => ({
     loading,
     error,
-    lastRequest,
-    lastResult,
-    initiateStkPush,
     pollPaymentStatus
-  }), [loading, error, lastRequest, lastResult, initiateStkPush, pollPaymentStatus]);
+  }), [loading, error, pollPaymentStatus]);
 
   return (
     <PaymentContext.Provider value={value}>
@@ -69,5 +45,3 @@ export function PaymentProvider({ children }) {
     </PaymentContext.Provider>
   );
 }
-
-

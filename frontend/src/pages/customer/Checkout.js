@@ -11,6 +11,7 @@ import { useOrders } from '../../contexts/OrderContext';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePayment } from '../../contexts/PaymentContext';
+import { supabase } from '../../utils/supabaseClient';
 
 const themeColors = {
   primary: '#2C3E50',
@@ -55,6 +56,7 @@ export default function Checkout() {
     }
   }, [cart, navigate]);
 
+// src/pages/customer/Checkout.js - FIXED VERSION
 const handleMpesaPayment = async () => {
   setPaymentProcessing(true);
   setError('');
@@ -93,22 +95,35 @@ const handleMpesaPayment = async () => {
     console.log('Full order data:', orderData);
 
     const orderResponse = await createOrder(orderData);
-    console.log('Order response:', orderResponse);
+    console.log('Full order response:', orderResponse);
 
     if (orderResponse && orderResponse.order?.id) {
       const orderId = orderResponse.order.id;
-      // ✅ Fix: Check for checkout_request_id in the payment object
-      const checkoutRequestId = orderResponse.payment?.checkout_request_id;
       
-      console.log('Checkout Request ID:', checkoutRequestId);
+      // ✅ FIXED: Properly extract checkout_request_id from response
+      let checkoutRequestId = null;
+      
+      // Check different possible response structures
+      if (orderResponse.payment?.checkout_request_id) {
+        checkoutRequestId = orderResponse.payment.checkout_request_id;
+      } else if (orderResponse.checkout_request_id) {
+        checkoutRequestId = orderResponse.checkout_request_id;
+      } else if (orderResponse.data?.CheckoutRequestID) {
+        checkoutRequestId = orderResponse.data.CheckoutRequestID;
+      } else if (orderResponse.CheckoutRequestID) {
+        checkoutRequestId = orderResponse.CheckoutRequestID;
+      }
+      
+      console.log('Extracted CheckoutRequestID:', checkoutRequestId);
       
       if (checkoutRequestId) {
-        console.log('Payment initiated successfully, starting polling...');
+        console.log('✅ Payment initiated successfully, starting polling...');
         setPaymentStatus('pending');
         // Start polling for payment status
         pollPaymentStatus(orderId, checkoutRequestId);
       } else {
-        console.error('No checkout_request_id in response:', orderResponse);
+        console.error('❌ No checkout_request_id in response:', orderResponse);
+        console.log('Response structure:', JSON.stringify(orderResponse, null, 2));
         setError('Payment initiated but no checkout ID received. Please check if you received an M-Pesa prompt.');
         setPaymentProcessing(false);
         // Still redirect to orders page after a delay
@@ -132,72 +147,63 @@ const handleMpesaPayment = async () => {
 const pollPaymentStatus = async (orderId, checkoutRequestId) => {
   console.log(`Starting polling for order ${orderId} with checkout ID ${checkoutRequestId}`);
   
+  const maxAttempts = 60; // 3 minutes
+  let attempts = 0;
+  
   const checkStatus = async () => {
+    attempts++;
     try {
-      const token = await getToken();
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+      // Use Supabase Edge Function to check status
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('payment_status, status')
+        .eq('id', orderId)
+        .single();
       
-      // Use the status endpoint that returns payment_status
-      const response = await fetch(`${backendUrl}/api/orders/${orderId}/status`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      if (orderError) throw orderError;
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      console.log(`Payment status check #${attempts}:`, orderData.payment_status);
       
-      const data = await response.json();
-      console.log('Payment status check:', data);
-      
-      if (data.payment_status === 'paid') {
-        console.log('Payment completed successfully!');
+      if (orderData.payment_status === 'paid') {
+        console.log('✅ Payment completed successfully!');
         setPaymentStatus('completed');
         setPaymentProcessing(false);
         setMpesaDialogOpen(false);
         
-        // Show success message
         alert('Payment successful! Your order has been confirmed.');
-        
-        // Clear cart and redirect
         clearCart();
         navigate('/customer/orders');
         return;
       } 
       
-      if (data.payment_status === 'failed') {
-        console.log('Payment failed');
+      if (orderData.payment_status === 'failed') {
+        console.log('❌ Payment failed');
         setPaymentStatus('failed');
         setPaymentProcessing(false);
-        setError('M-Pesa payment failed. Please try again or contact support.');
+        setError('M-Pesa payment failed. Please try again.');
         return;
       }
       
       // Still pending - continue polling
-      console.log('Payment still pending, checking again in 3 seconds...');
-      setTimeout(checkStatus, 3000);
+      if (attempts < maxAttempts) {
+        setTimeout(checkStatus, 3000);
+      } else {
+        console.log('Polling timeout - payment still pending');
+        setPaymentProcessing(false);
+        setError('Payment is taking longer than expected. Your order has been created and will be confirmed once payment is received.');
+        setMpesaDialogOpen(false);
+        navigate('/customer/orders');
+      }
       
     } catch (error) {
       console.error('Error checking payment status:', error);
-      // Continue polling even if there's an error (network issues)
-      setTimeout(checkStatus, 5000);
+      if (attempts < maxAttempts) {
+        setTimeout(checkStatus, 5000);
+      }
     }
   };
   
-  // Start polling
   checkStatus();
-  
-  // Set a timeout to stop polling after 3 minutes
-  setTimeout(() => {
-    if (paymentStatus === 'pending') {
-      setPaymentProcessing(false);
-      setError('Payment is taking longer than expected. Your order has been created and will be confirmed once payment is received.');
-      setMpesaDialogOpen(false);
-      navigate('/customer/orders');
-    }
-  }, 180000); // 3 minutes timeout
 };
 
   const handleSubmit = async (e) => {

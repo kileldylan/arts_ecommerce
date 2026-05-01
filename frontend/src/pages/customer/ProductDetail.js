@@ -1,3 +1,4 @@
+// src/pages/ProductDetail.js
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -8,23 +9,29 @@ import {
   Button,
   IconButton,
   Chip,
-  CircularProgress,
   Stack,
   Divider,
-  Rating
+  Rating,
+  LinearProgress,
+  Badge,
+  Snackbar,
+  Alert,
+  Drawer,
+  useMediaQuery,
+  useTheme,
+  Fab
 } from '@mui/material';
 import {
   ArrowBack,
-  Add,
-  Remove,
   ShoppingCart,
   WhatsApp,
-  LocalShipping,
-  CheckCircleOutline,
   FavoriteBorder,
   Share,
-  Sell
+  Check,
+  ShoppingBag,
+  Close
 } from '@mui/icons-material';
+import { alpha } from '@mui/material/styles';
 import { useProducts } from '../../contexts/ProductContext';
 import { useCart } from '../../contexts/CartContext';
 import Footer from '../../components/Footer';
@@ -42,13 +49,25 @@ const themeColors = {
 export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { getProduct, products } = useProducts();
-  const { addToCart } = useCart();
+  const { cart, addToCart, getCartItemsCount, removeFromCart, updateCartQuantity } = useCart();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [error, setError] = useState(null);
+  const [showSnackbar, setShowSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+
+  // Check if product is already in cart - like dashboard
+  const cartItem = useMemo(() => {
+    return cart.find(item => item.id === id);
+  }, [cart, id]);
+
+  const isInCart = !!cartItem;
+  const cartItemsCount = getCartItemsCount();
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -85,13 +104,32 @@ export default function ProductDetail() {
 
   const handleAddToCart = () => {
     if (!product) return;
-    addToCart({ ...product, quantity });
+    
+    // Add to cart - JUST LIKE DASHBOARD (adds single item)
+    addToCart({ ...product, quantity: 1 });
+    
+    // Show success message
+    setSnackbarMessage(`${product.name} added to cart!`);
+    setShowSnackbar(true);
   };
 
+  const handleGoToCart = () => {
+    setCartDrawerOpen(true);
+  };
+
+  const handleCloseCart = () => {
+    setCartDrawerOpen(false);
+    // Remove cart parameter from URL
+    const url = new URL(window.location);
+    url.searchParams.delete('cart');
+    window.history.replaceState({}, '', url);
+  };
+
+  // Show loading state
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <CircularProgress />
+      <Box sx={{ width: '100%' }}>
+        <LinearProgress />
       </Box>
     );
   }
@@ -111,8 +149,121 @@ export default function ProductDetail() {
   const imageGallery = product.images?.length ? product.images : [product.image_url].filter(Boolean);
   const productStatus = product.quantity > 0 ? 'In Stock' : 'Out of Stock';
 
+  // Cart Drawer Component - EXACTLY like dashboard
+  const CartDrawer = () => (
+    <Drawer
+      anchor="right"
+      open={cartDrawerOpen}
+      onClose={handleCloseCart}
+      sx={{
+        '& .MuiDrawer-paper': {
+          width: isMobile ? '100%' : 400,
+          padding: 2
+        }
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h6" fontWeight="700">
+          Shopping Cart ({getCartItemsCount()})
+        </Typography>
+        <IconButton onClick={handleCloseCart}>
+          <Close />
+        </IconButton>
+      </Box>
+
+      {cart.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 4 }}>
+          <Typography color="text.secondary">Your cart is empty</Typography>
+        </Box>
+      ) : (
+        <>
+          <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+            {cart.map((item) => (
+              <Box key={item.id} sx={{ display: 'flex', gap: 2, mb: 2, p: 1, borderBottom: `1px solid ${themeColors.border}` }}>
+                <img 
+                  src={item.image_url || `/api/placeholder/80/80?text=${encodeURIComponent(item.name)}`} 
+                  alt={item.name}
+                  style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8 }}
+                />
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography variant="body2" fontWeight="600">{item.name}</Typography>
+                  <Typography variant="body2" color="primary" fontWeight="700">
+                    Ksh {item.price?.toLocaleString()}
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                    <Button 
+                      size="small" 
+                      onClick={() => updateCartQuantity(item.id, (item.quantity || 1) - 1)}
+                      disabled={(item.quantity || 1) <= 1}
+                    >
+                      -
+                    </Button>
+                    <Typography>{item.quantity || 1}</Typography>
+                    <Button 
+                      size="small" 
+                      onClick={() => updateCartQuantity(item.id, (item.quantity || 1) + 1)}
+                    >
+                      +
+                    </Button>
+                    <Button 
+                      size="small" 
+                      color="error" 
+                      onClick={() => removeFromCart(item.id)}
+                      sx={{ ml: 'auto' }}
+                    >
+                      Remove
+                    </Button>
+                  </Box>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+          <Box sx={{ borderTop: `1px solid ${themeColors.border}`, pt: 2 }}>
+            <Button 
+              fullWidth 
+              variant="contained" 
+              sx={{ mb: 1 }}
+              onClick={() => {
+                navigate('/checkout');
+                handleCloseCart();
+              }}
+            >
+              Proceed to Checkout
+            </Button>
+            <Button fullWidth variant="outlined" onClick={handleCloseCart}>
+              Continue Shopping
+            </Button>
+          </Box>
+        </>
+      )}
+    </Drawer>
+  );
+
   return (
     <Box sx={{ bgcolor: '#fff', minHeight: '100vh' }}>
+      {/* Floating Cart Button - EXACTLY like dashboard */}
+      <Fab
+        color="primary"
+        aria-label="cart"
+        onClick={handleGoToCart}
+        sx={{
+          position: 'fixed',
+          bottom: 32,
+          right: 32,
+          backgroundColor: themeColors.primary,
+          '&:hover': {
+            backgroundColor: alpha(themeColors.primary, 0.9),
+            transform: 'scale(1.1)'
+          },
+          transition: 'all 0.2s ease-in-out',
+          zIndex: 1000
+        }}
+      >
+        <Badge badgeContent={cartItemsCount} color="error">
+          <ShoppingCart />
+        </Badge>
+      </Fab>
+
       <Container maxWidth="xl" sx={{ px: { xs: 2, md: 4 }, py: 3 }}>
         {/* Back Button */}
         <Button
@@ -124,7 +275,7 @@ export default function ProductDetail() {
         </Button>
 
         {/* Main Product Section */}
-        <Grid container spacing={3}>
+        <Grid container spacing={4}>
           {/* LEFT COLUMN - IMAGES */}
           <Grid item xs={12} md={6}>
             <Box>
@@ -142,15 +293,14 @@ export default function ProductDetail() {
                   mb: 2
                 }}
               >
-                <Box
-                  component="img"
+                <img
                   src={imageGallery[activeImage] || '/api/placeholder/600/600'}
                   alt={product.name}
-                  sx={{
+                  style={{
                     width: '100%',
                     height: '100%',
                     objectFit: 'contain',
-                    p: 2
+                    padding: 16
                   }}
                   onError={(e) => {
                     e.target.src = '/api/placeholder/600/600?text=No+Image';
@@ -174,14 +324,15 @@ export default function ProductDetail() {
                         border: index === activeImage ? `2px solid ${themeColors.secondary}` : '1px solid #ddd',
                         bgcolor: '#f5f5f5',
                         flexShrink: 0,
-                        '&:hover': { borderColor: themeColors.secondary }
+                        '&:hover': { 
+                          borderColor: themeColors.secondary
+                        }
                       }}
                     >
-                      <Box
-                        component="img"
+                      <img
                         src={image}
                         alt=""
-                        sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         onError={(e) => {
                           e.target.src = '/api/placeholder/70/70?text=Error';
                         }}
@@ -195,7 +346,7 @@ export default function ProductDetail() {
 
           {/* RIGHT COLUMN - DETAILS */}
           <Grid item xs={12} md={6}>
-            <Stack spacing={2}>
+            <Stack spacing={2.5}>
               {/* Status */}
               <Chip
                 label={productStatus}
@@ -238,44 +389,36 @@ export default function ProductDetail() {
 
               <Divider />
 
-              {/* Quantity */}
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Typography fontWeight={600}>Quantity:</Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: 1 }}>
-                  <IconButton
-                    size="small"
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    disabled={product.quantity <= 0}
-                  >
-                    <Remove fontSize="small" />
-                  </IconButton>
-                  <Typography sx={{ px: 2, minWidth: 40, textAlign: 'center' }}>{quantity}</Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() => setQuantity((q) => q + 1)}
-                    disabled={product.quantity <= 0 || quantity >= product.quantity}
-                  >
-                    <Add fontSize="small" />
-                  </IconButton>
-                </Box>
-              </Stack>
-
-              {/* Add to Cart */}
+              {/* Add to Cart Button - EXACTLY like ProductCard in dashboard */}
               <Button
                 variant="contained"
                 fullWidth
-                startIcon={<ShoppingCart />}
+                size="large"
                 onClick={handleAddToCart}
-                disabled={product.quantity <= 0}
+                disabled={product.quantity <= 0 || isInCart}
+                startIcon={isInCart ? <Check /> : <ShoppingBag />}
                 sx={{
+                  backgroundColor: isInCart ? themeColors.success : themeColors.primary,
+                  color: 'white',
+                  borderRadius: '8px',
                   py: 1.5,
-                  bgcolor: themeColors.primary,
-                  '&:hover': { bgcolor: '#1a252f' },
+                  fontSize: '1rem',
+                  fontWeight: 600,
                   textTransform: 'none',
-                  fontWeight: 600
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 8px rgba(52, 152, 219, 0.3)',
+                  '&:hover': {
+                    backgroundColor: isInCart ? themeColors.success : alpha(themeColors.primary, 0.9),
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 4px 12px rgba(52, 152, 219, 0.4)'
+                  },
+                  '&.Mui-disabled': {
+                    backgroundColor: themeColors.success,
+                    color: 'white'
+                  }
                 }}
               >
-                Add to Cart
+                {isInCart ? 'Added' : 'Add to Cart'}
               </Button>
 
               {/* Action Buttons */}
@@ -332,8 +475,8 @@ export default function ProductDetail() {
 
         {/* Related Products */}
         {relatedProducts.length > 0 && (
-          <Box sx={{ mt: 6 }}>
-            <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+          <Box sx={{ mt: 8 }}>
+            <Typography variant="h5" fontWeight={700} sx={{ mb: 3 }}>
               You May Also Like
             </Typography>
             <Grid container spacing={2}>
@@ -346,14 +489,17 @@ export default function ProductDetail() {
                       border: '1px solid #eee',
                       borderRadius: 2,
                       overflow: 'hidden',
-                      '&:hover': { boxShadow: 1 }
+                      transition: 'all 0.2s ease',
+                      '&:hover': { 
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        transform: 'translateY(-2px)'
+                      }
                     }}
                   >
-                    <Box
-                      component="img"
+                    <img
                       src={item.image_url || '/api/placeholder/200/200'}
                       alt={item.name}
-                      sx={{ width: '100%', height: 150, objectFit: 'cover' }}
+                      style={{ width: '100%', height: 150, objectFit: 'cover' }}
                       onError={(e) => {
                         e.target.src = '/api/placeholder/200/200?text=No+Image';
                       }}
@@ -373,6 +519,25 @@ export default function ProductDetail() {
           </Box>
         )}
       </Container>
+
+      {/* Success Snackbar */}
+      <Snackbar
+        open={showSnackbar}
+        autoHideDuration={3000}
+        onClose={() => setShowSnackbar(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setShowSnackbar(false)} 
+          severity="success" 
+          variant="filled"
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+
+      {/* Cart Drawer */}
+      <CartDrawer />
 
       <Footer />
     </Box>

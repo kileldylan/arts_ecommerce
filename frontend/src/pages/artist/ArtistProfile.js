@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Container, Typography, Box, Card, CardContent, TextField,
-  Button, Avatar, Grid, Chip, Divider, Alert, CircularProgress
+  Button, Avatar, Grid, Chip, Divider, Alert, CircularProgress, LinearProgress
 } from '@mui/material';
 import { Edit, Save, CameraAlt } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
