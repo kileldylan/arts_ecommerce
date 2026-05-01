@@ -53,24 +53,27 @@ app.use(compression({ level: 6 })); // Balanced compression level
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001', 
-  'https://arts-ecommerce.vercel.app',
-  'https://branchiarts.vercel.app' // Add your production domain
+  'https://branchiarts.vercel.app'
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow mobile apps / no-origin requests
     if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+
+    // Allow Vercel preview URLs dynamically
+    if (origin.includes('vercel.app')) {
+      return callback(null, true);
     }
-    return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.log('❌ Blocked by CORS:', origin);
+    return callback(new Error('Not allowed by CORS'));
   },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  credentials: true
 }));
 
 // ======================= RATE LIMITING =======================
