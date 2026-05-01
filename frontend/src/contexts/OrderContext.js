@@ -12,13 +12,47 @@ export function useOrders() {
   return context;
 }
 
-// Helper to get backend URL
+// Helper to get backend URL - FIXED for production
 const getBackendUrl = () => {
+  // For production (Vercel)
   if (process.env.NODE_ENV === 'production') {
-    // Use environment variable or relative path
-    return process.env.REACT_APP_BACKEND_URL || '';
+    const url = process.env.REACT_APP_API_BASE_URL;
+    if (!url) {
+      console.error('❌ REACT_APP_API_BASE_URL is not set!');
+      return ''; // Will cause errors, but at least we know why
+    }
+    // Remove trailing slash if present
+    return url.replace(/\/$/, '');
   }
-  return process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+  // For development
+  return process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+};
+
+// Helper function to create consistent fetch options
+const createFetchOptions = async (getToken, method = 'GET', body = null, requiresAuth = true) => {
+  const options = {
+    method,
+    credentials: 'include', // CRITICAL for CORS with credentials
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  };
+
+  // Add auth token if required
+  if (requiresAuth) {
+    const token = await getToken();
+    if (!token) {
+      throw new Error('Authentication required. Please log in.');
+    }
+    options.headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  // Add body for POST/PUT requests
+  if (body && (method === 'POST' || method === 'PUT')) {
+    options.body = JSON.stringify(body);
+  }
+
+  return options;
 };
 
 export function OrderProvider({ children }) {
@@ -28,20 +62,17 @@ export function OrderProvider({ children }) {
   const { getToken, user } = useAuth();
   const backendUrl = getBackendUrl();
 
-  // Get all orders with filters
+  // Log backend URL for debugging
+  console.log(`🔧 OrderContext initialized with backend URL: ${backendUrl} (${process.env.NODE_ENV})`);
+
+  // Get all orders with filters - FIXED
   const getOrders = useCallback(async (filters = {}) => {
     setLoading(true);
     setError(null);
     try {
-      const token = await getToken();
-      if (!token) {
-        throw new Error('Not authenticated. Please log in.');
-      }
-      
       let url = `${backendUrl}/api/orders`;
       const queryParams = new URLSearchParams();
       
-      // Apply filters
       if (filters.status) queryParams.append('status', filters.status);
       if (filters.payment_status) queryParams.append('payment_status', filters.payment_status);
       if (filters.customer_id) queryParams.append('customer_id', filters.customer_id);
@@ -53,28 +84,32 @@ export function OrderProvider({ children }) {
         url += `?${queryParams.toString()}`;
       }
       
-      console.log('Fetching orders from:', url);
+      console.log('📡 Fetching orders from:', url);
       
-      const response = await fetch(url, {
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const options = await createFetchOptions(getToken, 'GET', null, true);
+      const response = await fetch(url, options);
       
+      // First check if response is OK
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response:', errorText);
-        throw new Error(`Failed to fetch orders: ${response.status}`);
+        console.error('❌ Error response:', errorText);
+        throw new Error(`Failed to fetch orders: ${response.status} - ${errorText.substring(0, 100)}`);
+      }
+      
+      // Check content type before parsing JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('❌ Expected JSON but got:', contentType, text.substring(0, 200));
+        throw new Error(`Server returned non-JSON response. Content-Type: ${contentType}`);
       }
       
       const data = await response.json();
-      console.log('Orders received:', data?.length || 0);
+      console.log('✅ Orders received:', data?.length || 0);
       setOrders(data || []);
       return data;
     } catch (err) {
-      console.error('Get orders error:', err);
+      console.error('❌ Get orders error:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -82,34 +117,25 @@ export function OrderProvider({ children }) {
     }
   }, [getToken, backendUrl]);
 
-  // Get single order by ID
+  // Get single order by ID - FIXED
   const getOrder = useCallback(async (orderId) => {
     setLoading(true);
     setError(null);
     try {
-      const token = await getToken();
-      if (!token) {
-        throw new Error('Not authenticated. Please log in.');
-      }
-      
-      const response = await fetch(`${backendUrl}/api/orders/${orderId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const options = await createFetchOptions(getToken, 'GET', null, true);
+      const response = await fetch(`${backendUrl}/api/orders/${orderId}`, options);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response:', errorText);
+        console.error('❌ Error response:', errorText);
         throw new Error(`Failed to fetch order: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('Order received:', data);
+      console.log('✅ Order received:', data);
       return data;
     } catch (err) {
-      console.error('Get order error:', err);
+      console.error('❌ Get order error:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -117,16 +143,11 @@ export function OrderProvider({ children }) {
     }
   }, [getToken, backendUrl]);
 
-  // Create new order
+  // Create new order - FIXED
   const createOrder = useCallback(async (orderData) => {
     setLoading(true);
     setError(null);
     try {
-      const token = await getToken();
-      if (!token) {
-        throw new Error('Please login to place an order');
-      }
-      
       const payload = {
         items: orderData.items.map(item => ({
           product_id: item.productId || item.product_id,
@@ -146,16 +167,10 @@ export function OrderProvider({ children }) {
         phone: orderData.phone || ''
       };
       
-      console.log('Creating order with payload:', payload);
+      console.log('📝 Creating order with payload:', payload);
       
-      const response = await fetch(`${backendUrl}/api/orders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
+      const options = await createFetchOptions(getToken, 'POST', payload, true);
+      const response = await fetch(`${backendUrl}/api/orders`, options);
       
       const data = await response.json();
       
@@ -163,10 +178,10 @@ export function OrderProvider({ children }) {
         throw new Error(data.message || 'Failed to create order');
       }
       
-      console.log('Order created successfully:', data);
+      console.log('✅ Order created successfully:', data);
       return data;
     } catch (err) {
-      console.error('Create order error:', err);
+      console.error('❌ Create order error:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -174,24 +189,13 @@ export function OrderProvider({ children }) {
     }
   }, [getToken, backendUrl]);
 
-  // Update order status
+  // Update order status - FIXED
   const updateOrderStatus = useCallback(async (orderId, status, note = '') => {
     setLoading(true);
     setError(null);
     try {
-      const token = await getToken();
-      if (!token) {
-        throw new Error('Not authenticated. Please log in.');
-      }
-      
-      const response = await fetch(`${backendUrl}/api/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status, note })
-      });
+      const options = await createFetchOptions(getToken, 'PUT', { status, note }, true);
+      const response = await fetch(`${backendUrl}/api/orders/${orderId}/status`, options);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -199,14 +203,14 @@ export function OrderProvider({ children }) {
       }
       
       const data = await response.json();
-      console.log('Order status updated:', data);
+      console.log('✅ Order status updated:', data);
       
-      // Refresh orders list to get updated status
+      // Refresh orders list
       await getOrders();
       
       return data;
     } catch (err) {
-      console.error('Update order status error:', err);
+      console.error('❌ Update order status error:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -214,26 +218,17 @@ export function OrderProvider({ children }) {
     }
   }, [getToken, backendUrl, getOrders]);
 
-  // Poll order status (for M-Pesa payments)
+  // Poll order status - FIXED
   const pollOrderStatus = useCallback(async (orderId, onComplete, onError) => {
     let attempts = 0;
-    const maxAttempts = 60; // 60 * 3 seconds = 3 minutes
-    const interval = 3000; // 3 seconds
+    const maxAttempts = 60;
+    const interval = 3000;
     
     const checkStatus = async () => {
       attempts++;
       try {
-        const token = await getToken();
-        if (!token) {
-          throw new Error('Not authenticated');
-        }
-        
-        const response = await fetch(`${backendUrl}/api/orders/${orderId}/status`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        const options = await createFetchOptions(getToken, 'GET', null, true);
+        const response = await fetch(`${backendUrl}/api/orders/${orderId}/status`, options);
         
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
@@ -243,18 +238,18 @@ export function OrderProvider({ children }) {
         
         if (data.payment_status === 'paid') {
           if (onComplete) onComplete(data);
-          return true; // Stop polling
+          return true;
         } else if (data.payment_status === 'failed') {
           if (onError) onError(new Error('Payment failed'));
-          return true; // Stop polling
+          return true;
         }
         
         if (attempts >= maxAttempts) {
           if (onError) onError(new Error('Payment timeout'));
-          return true; // Stop polling
+          return true;
         }
         
-        return false; // Continue polling
+        return false;
       } catch (err) {
         console.error('Polling error:', err);
         if (attempts >= maxAttempts) {
@@ -275,20 +270,11 @@ export function OrderProvider({ children }) {
     poll();
   }, [getToken, backendUrl]);
 
-  // Get order history/timeline
+  // Get order history - FIXED
   const getOrderHistory = useCallback(async (orderId) => {
     try {
-      const token = await getToken();
-      if (!token) {
-        return [];
-      }
-      
-      const response = await fetch(`${backendUrl}/api/orders/${orderId}/history`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const options = await createFetchOptions(getToken, 'GET', null, true);
+      const response = await fetch(`${backendUrl}/api/orders/${orderId}/history`, options);
       
       if (!response.ok) {
         console.warn('Failed to fetch order history');
@@ -296,7 +282,7 @@ export function OrderProvider({ children }) {
       }
       
       const data = await response.json();
-      console.log('Order history received:', data);
+      console.log('✅ Order history received:', data);
       return data;
     } catch (err) {
       console.error('Get order history error:', err);
@@ -304,24 +290,13 @@ export function OrderProvider({ children }) {
     }
   }, [getToken, backendUrl]);
 
-  // Cancel order
+  // Cancel order - FIXED
   const cancelOrder = useCallback(async (orderId, reason = '') => {
     setLoading(true);
     setError(null);
     try {
-      const token = await getToken();
-      if (!token) {
-        throw new Error('Not authenticated. Please log in.');
-      }
-      
-      const response = await fetch(`${backendUrl}/api/orders/${orderId}/cancel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ reason })
-      });
+      const options = await createFetchOptions(getToken, 'POST', { reason }, true);
+      const response = await fetch(`${backendUrl}/api/orders/${orderId}/cancel`, options);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -329,14 +304,13 @@ export function OrderProvider({ children }) {
       }
       
       const data = await response.json();
-      console.log('Order cancelled:', data);
+      console.log('✅ Order cancelled:', data);
       
-      // Refresh orders list
       await getOrders();
       
       return data;
     } catch (err) {
-      console.error('Cancel order error:', err);
+      console.error('❌ Cancel order error:', err);
       setError(err.message);
       throw err;
     } finally {
