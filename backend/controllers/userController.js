@@ -1,58 +1,13 @@
-// backend/controllers/userController.js
-const supabase = require('../config/supabase');
-
-// ======================= GET PROFILE =======================
-exports.getProfile = async (req, res) => {
-  try {
-    const userId = req.params.id || req.user.id;
-
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .limit(1);
-
-    if (error) {
-      console.error(error);
-      return res.status(500).json({ message: 'Server error' });
-    }
-
-    if (!users || users.length === 0) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    const user = users[0];
-
-    // Normalize avatar to full URL
-    if (user.avatar && !user.avatar.startsWith('http')) {
-      user.avatar = `${req.protocol}://${req.get('host')}/uploads/${user.avatar}`;
-    }
-
-    // Normalize social_media
-    if (user.social_media) {
-      try {
-        user.social_media = JSON.parse(user.social_media);
-      } catch {
-        user.social_media = {};
-      }
-    } else {
-      user.social_media = {};
-    }
-
-    return res.json(user);
-  } catch (error) {
-    console.error('Get profile error:', error);
-    return res.status(500).json({ message: 'Server error' });
-  }
-};
+// backend/controllers/userController.js - COMPLETELY FIXED
 
 // ======================= UPDATE PROFILE =======================
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log('📝 Updating profile for user:', userId);
 
     const {
-      name,
+      name,        // Will be split into first_name, last_name
       phone,
       bio,
       specialty,
@@ -63,78 +18,141 @@ exports.updateProfile = async (req, res) => {
       twitter
     } = req.body;
 
-    let avatarPath = null;
-    if (req.file) {
-      avatarPath = `avatars/${req.file.filename}`;
+    // Parse name into first_name and last_name
+    let firstName = '';
+    let lastName = '';
+    if (name) {
+      const nameParts = name.trim().split(' ');
+      firstName = nameParts[0] || '';
+      lastName = nameParts.slice(1).join(' ') || '';
     }
 
-    const social_media = JSON.stringify({
+    let avatarUrl = null;
+    if (req.file) {
+      avatarUrl = `avatars/${req.file.filename}`;
+    }
+
+    // Build update data with CORRECT field names from your schema
+    const updateData = { 
+      first_name: firstName,
+      last_name: lastName,
+      phone: phone || null,
+      bio: bio || null,
+      specialty: specialty || null,
+      portfolio: portfolio || null,
       website: website || null,
       instagram: instagram || null,
       facebook: facebook || null,
       twitter: twitter || null,
-    });
-
-    const updateData = { 
-      name, 
-      phone, 
-      bio, 
-      specialty, 
-      portfolio, 
-      social_media,
       updated_at: new Date().toISOString()
     };
     
-    if (avatarPath) updateData.avatar = avatarPath;
+    if (avatarUrl) updateData.avatar_url = avatarUrl;
+
+    console.log('📦 Update data:', updateData);
 
     const { error } = await supabase
-      .from('users')
+      .from('profiles')
       .update(updateData)
       .eq('id', userId);
 
     if (error) {
-      console.error(error);
-      return res.status(500).json({ message: 'Server error' });
+      console.error('❌ Update error:', error);
+      return res.status(500).json({ message: 'Server error', error: error.message });
     }
 
-    // Get updated user
-    const { data: users, error: fetchError } = await supabase
-      .from('users')
+    // Get updated user from profiles table
+    const { data: updatedUser, error: fetchError } = await supabase
+      .from('profiles')
       .select('*')
       .eq('id', userId)
-      .limit(1);
+      .single();
 
     if (fetchError) {
+      console.error('❌ Fetch error:', fetchError);
       return res.status(500).json({ message: 'Server error' });
     }
 
-    if (!users || users.length === 0) {
+    if (!updatedUser) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const updatedUser = users[0];
-
-    if (updatedUser.avatar && !updatedUser.avatar.startsWith('http')) {
-      updatedUser.avatar = `${req.protocol}://${req.get('host')}/uploads/${updatedUser.avatar}`;
-    }
-
-    if (updatedUser.social_media) {
-      try {
-        updatedUser.social_media = JSON.parse(updatedUser.social_media);
-      } catch {
-        updatedUser.social_media = {};
-      }
-    } else {
-      updatedUser.social_media = {};
-    }
+    // Format response for frontend
+    const formattedUser = {
+      id: updatedUser.id,
+      name: `${updatedUser.first_name || ''} ${updatedUser.last_name || ''}`.trim() || updatedUser.email,
+      email: updatedUser.email,
+      phone: updatedUser.phone || '',
+      avatar: updatedUser.avatar_url || null,
+      bio: updatedUser.bio || '',
+      specialty: updatedUser.specialty || '',
+      portfolio: updatedUser.portfolio || '',
+      website: updatedUser.website || '',
+      instagram: updatedUser.instagram || '',
+      facebook: updatedUser.facebook || '',
+      twitter: updatedUser.twitter || '',
+      user_type: updatedUser.user_type
+    };
 
     return res.json({
       message: 'Profile updated successfully',
-      user: updatedUser
+      user: formattedUser
     });
+    
   } catch (error) {
-    console.error('Update profile error:', error);
-    return res.status(500).json({ message: 'Server error' });
+    console.error('❌ Update profile error:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// ======================= GET PROFILE =======================
+exports.getProfile = async (req, res) => {
+  try {
+    const userId = req.params.id || req.user.id;
+    console.log('🔍 Fetching profile for user:', userId);
+
+    const { data: user, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();  // Use .single() since we expect one record
+
+    if (error) {
+      console.error('❌ Database error:', error);
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      return res.status(500).json({ message: 'Server error', error: error.message });
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Format response for frontend
+    const formattedUser = {
+      id: user.id,
+      name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
+      email: user.email,
+      phone: user.phone || '',
+      avatar: user.avatar_url || null,
+      bio: user.bio || '',
+      specialty: user.specialty || '',
+      portfolio: user.portfolio || '',
+      website: user.website || '',
+      instagram: user.instagram || '',
+      facebook: user.facebook || '',
+      twitter: user.twitter || '',
+      user_type: user.user_type,
+      created_at: user.created_at
+    };
+
+    console.log('✅ Profile found:', formattedUser.email);
+    return res.json(formattedUser);
+    
+  } catch (error) {
+    console.error('❌ Get profile error:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -142,19 +160,35 @@ exports.updateProfile = async (req, res) => {
 exports.getAllArtists = async (req, res) => {
   try {
     const { data: artists, error } = await supabase
-      .from('users')
-      .select('id, name, email, bio, specialty, portfolio, social_media, avatar, created_at')
+      .from('profiles')
+      .select('id, first_name, last_name, email, bio, specialty, portfolio, website, instagram, facebook, twitter, avatar_url, created_at, user_type')
       .eq('user_type', 'artist')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error(error);
+      console.error('❌ Database error:', error);
       return res.status(500).json({ message: 'Server error' });
     }
 
-    return res.json(artists || []);
+    // Format artists for frontend
+    const formattedArtists = artists.map(artist => ({
+      id: artist.id,
+      name: `${artist.first_name || ''} ${artist.last_name || ''}`.trim() || artist.email,
+      email: artist.email,
+      bio: artist.bio || '',
+      specialty: artist.specialty || '',
+      portfolio: artist.portfolio || '',
+      avatar: artist.avatar_url || null,
+      website: artist.website,
+      instagram: artist.instagram,
+      facebook: artist.facebook,
+      twitter: artist.twitter,
+      created_at: artist.created_at
+    }));
+
+    return res.json(formattedArtists);
   } catch (error) {
-    console.error('Get artists error:', error);
+    console.error('❌ Get artists error:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 };

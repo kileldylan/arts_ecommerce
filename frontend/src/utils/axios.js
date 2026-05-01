@@ -2,12 +2,10 @@ import axios from 'axios';
 
 // Simple, reliable API configuration
 const getApiBaseUrl = () => {
-  // If we're in production (on Vercel)
-  if (window.location.hostname.includes('vercel.app') || 
-      window.location.hostname.includes('branchiartsgifts')) {
-    return 'https://arts-ecommerce.onrender.com/api';
+  if (process.env.REACT_APP_API_BASE_URL) {
+    return process.env.REACT_APP_API_BASE_URL;
   }
-  // Development
+  // local development fallback
   return 'http://localhost:5000/api';
 };
 

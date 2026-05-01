@@ -54,7 +54,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001', 
   'https://arts-ecommerce.vercel.app',
-  'https://yourdomain.co.ke' // Add your production domain
+  'https://branchiarts.vercel.app' // Add your production domain
 ];
 
 app.use(cors({

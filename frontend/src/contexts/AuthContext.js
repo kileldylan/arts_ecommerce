@@ -304,14 +304,29 @@ export function AuthProvider({ children }) {
     return await refreshSession();
   };
 
-  const getToken = useCallback(async () => {
+const getToken = useCallback(async () => {
   try {
-    // Try to get current session first
-    let { data: { session }, error } = await supabase.auth.getSession();
+    // Try to get current session
+    const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
     
-    // If no session, try to refresh
-    if (error || !session) {
-      console.log('🔄 No valid session, attempting refresh...');
+    if (sessionError) {
+      console.error('❌ Session error:', sessionError);
+      return null;
+    }
+    
+    // If we have a valid session with token
+    if (currentSession?.access_token) {
+      // Check if token is expired
+      const expiresAt = currentSession.expires_at;
+      const now = Math.floor(Date.now() / 1000);
+      
+      if (expiresAt && expiresAt > now) {
+        console.log('✅ Using existing valid token');
+        return currentSession.access_token;
+      }
+      
+      // Token expired, try to refresh
+      console.log('🔄 Token expired, refreshing...');
       const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
       
       if (refreshError) {
@@ -319,12 +334,13 @@ export function AuthProvider({ children }) {
         return null;
       }
       
-      session = refreshData.session;
+      return refreshData.session?.access_token || null;
     }
     
-    return session?.access_token || null;
+    console.warn('⚠️ No active session found');
+    return null;
   } catch (error) {
-    console.error('❌ Error getting token:', error);
+    console.error('❌ Unexpected error getting token:', error);
     return null;
   }
 }, []);
