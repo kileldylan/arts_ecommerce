@@ -56,6 +56,7 @@ export function OrderProvider({ children }) {
       console.log('Fetching orders from:', url);
       
       const response = await fetch(url, {
+        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
