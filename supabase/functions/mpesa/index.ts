@@ -8,11 +8,11 @@ const corsHeaders = {
 };
 
 // Environment variables (read once)
-const DARAJA_BASE_URL = Deno.env.get("DARAJA_BASE_URL") ?? "https://sandbox.safaricom.co.ke";
-const CONSUMER_KEY = Deno.env.get("DARAJA_CONSUMER_KEY") ?? "";
-const CONSUMER_SECRET = Deno.env.get("DARAJA_CONSUMER_SECRET") ?? "";
-const SHORTCODE = Deno.env.get("DARAJA_SHORTCODE") ?? "";
-const PASSKEY = Deno.env.get("DARAJA_PASSKEY") ?? "";
+const DARAJA_BASE_URL = Deno.env.get("CALLBACK_BASE_URL") ?? "https://sandbox.safaricom.co.ke";
+const CONSUMER_KEY = Deno.env.get("MPESA_CONSUMER_KEY") ?? "";
+const CONSUMER_SECRET = Deno.env.get("MPESA_CONSUMER_SECRET") ?? "";
+const SHORTCODE = Deno.env.get("MPESA_SHORTCODE") ?? "";
+const PASSKEY = Deno.env.get("MPESA_PASSKEY") ?? "";
 
 serve(async (req) => {
   // Handle CORS preflight
