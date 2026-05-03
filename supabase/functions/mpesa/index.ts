@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 // Environment variables (read once)
-const DARAJA_BASE_URL = Deno.env.get("CALLBACK_BASE_URL") ?? "https://sandbox.safaricom.co.ke";
+const DARAJA_BASE_URL = "https://sandbox.safaricom.co.ke";
 const CONSUMER_KEY = Deno.env.get("MPESA_CONSUMER_KEY") ?? "";
 const CONSUMER_SECRET = Deno.env.get("MPESA_CONSUMER_SECRET") ?? "";
 const SHORTCODE = Deno.env.get("MPESA_SHORTCODE") ?? "";
