@@ -118,10 +118,7 @@ serve(async (req) => {
         TransactionDesc: "Payment for Order",
       };
 
-      console.log("📤 Sending STK Payload:", { 
-        ...stkPayload, 
-        PhoneNumber: formattedPhone 
-      });
+      console.log("📤 Sending STK Payload...");
 
       // Step 3: Call Daraja STK Push
       const stkRes = await fetch(`${DARAJA_BASE_URL}/mpesa/stkpush/v1/processrequest`, {
@@ -148,27 +145,46 @@ serve(async (req) => {
         );
       }
 
-      // Save transaction & update order
-      await supabase
-        .from('transactions')
-        .insert({
-          order_id: finalOrderId,
-          transaction_ref: stkData.CheckoutRequestID,
-          amount: Math.round(Number(amount)),
-          payment_method: "mpesa",
-          status: "pending",
-          payment_details: stkData,
-        })
-        .catch(err => console.error("Transaction insert error:", err));
+      // ✅ FIXED: Save transaction using try-catch instead of .catch()
+      try {
+        const { error: insertError } = await supabase
+          .from('transactions')
+          .insert({
+            order_id: finalOrderId,
+            transaction_ref: stkData.CheckoutRequestID,
+            amount: Math.round(Number(amount)),
+            payment_method: "mpesa",
+            status: "pending",
+            payment_details: stkData,
+          });
+        
+        if (insertError) {
+          console.error("❌ Transaction insert error:", insertError);
+        } else {
+          console.log("✅ Transaction saved");
+        }
+      } catch (err) {
+        console.error("❌ Transaction insert exception:", err);
+      }
 
-      await supabase
-        .from('orders')
-        .update({
-          checkout_request_id: stkData.CheckoutRequestID,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', finalOrderId)
-        .catch(err => console.error("Order update error:", err));
+      // ✅ FIXED: Update order using try-catch instead of .catch()
+      try {
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({
+            checkout_request_id: stkData.CheckoutRequestID,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', finalOrderId);
+        
+        if (updateError) {
+          console.error("❌ Order update error:", updateError);
+        } else {
+          console.log("✅ Order updated with CheckoutRequestID");
+        }
+      } catch (err) {
+        console.error("❌ Order update exception:", err);
+      }
 
       console.log(`✅ STK Push successful. CheckoutRequestID: ${stkData.CheckoutRequestID}`);
 
@@ -189,18 +205,105 @@ serve(async (req) => {
     }
 
     // ====================== CALLBACK ======================
-    if (req.method === "POST" && (route === "callback" || pathname.includes("callback"))) {
-      const callbackData = body;
-      console.log("📞 M-PESA Callback received:", JSON.stringify(callbackData, null, 2));
+    if (req.method === "POST" && pathname === "callback") {
+      console.log("📞 M-PESA Callback received");
+      console.log("Callback body:", JSON.stringify(body, null, 2));
 
-      // ... (your existing callback logic - I kept it mostly the same but you can improve later)
+      try {
+        const result = body?.Body?.stkCallback ?? {};
+        const checkoutRequestId = result?.CheckoutRequestID;
+        const resultCode = result?.ResultCode;
+        const resultDesc = result?.ResultDesc;
+        const metadata = result?.CallbackMetadata?.Item ?? [];
 
-      const result = callbackData?.Body?.stkCallback ?? {};
-      const checkoutId = result?.CheckoutRequestID;
-      const resultCode = result?.ResultCode;
+        const mpesaReceipt = metadata.find((i: any) => i.Name === "MpesaReceiptNumber")?.Value;
+        const amount = metadata.find((i: any) => i.Name === "Amount")?.Value;
+        const phone = metadata.find((i: any) => i.Name === "PhoneNumber")?.Value;
 
-      // Update transaction and order logic here (same as your original)
+        console.log(`📊 Callback result: ResultCode=${resultCode}, CheckoutID=${checkoutRequestId}`);
 
+        if (checkoutRequestId) {
+          // Find the order
+          const { data: order, error: orderFindError } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('checkout_request_id', checkoutRequestId)
+            .single();
+
+          if (orderFindError) {
+            console.error("❌ Error finding order:", orderFindError);
+          } else if (order) {
+            if (resultCode === 0) {
+              // Payment successful
+              console.log(`✅ Payment successful! Order: ${order.id}, Receipt: ${mpesaReceipt}, Amount: ${amount}`);
+              
+              // Update order status
+              const { error: updateError } = await supabase
+                .from('orders')
+                .update({
+                  payment_status: 'paid',
+                  status: 'confirmed',
+                  mpesa_receipt: mpesaReceipt,
+                  paid_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', order.id);
+
+              if (updateError) {
+                console.error("❌ Error updating order:", updateError);
+              } else {
+                console.log(`✅✅✅ Order ${order.id} marked as PAID!`);
+              }
+
+              // Add status history
+              await supabase
+                .from('order_status_history')
+                .insert({
+                  order_id: order.id,
+                  status: 'confirmed',
+                  note: `Payment received via M-Pesa. Receipt: ${mpesaReceipt}, Amount: ${amount}`,
+                  created_at: new Date().toISOString()
+                });
+
+              // Update transaction
+              await supabase
+                .from('transactions')
+                .update({
+                  status: 'completed',
+                  payment_details: body,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('transaction_ref', checkoutRequestId);
+
+            } else {
+              // Payment failed
+              console.log(`❌ Payment failed: ${resultDesc}`);
+              
+              await supabase
+                .from('orders')
+                .update({
+                  payment_status: 'failed',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', order.id);
+
+              await supabase
+                .from('transactions')
+                .update({
+                  status: 'failed',
+                  payment_details: body,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('transaction_ref', checkoutRequestId);
+            }
+          }
+        }
+
+      } catch (callbackErr) {
+        console.error("❌ Callback processing error:", callbackErr);
+      }
+
+      // Always return success to Safaricom
       return new Response(
         JSON.stringify({ ResultCode: 0, ResultDesc: "Accepted" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -218,6 +321,7 @@ serve(async (req) => {
 
   } catch (err: any) {
     console.error("🔥 MPESA function error:", err.message);
+    console.error("Stack:", err.stack);
     return new Response(
       JSON.stringify({ 
         success: false,
@@ -231,14 +335,13 @@ serve(async (req) => {
 // ====================== HELPER FUNCTIONS ======================
 function getTimestamp(): string {
   const now = new Date();
-  return [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-    String(now.getHours()).padStart(2, '0'),
-    String(now.getMinutes()).padStart(2, '0'),
-    String(now.getSeconds()).padStart(2, '0'),
-  ].join('');
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  return `${year}${month}${day}${hours}${minutes}${seconds}`;
 }
 
 function formatPhoneNumber(phone: string): string {
