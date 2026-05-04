@@ -508,84 +508,88 @@ export default function ModernDashboard() {
       {/* Cart Drawer */}
       <CartDrawer />
       
-      {/* Hero Section - FIXED: Now using backgroundImage for proper scaling */}
-      <Box
-        sx={{
-          position: 'relative',
-          backgroundColor: '#e9e6df',
-          color: 'white',
-          minHeight: { xs: 280, sm: 350, md: 450, lg: 500 },
-          mt: { xs: 7, sm: 8, md: 0 },
-          pt: { xs: 1 },
-          display: 'flex',
-          alignItems: 'center',
-          mb: 1,
-          overflow: 'hidden',
-          // Fixed hero image with proper background properties
-          backgroundImage: `url('/hero_image.jpg')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            zIndex: 0
-          }
+{/* Hero Section - FULLY RESPONSIVE FIX */}
+<Box
+  sx={{
+    position: 'relative',
+    backgroundColor: '#e9e6df',
+    color: 'white',
+    minHeight: { xs: 280, sm: 350, md: 450, lg: 500 },
+    mt: { xs: 7, sm: 8, md: 0 },
+    display: 'flex',
+    alignItems: 'center',
+    overflow: 'hidden',
+    // Responsive background image with different positioning for mobile
+    backgroundImage: `url('/hero_image.jpg')`,
+    backgroundSize: { xs: 'auto 100%', sm: 'cover', md: 'cover' },
+    backgroundPosition: { xs: 'center center', sm: 'center', md: 'center' },
+    backgroundRepeat: 'no-repeat',
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      inset: 0,
+      backgroundColor: 'rgba(0,0,0,0.35)', // Slightly darker for better text contrast
+      zIndex: 0
+    }
+  }}
+>
+  <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1, px: { xs: 2, sm: 3, md: 4 } }}>
+    <Box sx={{ 
+      textAlign: 'center', 
+      maxWidth: { xs: '100%', sm: 520, md: 720 }, 
+      mx: 'auto',
+      px: { xs: 1, sm: 2 }
+    }}>
+      <Typography 
+        variant="h4" 
+        fontWeight="800" 
+        sx={{ 
+          mb: { xs: 1, sm: 1.5, md: 2 },
+          textShadow: '0 2px 12px rgba(0,0,0,0.4)',
+          fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem', lg: '3rem' },
+          lineHeight: { xs: 1.2, sm: 1.3 }
         }}
       >
-        {/* Removed the img component and overlay from before */}
-        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-          <Box sx={{ textAlign: 'center', maxWidth: 720, mx: 'auto', px: { xs: 2, md: 0 } }}>
-            <Typography 
-              variant="h4" 
-              fontWeight="800" 
-              sx={{ 
-                mb: 1.5, 
-                textShadow: '0 2px 12px rgba(0,0,0,0.4)',
-                fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem' }
-              }}
-            >
-              Discover Unique Art & Decor
-            </Typography>
-            <Typography 
-              variant="subtitle1" 
-              sx={{ 
-                mb: 2.5, 
-                fontWeight: 400, 
-                opacity: 0.95,
-                fontSize: { xs: '0.875rem', sm: '1rem', md: '1.1rem' }
-              }}
-            >
-              Transform your space with art that speaks and gifts that lasts.
-            </Typography>
-            <TextField
-              fullWidth
-              placeholder="Search for art, frames, decor..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              sx={{
-                maxWidth: 520,
-                mx: 'auto',
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'white',
-                  borderRadius: '50px',
-                  height: { xs: 48, sm: 56 },
-                  '& fieldset': { border: 'none' }
-                }
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search sx={{ color: themeColors.lightText, fontSize: { xs: 20, sm: 24 } }} />
-                  </InputAdornment>
-                )
-              }}
-            />
-          </Box>
-        </Container>
-      </Box>
+        Discover Unique Art & Decor
+      </Typography>
+      <Typography 
+        variant="subtitle1" 
+        sx={{ 
+          mb: { xs: 2, sm: 2.5, md: 3 },
+          fontWeight: 400, 
+          opacity: 0.95,
+          fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1.1rem' },
+          px: { xs: 1, sm: 0 }
+        }}
+      >
+        Transform your space with art that speaks and gifts that lasts.
+      </Typography>
+      <TextField
+        fullWidth
+        placeholder="Search for art, frames, decor..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        sx={{
+          maxWidth: { xs: '100%', sm: 480, md: 520 },
+          mx: 'auto',
+          '& .MuiOutlinedInput-root': {
+            backgroundColor: 'white',
+            borderRadius: '50px',
+            height: { xs: 44, sm: 48, md: 56 },
+            '& fieldset': { border: 'none' }
+          }
+        }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <Search sx={{ color: themeColors.lightText, fontSize: { xs: 18, sm: 20, md: 24 } }} />
+            </InputAdornment>
+          )
+        }}
+      />
+    </Box>
+  </Container>
+</Box>
 
       <Container maxWidth="xl" sx={{ py: 4 }}>
         {/* Categories Section - NOW INCLUDING ALL PRODUCTS */}
