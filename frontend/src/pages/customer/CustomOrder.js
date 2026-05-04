@@ -13,7 +13,7 @@ import {
   Divider,
   Tabs,
   Tab,
-  CircularProgress,
+  LinearProgress,
   Alert
 } from '@mui/material';
 import {
@@ -21,7 +21,6 @@ import {
   LocalShipping,
   CheckCircle,
   Pending,
-  Error as ErrorIcon
 } from '@mui/icons-material';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -65,12 +64,12 @@ export default function CustomerOrders() {
     ? orders 
     : orders.filter(order => order.status === tabValue);
 
+  // Show loading state
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 8, textAlign: 'center' }}>
-        <CircularProgress />
-        <Typography sx={{ mt: 2 }}>Loading your orders...</Typography>
-      </Container>
+      <Box sx={{ width: '100%' }}>
+        <LinearProgress />
+      </Box>
     );
   }
 

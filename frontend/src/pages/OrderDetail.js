@@ -149,30 +149,6 @@ export default function OrderDetail() {
     );
   }
 
-  // Show error state
-  if (error) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-        <Button startIcon={<ArrowBack />} onClick={() => navigate('/customer/orders')}>
-          Back to Orders
-        </Button>
-      </Container>
-    );
-  }
-
-  // If no order and not loading, show not found
-  if (!order) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Alert severity="warning">Order not found</Alert>
-        <Button startIcon={<ArrowBack />} onClick={() => navigate('/customer/orders')} sx={{ mt: 2 }}>
-          Back to Orders
-        </Button>
-      </Container>
-    );
-  }
-
   // Parse shipping address if it's a string
   const shippingAddress = typeof order.shipping_address === 'string' 
     ? JSON.parse(order.shipping_address) 
@@ -305,7 +281,6 @@ export default function OrderDetail() {
           <InfoCard title="Customer Information" icon={<Person />}>
             <Stack spacing={1}>
               <Typography variant="body1" fontWeight={600}>{customerName}</Typography>
-              <Typography variant="body2" color={themeColors.textSecondary}>{customerEmail}</Typography>
               <Typography variant="body2" color={themeColors.textSecondary}>{customerPhone}</Typography>
             </Stack>
           </InfoCard>

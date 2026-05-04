@@ -117,7 +117,6 @@ export default function ModernDashboard() {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const productsGridRef = useRef(null); // Ref for scrolling to top
 
   useEffect(() => {
     getAllProducts();
@@ -136,22 +135,7 @@ export default function ModernDashboard() {
     setCurrentPage(1);
   }, [selectedCategory, searchTerm, sortBy]);
 
-  // Scroll to products when page changes - AFTER render
-  useEffect(() => {
-    if (productsGridRef.current) {
-      setTimeout(() => {
-        productsGridRef.current?.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
-        });
-      }, 0);
-    }
-  }, [currentPage]);
-
-  // Scroll to top when page changes - FIX FOR PAGINATION SCROLL ISSUE
-  const handlePageChange = (event, value) => {
-    setCurrentPage(value);
-  };
+  // REMOVED: The scrolling useEffect that was pushing view down
 
   // Filter and sort products
   const filteredProducts = products
@@ -171,6 +155,16 @@ export default function ModernDashboard() {
         default: return new Date(b.created_at || 0) - new Date(a.created_at || 0);
       }
     });
+
+  const handlePageChange = (event, value) => {
+    setCurrentPage(value);
+    
+    // Optional: Scroll to top of products section after page change
+    const productsSection = document.querySelector('.products-section');
+    if (productsSection) {
+      productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   const productsPerPage = isMobile ? 6 : 12;
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
@@ -514,7 +508,7 @@ export default function ModernDashboard() {
       {/* Cart Drawer */}
       <CartDrawer />
       
-      {/* Hero Section */}
+      {/* Hero Section - FIXED: Now using backgroundImage for proper scaling */}
       <Box
         sx={{
           position: 'relative',
@@ -526,32 +520,22 @@ export default function ModernDashboard() {
           display: 'flex',
           alignItems: 'center',
           mb: 1,
-          overflow: 'hidden'
+          overflow: 'hidden',
+          // Fixed hero image with proper background properties
+          backgroundImage: `url('/hero_image.jpg')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            zIndex: 0
+          }
         }}
       >
-        <Box
-          component="img"
-          src="/hero_image.jpg"
-          alt="Hero"
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            objectPosition: { xs: 'center 30%', sm: 'center 40%', md: 'center' },
-            transform: { xs: 'scale(1.05)', sm: 'scale(1.03)', md: 'scale(1.02)', lg: 'scale(1)' },
-            transformOrigin: 'center',
-            willChange: 'transform'
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 45%, rgba(0,0,0,0.05) 100%)'
-          }}
-        />
+        {/* Removed the img component and overlay from before */}
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
           <Box sx={{ textAlign: 'center', maxWidth: 720, mx: 'auto', px: { xs: 2, md: 0 } }}>
             <Typography 
@@ -641,8 +625,8 @@ export default function ModernDashboard() {
           </Box>
         </Box>
         
-        {/* Products Section - Added ref for scrolling */}
-        <div ref={productsGridRef}>
+        {/* Products Section - Removed ref that was causing scroll issue */}
+        <div>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
             <FormControl sx={{ minWidth: 150 }} size="small">
               <InputLabel>Sort By</InputLabel>
@@ -700,13 +684,22 @@ export default function ModernDashboard() {
                 </Box>
               )}
 
-              {/* Pagination - FIXED to scroll to top */}
+              {/* Pagination */}
               {totalPages > 1 && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 4 }}>
                   <Pagination
                     count={totalPages}
                     page={currentPage}
-                    onChange={handlePageChange}
+                    onChange={(event, value) => {
+                      setCurrentPage(value);
+                      // Use setTimeout to ensure scroll happens after the component re-renders
+                      setTimeout(() => {
+                        window.scrollTo({
+                          top: 0,
+                          behavior: 'smooth'
+                        });
+                      }, 50);
+                    }}
                     color="primary"
                     size={isMobile ? "medium" : "large"}
                     sx={{
