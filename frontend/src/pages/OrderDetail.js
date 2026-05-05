@@ -169,11 +169,44 @@ export default function OrderDetail() {
     }
   };
 
-  // Show loading state
+  // Show loading state - IMPROVED FOR MOBILE
   if (loading) {
     return (
-      <Box sx={{ width: '100%' }}>
-        <LinearProgress />
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '60vh',
+        gap: 3,
+        px: 2
+      }}>
+        <CircularProgress 
+          size={48}
+          thickness={4}
+          sx={{ 
+            color: themeColors.primary,
+            display: 'block'
+          }} 
+        />
+        <Typography 
+          variant="body1" 
+          color={themeColors.textSecondary}
+          sx={{ textAlign: 'center' }}
+        >
+          Loading order details...
+        </Typography>
+        <LinearProgress 
+          sx={{ 
+            width: '80%', 
+            maxWidth: 280,
+            borderRadius: 2,
+            height: 4,
+            '& .MuiLinearProgress-bar': {
+              borderRadius: 2
+            }
+          }} 
+        />
       </Box>
     );
   }
