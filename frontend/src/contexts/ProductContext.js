@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../utils/supabaseClient';
 
-// Image Upload Service
+// Image Upload Service (unchanged, keep as is)
 class ImageUploadService {
   static BUCKET_NAME = 'product-images';
 
@@ -16,26 +16,16 @@ class ImageUploadService {
         .from(this.BUCKET_NAME)
         .upload(filePath, file);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from(this.BUCKET_NAME)
         .getPublicUrl(filePath);
 
-      return {
-        success: true,
-        publicUrl,
-        filePath
-      };
+      return { success: true, publicUrl, filePath };
     } catch (error) {
       console.error('Error uploading image:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
@@ -57,38 +47,23 @@ class ImageUploadService {
       };
     } catch (error) {
       console.error('Error uploading multiple images:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
   static async deleteImage(filePath) {
     try {
-      const { error } = await supabase.storage
-        .from(this.BUCKET_NAME)
-        .remove([filePath]);
-
-      if (error) {
-        throw error;
-      }
-
+      const { error } = await supabase.storage.from(this.BUCKET_NAME).remove([filePath]);
+      if (error) throw error;
       return { success: true };
     } catch (error) {
       console.error('Error deleting image:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
   static getImageUrl(filePath) {
-    const { data: { publicUrl } } = supabase.storage
-      .from(this.BUCKET_NAME)
-      .getPublicUrl(filePath);
-    
+    const { data: { publicUrl } } = supabase.storage.from(this.BUCKET_NAME).getPublicUrl(filePath);
     return publicUrl;
   }
 }
@@ -110,108 +85,67 @@ export function ProductProvider({ children }) {
   const [error, setError] = useState(null);
   const { profile, validateSession } = useAuth();
 
-  // Simple frontend cache to prevent unnecessary re-fetches
+  // Enhanced cache with multiple layers
   const cacheRef = useRef({
     allProducts: null,
+    productsByCategory: new Map(),
+    productsById: new Map(),
     lastFetch: 0,
-    cacheDuration: 2 * 60 * 1000 // 2 minutes cache
+    cacheDuration: 5 * 60 * 1000, // 5 minutes (increased from 2)
   });
 
-  // Enhanced session validation for all product operations
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 12,
+    total: 0,
+    hasMore: false
+  });
+
+  // Abort controller for canceling pending requests
+  const abortControllerRef = useRef(null);
+
   const ensureValidSession = async (operation = 'operation') => {
     try {
       console.log(`🔍 Validating session for ${operation}...`);
       
-      // Use the validateSession from AuthContext if available
       if (validateSession) {
         const session = await validateSession();
-        if (!session) {
-          throw new Error('No valid session. Please log in again.');
-        }
+        if (!session) throw new Error('No valid session. Please log in again.');
         return session;
       }
 
-      // Fallback validation
       const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('❌ Session check failed:', error);
-        throw new Error('Session validation failed');
-      }
-      
-      if (!session) {
-        console.error('❌ No valid session found');
-        throw new Error('No active session. Please log in again.');
-      }
-
-      // Check session expiry
-      const expiresAt = new Date(session.expires_at);
-      const now = new Date();
-      const timeUntilExpiry = expiresAt - now;
-      
-      console.log(`⏰ Session expires in: ${Math.round(timeUntilExpiry / 1000 / 60)} minutes`);
-      
-      // Refresh if session expires in less than 5 minutes
-      if (timeUntilExpiry < 5 * 60 * 1000) {
-        console.log('🔄 Session nearing expiry, attempting refresh...');
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        
-        if (refreshError) {
-          console.error('❌ Session refresh failed:', refreshError);
-          throw new Error('Session expired. Please log in again.');
-        }
-        
-        console.log('✅ Session refreshed successfully');
-        return refreshedSession;
-      }
-      
+      if (error || !session) throw new Error('No active session. Please log in again.');
       return session;
     } catch (error) {
-      console.error(`💥 Session validation failed for ${operation}:`, error);
+      console.error(`💥 Session validation failed:`, error);
       throw error;
     }
   };
 
-  // Enhanced error handler with session recovery suggestions
   const handleOperationError = useCallback((error, operation) => {
     console.error(`❌ ${operation} failed:`, error);
-    
-    // Handle session-related errors
-    if (error.message?.includes('session') || 
-        error.message?.includes('auth') || 
-        error.message?.includes('JWT') ||
-        error.code === 401) {
+    if (error.message?.includes('session') || error.message?.includes('auth') || error.message?.includes('JWT') || error.code === 401) {
       const sessionError = 'Your session has expired. Please refresh the page and try again.';
       setError(sessionError);
       throw new Error(sessionError);
     }
-    
-    // Handle other errors
     const errorMessage = error.message || `Failed to ${operation}`;
     setError(errorMessage);
     throw new Error(errorMessage);
-  }, [setError]);
+  }, []);
 
-  // Process product images to ensure full URLs
   const processProductImages = useCallback((product) => {
+    if (!product) return product;
     if (!product.images || !Array.isArray(product.images)) {
-      return {
-        ...product,
-        image_url: null,
-        images: []
-      };
+      return { ...product, image_url: null, images: [] };
     }
 
     const processedImages = product.images.map(img => {
-      if (typeof img === 'string') {
-        return img; // Already a URL
-      }
-      if (img.url) {
-        return img.url; // Use URL from image object
-      }
-      if (img.path) {
-        return ImageUploadService.getImageUrl(img.path); // Convert path to URL
-      }
+      if (typeof img === 'string') return img;
+      if (img.url) return img.url;
+      if (img.path) return ImageUploadService.getImageUrl(img.path);
       return img;
     });
 
@@ -222,15 +156,23 @@ export function ProductProvider({ children }) {
     };
   }, []);
 
-  const getAllProducts = useCallback(async (filters = {}) => {
-    // Check cache first
+  // OPTIMIZED: Get all products with caching, pagination, and abort support
+  const getAllProducts = useCallback(async (options = {}) => {
+    const { forceRefresh = false, categoryId = null, page = 1, limit = 12, search = '' } = options;
+    
+    // Check cache
     const now = Date.now();
-    if (cacheRef.current.allProducts && 
-        (now - cacheRef.current.lastFetch) < cacheRef.current.cacheDuration) {
-      console.log('✅ Serving from frontend cache');
+    if (!forceRefresh && cacheRef.current.allProducts && (now - cacheRef.current.lastFetch) < cacheRef.current.cacheDuration) {
+      console.log('✅ Serving products from cache');
       setProducts(cacheRef.current.allProducts);
       return cacheRef.current.allProducts;
     }
+
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
 
     setLoading(true);
     setError(null);
@@ -238,62 +180,107 @@ export function ProductProvider({ children }) {
     try {
       console.log('🔄 Fetching products from Supabase...');
       
-      // SIMPLE QUERY - No complex joins that might fail
       let query = supabase
         .from('products')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('is_published', true)
         .order('created_at', { ascending: false });
 
-      // Apply basic filters
-      if (filters.category_id && filters.category_id !== '0') {
-        query = query.eq('category_id', filters.category_id);
+      // Apply filters
+      if (categoryId && categoryId !== '0') {
+        query = query.eq('category_id', categoryId);
       }
-      if (filters.search) {
-        query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
       }
-
-      const { data, error: supabaseError } = await query;
-
-      if (supabaseError) {
-        throw supabaseError;
-      }
-
-      console.log(`✅ Successfully fetched ${data?.length || 0} products`);
       
-      // Process images and update cache
+      // Apply pagination
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
+      
+      const { data, error: supabaseError, count } = await query;
+
+      if (supabaseError) throw supabaseError;
+
+      console.log(`✅ Successfully fetched ${data?.length || 0} products (Total: ${count})`);
+      
       const processedProducts = (data || []).map(processProductImages);
+      
+      // Update cache
       cacheRef.current.allProducts = processedProducts;
       cacheRef.current.lastFetch = now;
+      
+      // Update pagination
+      setPagination({
+        page,
+        limit,
+        total: count || 0,
+        hasMore: (page * limit) < (count || 0)
+      });
 
       setProducts(processedProducts);
       return processedProducts;
       
     } catch (err) {
-      handleOperationError(err, 'fetch products');
+      if (err.name !== 'AbortError') {
+        handleOperationError(err, 'fetch products');
+      }
+      return [];
     } finally {
       setLoading(false);
     }
-  }, [validateSession]);
+  }, [handleOperationError, processProductImages]);
 
-  const getArtistProducts = useCallback(async (artistId = null) => {
-    // Use ONLY the integer artist_id from profile
-    const id = artistId || profile?.artist_id;
+  // OPTIMIZED: Prefetch next page for smoother pagination
+  const prefetchNextPage = useCallback(async () => {
+    if (!pagination.hasMore) return;
     
+    const nextPage = pagination.page + 1;
+    const from = (nextPage - 1) * pagination.limit;
+    const to = from + pagination.limit - 1;
+    
+    try {
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, price, image_url')
+        .eq('is_published', true)
+        .range(from, to)
+        .limit(pagination.limit);
+      
+      if (data && data.length > 0) {
+        console.log(`📦 Prefetched ${data.length} products for page ${nextPage}`);
+      }
+    } catch (err) {
+      // Silently fail - prefetch is optional
+      console.debug('Prefetch failed:', err.message);
+    }
+  }, [pagination]);
+
+  // OPTIMIZED: Get artist products with caching
+  const getArtistProducts = useCallback(async (artistId = null, forceRefresh = false) => {
+    const id = artistId || profile?.artist_id;
     if (!id) {
-      console.log('⚠️ No artist_id available in profile');
       setArtistProducts([]);
       return [];
+    }
+
+    // Check cache for artist products
+    const cacheKey = `artist_${id}`;
+    const now = Date.now();
+    if (!forceRefresh && cacheRef.current[cacheKey] && (now - cacheRef.current[`${cacheKey}_time`]) < cacheRef.current.cacheDuration) {
+      console.log(`✅ Serving artist products from cache for ${id}`);
+      setArtistProducts(cacheRef.current[cacheKey]);
+      return cacheRef.current[cacheKey];
     }
 
     setLoading(true);
     setError(null);
     
     try {
-      // Validate session for artist-specific operations
       await ensureValidSession('fetch artist products');
       
-      console.log(`🔄 Fetching products for artist_id: ${id} (INTEGER)`);
+      console.log(`🔄 Fetching products for artist_id: ${id}`);
       
       const { data, error: supabaseError } = await supabase
         .from('products')
@@ -301,12 +288,13 @@ export function ProductProvider({ children }) {
         .eq('artist_id', id)
         .order('created_at', { ascending: false });
 
-      if (supabaseError) {
-        throw supabaseError;
-      }
+      if (supabaseError) throw supabaseError;
 
-      // Process images
-      const processedProducts = (data || []).map(img => processProductImages(img));
+      const processedProducts = (data || []).map(processProductImages);
+      
+      // Cache the results
+      cacheRef.current[cacheKey] = processedProducts;
+      cacheRef.current[`${cacheKey}_time`] = now;
       
       console.log(`✅ Found ${processedProducts.length} products for artist_id ${id}`);
       setArtistProducts(processedProducts);
@@ -314,16 +302,21 @@ export function ProductProvider({ children }) {
       
     } catch (err) {
       console.error('Error fetching artist products:', err);
-      const errorMessage = err.message || 'Failed to fetch artist products';
-      setError(errorMessage);
+      setError(err.message || 'Failed to fetch artist products');
+      return [];
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [profile?.artist_id, ensureValidSession, processProductImages]);
 
-  const getProduct = useCallback(async (productId) => {
-    if (!productId) {
-      throw new Error('Product ID is required');
+  // OPTIMIZED: Get single product with caching
+  const getProduct = useCallback(async (productId, forceRefresh = false) => {
+    if (!productId) throw new Error('Product ID is required');
+
+    // Check cache first
+    if (!forceRefresh && cacheRef.current.productsById.has(productId)) {
+      console.log(`✅ Serving product ${productId} from cache`);
+      return cacheRef.current.productsById.get(productId);
     }
 
     setLoading(true);
@@ -340,7 +333,12 @@ export function ProductProvider({ children }) {
 
       if (supabaseError) throw supabaseError;
 
-      return processProductImages(data);
+      const processedProduct = processProductImages(data);
+      
+      // Cache the result
+      cacheRef.current.productsById.set(productId, processedProduct);
+      
+      return processedProduct;
       
     } catch (err) {
       handleOperationError(err, 'fetch product');
@@ -349,45 +347,36 @@ export function ProductProvider({ children }) {
     }
   }, [handleOperationError, processProductImages]);
 
-  // Clear cache when products are modified
-  const clearCache = () => {
-    cacheRef.current.allProducts = null;
-    cacheRef.current.lastFetch = 0;
-  };
+  const clearCache = useCallback(() => {
+    cacheRef.current = {
+      allProducts: null,
+      productsByCategory: new Map(),
+      productsById: new Map(),
+      lastFetch: 0,
+      cacheDuration: 5 * 60 * 1000,
+    };
+  }, []);
 
   const createProduct = async (productData, imageFiles = []) => {
     setLoading(true);
     setError(null);
     
     try {
-      // Validate session for write operations
       await ensureValidSession('create product');
       
-      // Use the INTEGER artist_id from profile
       const artistId = profile?.artist_id;
-      
-      if (!artistId) {
-        throw new Error('Artist ID not found. Please make sure you are logged in as an artist and your profile has an artist_id.');
-      }
+      if (!artistId) throw new Error('Artist ID not found.');
 
-      console.log('🔄 Creating product with artist_id:', artistId);
-      
-      // Upload images first
       let imageUrls = [];
       if (imageFiles.length > 0) {
-        console.log('📸 Uploading product images...');
         const uploadResult = await ImageUploadService.uploadMultipleImages(imageFiles);
-        if (uploadResult.success) {
-          imageUrls = uploadResult.images;
-          console.log(`✅ Uploaded ${imageUrls.length} images`);
-        } else {
-          console.warn('⚠️ Failed to upload some images:', uploadResult.failed);
-        }
+        if (uploadResult.success) imageUrls = uploadResult.images;
       }
 
       const { data: product, error: productError } = await supabase
         .from('products')
-        .insert([{ name: productData.name,
+        .insert([{
+          name: productData.name,
           description: productData.description,
           price: productData.price,
           compare_price: productData.compare_price,
@@ -416,16 +405,9 @@ export function ProductProvider({ children }) {
         .select()
         .single();
 
-      if (productError) {
-        throw productError;
-      }
+      if (productError) throw productError;
 
-      console.log('✅ Product created successfully:', product?.id);
-      
-      // Clear cache since products changed
       clearCache();
-      
-      // Refresh artist products
       await getArtistProducts();
       
       return processProductImages(product);
@@ -442,39 +424,23 @@ export function ProductProvider({ children }) {
     setError(null);
     
     try {
-      // Validate session for write operations
       await ensureValidSession('update product');
       
-      console.log(`🔄 Updating product: ${productId}`);
-      
       let updatedImages = productData.images || [];
-
-      // Upload new images if provided
       if (newImageFiles.length > 0) {
-        console.log('📸 Uploading new product images...');
         const uploadResult = await ImageUploadService.uploadMultipleImages(newImageFiles);
-        if (uploadResult.success) {
-          updatedImages = [...updatedImages, ...uploadResult.images];
-          console.log(`✅ Uploaded ${uploadResult.images.length} new images`);
-        }
+        if (uploadResult.success) updatedImages = [...updatedImages, ...uploadResult.images];
       }
 
       const { data, error: supabaseError } = await supabase
         .from('products')
-        .update({
-          ...productData,
-          images: updatedImages,
-          updated_at: new Date().toISOString()
-        })
+        .update({ ...productData, images: updatedImages, updated_at: new Date().toISOString() })
         .eq('id', productId)
         .select()
         .single();
 
       if (supabaseError) throw supabaseError;
 
-      console.log('✅ Product updated successfully');
-      
-      // Clear cache since products changed
       clearCache();
       await getArtistProducts();
       
@@ -488,33 +454,21 @@ export function ProductProvider({ children }) {
   };
 
   const deleteProduct = async (productId) => {
-    console.log('🚀 deleteProduct with session validation...');
     setLoading(true);
     setError(null);
     
     try {
-      // Validate session for destructive operations
       await ensureValidSession('delete product');
       
-      console.log('🔍 Making authenticated delete request...');
-      const { error: supabaseError, data } = await supabase
+      const { error: supabaseError } = await supabase
         .from('products')
         .delete()
-        .eq('id', productId)
-        .select();
+        .eq('id', productId);
 
-      console.log('🔍 Delete response:', { error: supabaseError, data });
+      if (supabaseError) throw supabaseError;
 
-      if (supabaseError) {
-        throw supabaseError;
-      }
-
-      console.log('✅ DELETE SUCCESS!');
-      
       clearCache();
-      if (profile?.artist_id) {
-        await getArtistProducts(profile.artist_id);
-      }
+      if (profile?.artist_id) await getArtistProducts(profile.artist_id, true);
       
       return { success: true };
       
@@ -530,12 +484,15 @@ export function ProductProvider({ children }) {
   };
 
   const getProductsByCategory = async (categoryId) => {
+    // Check category cache
+    if (cacheRef.current.productsByCategory.has(categoryId)) {
+      return cacheRef.current.productsByCategory.get(categoryId);
+    }
+
     setLoading(true);
     setError(null);
     
     try {
-      console.log(`🔄 Fetching products for category: ${categoryId}`);
-      
       const { data, error: supabaseError } = await supabase
         .from('products')
         .select('*')
@@ -545,7 +502,10 @@ export function ProductProvider({ children }) {
 
       if (supabaseError) throw supabaseError;
 
-      return (data || []).map(processProductImages);
+      const processedProducts = (data || []).map(processProductImages);
+      cacheRef.current.productsByCategory.set(categoryId, processedProducts);
+      
+      return processedProducts;
       
     } catch (err) {
       handleOperationError(err, 'fetch category products');
@@ -559,8 +519,6 @@ export function ProductProvider({ children }) {
     setError(null);
     
     try {
-      console.log(`🔄 Searching products for: ${searchTerm}`);
-      
       const { data, error: supabaseError } = await supabase
         .from('products')
         .select('*')
@@ -584,6 +542,7 @@ export function ProductProvider({ children }) {
     artistProducts,
     loading,
     error,
+    pagination,
     getAllProducts,
     getArtistProducts,
     getProduct,
@@ -593,13 +552,14 @@ export function ProductProvider({ children }) {
     togglePublishProduct,
     getProductsByCategory,
     searchProducts,
+    prefetchNextPage,
     clearError: () => setError(null),
     refreshProducts: () => {
       clearCache();
-      return getAllProducts();
+      return getAllProducts({ forceRefresh: true });
     },
     refreshArtistProducts: () => {
-      return getArtistProducts();
+      return getArtistProducts(null, true);
     }
   };
 
