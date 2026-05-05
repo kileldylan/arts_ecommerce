@@ -515,7 +515,6 @@ export default function ModernDashboard() {
     backgroundColor: '#e9e6df',
     color: 'white',
     minHeight: { xs: 280, sm: 350, md: 450, lg: 500 },
-    mt: { xs: 7, sm: 8, md: 0 },
     display: 'flex',
     alignItems: 'center',
     overflow: 'hidden',

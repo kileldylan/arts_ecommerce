@@ -17,6 +17,75 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
 
+  // Handle Google user profile creation
+  const handleGoogleUserProfile = async (user) => {
+    if (!user || !user.id) return null;
+    
+    try {
+      // Check if profile already exists using maybeSingle
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      // If profile exists, return it
+      if (existingProfile) {
+        console.log('✅ Existing profile found for Google user');
+        setProfile(existingProfile);
+        return existingProfile;
+      }
+      
+      // If profile doesn't exist, create it
+      if (!existingProfile && !fetchError) {
+        console.log('📝 Creating new profile for Google user...');
+        
+        // Extract name from user metadata
+        const fullName = user.user_metadata?.full_name || '';
+        const firstName = user.user_metadata?.first_name || fullName.split(' ')[0] || '';
+        const lastName = user.user_metadata?.last_name || fullName.split(' ').slice(1).join(' ') || '';
+        const email = user.email || user.user_metadata?.email || '';
+        
+        // Create new profile
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: user.id,
+              email: email,
+              first_name: firstName,
+              last_name: lastName,
+              user_type: 'customer',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+          ])
+          .select()
+          .maybeSingle();
+        
+        if (insertError) {
+          console.error('❌ Failed to create profile for Google user:', insertError);
+          return null;
+        }
+        
+        console.log('✅ Profile created successfully for Google user');
+        setProfile(newProfile);
+        return newProfile;
+      }
+      
+      // Handle other errors
+      if (fetchError) {
+        console.error('❌ Error checking existing profile:', fetchError);
+        return null;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('❌ Unexpected error in handleGoogleUserProfile:', error);
+      return null;
+    }
+  };
+
   // Lightweight, non-blocking profile fetcher
   const fetchUserProfile = async (userId) => {
     try {
@@ -24,17 +93,25 @@ export function AuthProvider({ children }) {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
+      
       if (error) {
-        if (error.code === 'PGRST116') {
-          setProfile(null);
-          return null;
-        }
-        throw error;
+        console.error('Error fetching profile:', error);
+        setProfile(null);
+        return null;
       }
-      setProfile(data);
-      return data;
+      
+      if (data) {
+        setProfile(data);
+        return data;
+      } else {
+        // Profile doesn't exist - this could happen for Google users before creation
+        console.log('No profile found for user:', userId);
+        setProfile(null);
+        return null;
+      }
     } catch (error) {
+      console.error('Profile fetch error:', error);
       setProfile(null);
       return null;
     }
@@ -114,7 +191,7 @@ export function AuthProvider({ children }) {
       return { 
         success: false, 
         error: error.message,
-        localCleared: true // Indicate local state was cleared anyway
+        localCleared: true
       };
     }
   };
@@ -125,25 +202,30 @@ export function AuthProvider({ children }) {
       try {
         setLoading(true);
         console.log('🚀 Initializing auth...');
-        // On cold start, ensure we don't show a stale user from a previous run
-        // If Supabase has no valid session, clear any locally cached state/tokens
         const { data: { session: bootSession } } = await supabase.auth.getSession();
+        
         if (!bootSession) {
           setSession(null);
           setUser(null);
           setProfile(null);
           localStorage.removeItem('supabase.auth.token');
           sessionStorage.removeItem('supabase.auth.token');
-          // Do not block — we can finish initialization now
           setLoading(false);
         } else {
-          // Fast path: set user/session immediately so UI can render
           setSession(bootSession);
           setUser(bootSession.user);
           setLoading(false);
-
-          // Fetch profile in background (non-blocking)
-          fetchUserProfile(bootSession.user.id).catch(() => {});
+          
+          // Check if Google user and handle profile accordingly
+          const isGoogleUser = bootSession.user.app_metadata?.provider === 'google' || 
+                               bootSession.user.user_metadata?.provider === 'google' ||
+                               bootSession.user.identities?.some(identity => identity.provider === 'google');
+          
+          if (isGoogleUser) {
+            await handleGoogleUserProfile(bootSession.user);
+          } else {
+            fetchUserProfile(bootSession.user.id).catch(() => {});
+          }
         }
       } catch (error) {
         console.error('❌ Auth initialization error:', error);
@@ -156,7 +238,7 @@ export function AuthProvider({ children }) {
 
     initializeAuth();
 
-    // Enhanced auth state change listener with session refresh
+    // Enhanced auth state change listener with profile creation for Google users
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log('🔐 Auth state change:', event, currentSession ? 'Has session' : 'No session');
@@ -168,8 +250,19 @@ export function AuthProvider({ children }) {
             if (currentSession?.user) {
               setSession(currentSession);
               setUser(currentSession.user);
-              // Non-blocking
-              fetchUserProfile(currentSession.user.id);
+              
+              // Check if this is a Google user
+              const isGoogleUser = currentSession.user.app_metadata?.provider === 'google' || 
+                                   currentSession.user.user_metadata?.provider === 'google' ||
+                                   currentSession.user.identities?.some(identity => identity.provider === 'google');
+              
+              if (isGoogleUser) {
+                // For Google users, ensure profile exists
+                await handleGoogleUserProfile(currentSession.user);
+              } else {
+                // For email/password users, fetch existing profile
+                fetchUserProfile(currentSession.user.id);
+              }
             }
             break;
 
@@ -190,7 +283,6 @@ export function AuthProvider({ children }) {
             if (currentSession?.user) {
               setSession(currentSession);
               setUser(currentSession.user);
-              // Non-blocking
               fetchUserProfile(currentSession.user.id).catch(() => {});
             }
             break;
@@ -276,12 +368,11 @@ export function AuthProvider({ children }) {
 
   const loginWithGoogle = async (userType = 'customer') => {
     try {
-      // ✅ Sanitize the origin to prevent malformed URLs (fixes "lochttps" bug)
       let origin = window.location.origin;
   
-      // Fix any common malformed cases (like "lochttps" or "vercel.appalhost")
+      // Fix any common malformed cases
       origin = origin.replace('lochttps', 'https').replace('httphttp', 'http').replace('httpshttps', 'https');
-      origin = origin.replace('vercel.appalhost', 'vercel.app'); // Just in case the domain got merged
+      origin = origin.replace('vercel.appalhost', 'vercel.app');
   
       const redirectTo = `${origin}/oauth-success`;
   
@@ -297,53 +388,48 @@ export function AuthProvider({ children }) {
       return { success: false, error: error.message };
     }
   };
-  
 
   // Session validation function for other components to use
   const validateSession = async () => {
     return await refreshSession();
   };
 
-const getToken = useCallback(async () => {
-  try {
-    // Try to get current session
-    const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      console.error('❌ Session error:', sessionError);
-      return null;
-    }
-    
-    // If we have a valid session with token
-    if (currentSession?.access_token) {
-      // Check if token is expired
-      const expiresAt = currentSession.expires_at;
-      const now = Math.floor(Date.now() / 1000);
+  const getToken = useCallback(async () => {
+    try {
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
       
-      if (expiresAt && expiresAt > now) {
-        console.log('✅ Using existing valid token');
-        return currentSession.access_token;
-      }
-      
-      // Token expired, try to refresh
-      console.log('🔄 Token expired, refreshing...');
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-      
-      if (refreshError) {
-        console.error('❌ Token refresh failed:', refreshError);
+      if (sessionError) {
+        console.error('❌ Session error:', sessionError);
         return null;
       }
       
-      return refreshData.session?.access_token || null;
+      if (currentSession?.access_token) {
+        const expiresAt = currentSession.expires_at;
+        const now = Math.floor(Date.now() / 1000);
+        
+        if (expiresAt && expiresAt > now) {
+          console.log('✅ Using existing valid token');
+          return currentSession.access_token;
+        }
+        
+        console.log('🔄 Token expired, refreshing...');
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError) {
+          console.error('❌ Token refresh failed:', refreshError);
+          return null;
+        }
+        
+        return refreshData.session?.access_token || null;
+      }
+      
+      console.warn('⚠️ No active session found');
+      return null;
+    } catch (error) {
+      console.error('❌ Unexpected error getting token:', error);
+      return null;
     }
-    
-    console.warn('⚠️ No active session found');
-    return null;
-  } catch (error) {
-    console.error('❌ Unexpected error getting token:', error);
-    return null;
-  }
-}, []);
+  }, []);
 
   const value = {
     user,
@@ -355,7 +441,7 @@ const getToken = useCallback(async () => {
     login,
     register,
     loginWithGoogle,
-    logout, // Enhanced logout function
+    logout,
     loading,
     refreshProfile: () => user && fetchUserProfile(user.id),
     validateSession,
