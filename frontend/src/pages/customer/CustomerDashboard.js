@@ -521,7 +521,7 @@ export default function ModernDashboard() {
     overflow: 'hidden',
     // Responsive background image with different positioning for mobile
     backgroundImage: `url('/hero_image.jpg')`,
-    backgroundSize: { xs: 'auto 100%', sm: 'cover', md: 'cover' },
+    backgroundSize: 'cover',
     backgroundPosition: { xs: 'center center', sm: 'center', md: 'center' },
     backgroundRepeat: 'no-repeat',
     '&::before': {
