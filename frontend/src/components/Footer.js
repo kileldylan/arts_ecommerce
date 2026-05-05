@@ -82,9 +82,6 @@ const Footer = () => {
               <Link href="/customer/orders" underline="hover" sx={{ color: themeColors.lightText, fontSize: '0.9rem' }}>
                 Orders
               </Link>
-              <Link href="/contact" underline="hover" sx={{ color: themeColors.lightText, fontSize: '0.9rem' }}>
-                Contact
-              </Link>
             </Box>
           </Grid>
 
