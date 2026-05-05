@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 
 const AuthContext = createContext();
@@ -16,78 +16,94 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
+  
+  // Cache ref for profile to prevent unnecessary fetches
+  const profileCacheRef = useRef({
+    data: null,
+    lastFetch: 0,
+    cacheDuration: 2 * 60 * 1000 // 2 minutes
+  });
 
-  // Handle Google user profile creation
-  const handleGoogleUserProfile = async (user) => {
+  // Handle Google user profile creation (optimized)
+  const handleGoogleUserProfile = useCallback(async (user) => {
     if (!user || !user.id) return null;
     
     try {
-      // Check if profile already exists using maybeSingle
+      // Check cache first
+      const now = Date.now();
+      if (profileCacheRef.current.data && 
+          profileCacheRef.current.data.id === user.id &&
+          (now - profileCacheRef.current.lastFetch) < profileCacheRef.current.cacheDuration) {
+        console.log('✅ Serving Google profile from cache');
+        setProfile(profileCacheRef.current.data);
+        return profileCacheRef.current.data;
+      }
+      
       const { data: existingProfile, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .maybeSingle();
       
-      // If profile exists, return it
       if (existingProfile) {
         console.log('✅ Existing profile found for Google user');
+        profileCacheRef.current = { data: existingProfile, lastFetch: Date.now(), cacheDuration: 2 * 60 * 1000 };
         setProfile(existingProfile);
         return existingProfile;
       }
       
-      // If profile doesn't exist, create it
       if (!existingProfile && !fetchError) {
         console.log('📝 Creating new profile for Google user...');
         
-        // Extract name from user metadata
         const fullName = user.user_metadata?.full_name || '';
         const firstName = user.user_metadata?.first_name || fullName.split(' ')[0] || '';
         const lastName = user.user_metadata?.last_name || fullName.split(' ').slice(1).join(' ') || '';
         const email = user.email || user.user_metadata?.email || '';
         
-        // Create new profile
         const { data: newProfile, error: insertError } = await supabase
           .from('profiles')
-          .insert([
-            {
-              id: user.id,
-              email: email,
-              first_name: firstName,
-              last_name: lastName,
-              user_type: 'customer',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }
-          ])
+          .insert([{
+            id: user.id,
+            email: email,
+            first_name: firstName,
+            last_name: lastName,
+            user_type: 'customer',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }])
           .select()
           .maybeSingle();
         
-        if (insertError) {
-          console.error('❌ Failed to create profile for Google user:', insertError);
-          return null;
-        }
+        if (insertError) throw insertError;
         
         console.log('✅ Profile created successfully for Google user');
+        profileCacheRef.current = { data: newProfile, lastFetch: Date.now(), cacheDuration: 2 * 60 * 1000 };
         setProfile(newProfile);
         return newProfile;
       }
       
-      // Handle other errors
-      if (fetchError) {
-        console.error('❌ Error checking existing profile:', fetchError);
-        return null;
-      }
-      
       return null;
     } catch (error) {
-      console.error('❌ Unexpected error in handleGoogleUserProfile:', error);
+      console.error('❌ Google profile error:', error);
       return null;
     }
-  };
+  }, []);
 
-  // Lightweight, non-blocking profile fetcher
-  const fetchUserProfile = async (userId) => {
+  // Optimized profile fetcher with caching
+  const fetchUserProfile = useCallback(async (userId, forceRefresh = false) => {
+    if (!userId) return null;
+    
+    // Check cache
+    const now = Date.now();
+    if (!forceRefresh && 
+        profileCacheRef.current.data && 
+        profileCacheRef.current.data.id === userId &&
+        (now - profileCacheRef.current.lastFetch) < profileCacheRef.current.cacheDuration) {
+      console.log('✅ Serving profile from cache');
+      setProfile(profileCacheRef.current.data);
+      return profileCacheRef.current.data;
+    }
+    
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -102,11 +118,11 @@ export function AuthProvider({ children }) {
       }
       
       if (data) {
+        // Update cache
+        profileCacheRef.current = { data, lastFetch: now, cacheDuration: 2 * 60 * 1000 };
         setProfile(data);
         return data;
       } else {
-        // Profile doesn't exist - this could happen for Google users before creation
-        console.log('No profile found for user:', userId);
         setProfile(null);
         return null;
       }
@@ -115,30 +131,45 @@ export function AuthProvider({ children }) {
       setProfile(null);
       return null;
     }
-  };
+  }, []);
 
-  // Check and refresh session
-  const refreshSession = async () => {
+  // Optimized refresh profile function
+  const refreshProfile = useCallback(async (forceRefresh = false) => {
+    if (user?.id) {
+      return await fetchUserProfile(user.id, forceRefresh);
+    }
+    return null;
+  }, [user?.id, fetchUserProfile]);
+
+  // Immediate profile update (for optimistic UI updates)
+  const updateProfileImmediately = useCallback((updatedProfile) => {
+    if (updatedProfile) {
+      profileCacheRef.current = { 
+        data: updatedProfile, 
+        lastFetch: Date.now(), 
+        cacheDuration: 2 * 60 * 1000 
+      };
+      setProfile(updatedProfile);
+    }
+  }, []);
+
+  const refreshSession = useCallback(async () => {
     try {
       console.log('🔄 Checking/refreshing session...');
       const { data: { session: currentSession }, error } = await supabase.auth.getSession();
       
-      if (error) {
-        console.error('❌ Session check error:', error);
-        throw error;
-      }
-
-      console.log('🔍 Current session:', currentSession ? 'Valid' : 'Invalid');
+      if (error) throw error;
       
       if (currentSession?.user) {
         setSession(currentSession);
         setUser(currentSession.user);
-        // Fetch profile in background to avoid blocking UI
+        // Fetch profile in background - don't await
         fetchUserProfile(currentSession.user.id);
       } else {
         setSession(null);
         setUser(null);
         setProfile(null);
+        profileCacheRef.current = { data: null, lastFetch: 0, cacheDuration: 2 * 60 * 1000 };
       }
       
       return currentSession;
@@ -149,82 +180,68 @@ export function AuthProvider({ children }) {
       setProfile(null);
       return null;
     }
-  };
+  }, [fetchUserProfile]);
 
-  // Enhanced logout function with error handling
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       console.log('🚪 Attempting logout...');
       
-      // Clear local state first
       setUser(null);
       setProfile(null);
       setSession(null);
+      profileCacheRef.current = { data: null, lastFetch: 0, cacheDuration: 2 * 60 * 1000 };
       
-      // Try to sign out from Supabase with error handling
       const { error } = await supabase.auth.signOut();
       
-      if (error) {
-        // If it's a session missing error, it might already be logged out
-        if (error.message.includes('AuthSessionMissingError') || 
-            error.message.includes('session missing')) {
-          console.log('ℹ️ Session already invalidated, continuing with local logout');
-          return { success: true };
-        }
+      if (error && !error.message.includes('AuthSessionMissingError') && !error.message.includes('session missing')) {
         throw error;
       }
+      
+      localStorage.removeItem('supabase.auth.token');
+      sessionStorage.removeItem('supabase.auth.token');
       
       console.log('✅ Logout successful');
       return { success: true };
     } catch (error) {
       console.error('❌ Logout error:', error);
-      
-      // Even if Supabase logout fails, ensure local state is cleared
       setUser(null);
       setProfile(null);
       setSession(null);
-      
-      // Clear any residual tokens/local storage
       localStorage.removeItem('supabase.auth.token');
       sessionStorage.removeItem('supabase.auth.token');
-      
-      return { 
-        success: false, 
-        error: error.message,
-        localCleared: true
-      };
+      return { success: false, error: error.message, localCleared: true };
     }
-  };
+  }, []);
 
-  // Enhanced auth state listener
+  // Optimized auth initialization
   useEffect(() => {
     const initializeAuth = async () => {
       try {
         setLoading(true);
         console.log('🚀 Initializing auth...');
+        
         const { data: { session: bootSession } } = await supabase.auth.getSession();
         
         if (!bootSession) {
           setSession(null);
           setUser(null);
           setProfile(null);
-          localStorage.removeItem('supabase.auth.token');
-          sessionStorage.removeItem('supabase.auth.token');
           setLoading(false);
         } else {
           setSession(bootSession);
           setUser(bootSession.user);
-          setLoading(false);
           
-          // Check if Google user and handle profile accordingly
           const isGoogleUser = bootSession.user.app_metadata?.provider === 'google' || 
                                bootSession.user.user_metadata?.provider === 'google' ||
                                bootSession.user.identities?.some(identity => identity.provider === 'google');
           
+          setLoading(false); // Set loading false immediately for faster UI
+          
+          // Handle profile in background
           if (isGoogleUser) {
-            await handleGoogleUserProfile(bootSession.user);
+            handleGoogleUserProfile(bootSession.user);
           } else {
-            fetchUserProfile(bootSession.user.id).catch(() => {});
+            fetchUserProfile(bootSession.user.id);
           }
         }
       } catch (error) {
@@ -238,11 +255,10 @@ export function AuthProvider({ children }) {
 
     initializeAuth();
 
-    // Enhanced auth state change listener with profile creation for Google users
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
-        console.log('🔐 Auth state change:', event, currentSession ? 'Has session' : 'No session');
-
+        console.log('🔐 Auth state change:', event);
+        
         switch (event) {
           case 'SIGNED_IN':
           case 'TOKEN_REFRESHED':
@@ -251,48 +267,28 @@ export function AuthProvider({ children }) {
               setSession(currentSession);
               setUser(currentSession.user);
               
-              // Check if this is a Google user
               const isGoogleUser = currentSession.user.app_metadata?.provider === 'google' || 
                                    currentSession.user.user_metadata?.provider === 'google' ||
                                    currentSession.user.identities?.some(identity => identity.provider === 'google');
               
               if (isGoogleUser) {
-                // For Google users, ensure profile exists
                 await handleGoogleUserProfile(currentSession.user);
               } else {
-                // For email/password users, fetch existing profile
                 fetchUserProfile(currentSession.user.id);
               }
             }
             break;
-
           case 'SIGNED_OUT':
-            console.log('✅ Signed out event received');
-            setSession(null);
-            setUser(null);
-            setProfile(null);
-            break;
-
           case 'USER_DELETED':
             setSession(null);
             setUser(null);
             setProfile(null);
-            break;
-
-          case 'INITIAL_SESSION':
-            if (currentSession?.user) {
-              setSession(currentSession);
-              setUser(currentSession.user);
-              fetchUserProfile(currentSession.user.id).catch(() => {});
-            }
+            profileCacheRef.current = { data: null, lastFetch: 0, cacheDuration: 2 * 60 * 1000 };
             break;
         }
-
-        setLoading(false);
       }
     );
 
-    // Set up periodic session check (every 5 minutes)
     const sessionCheckInterval = setInterval(() => {
       refreshSession();
     }, 5 * 60 * 1000);
@@ -301,30 +297,24 @@ export function AuthProvider({ children }) {
       subscription.unsubscribe();
       clearInterval(sessionCheckInterval);
     };
-  }, []);
+  }, [handleGoogleUserProfile, fetchUserProfile, refreshSession]);
 
-  // Enhanced login with session validation
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     try {
       console.log('🔐 Attempting login...');
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       
-      console.log('✅ Login successful, validating session...');
+      console.log('✅ Login successful');
       await refreshSession();
-      
       return { success: true, user: data.user };
     } catch (error) {
       console.error('❌ Login failed:', error);
       return { success: false, error: error.message };
     }
-  };
+  }, [refreshSession]);
 
-  const register = async (userData) => {
+  const register = useCallback(async (userData) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email: userData.email,
@@ -340,93 +330,61 @@ export function AuthProvider({ children }) {
 
       if (error) throw error;
 
-      // Create profile after successful registration
       if (data.user) {
-        await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: data.user.id,
-              email: data.user.email,
-              first_name: userData.firstName,
-              last_name: userData.lastName,
-              user_type: userData.userType,
-              created_at: new Date().toISOString(),
-            }
-          ]);
+        await supabase.from('profiles').insert([{
+          id: data.user.id,
+          email: data.user.email,
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          user_type: userData.userType,
+          created_at: new Date().toISOString(),
+        }]);
       }
 
-      return { 
-        success: true, 
-        user: data.user,
-        needsEmailVerification: !data.session
-      };
+      return { success: true, user: data.user, needsEmailVerification: !data.session };
     } catch (error) {
       return { success: false, error: error.message };
     }
-  };
+  }, []);
 
-  const loginWithGoogle = async (userType = 'customer') => {
+  const loginWithGoogle = useCallback(async () => {
     try {
       let origin = window.location.origin;
-  
-      // Fix any common malformed cases
       origin = origin.replace('lochttps', 'https').replace('httphttp', 'http').replace('httpshttps', 'https');
       origin = origin.replace('vercel.appalhost', 'vercel.app');
-  
-      const redirectTo = `${origin}/oauth-success`;
-  
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo },
+        options: { redirectTo: `${origin}/oauth-success` },
       });
-  
+      
       if (error) throw error;
       return { success: true };
     } catch (error) {
       console.error('❌ Google login error:', error);
       return { success: false, error: error.message };
     }
-  };
+  }, []);
 
-  // Session validation function for other components to use
-  const validateSession = async () => {
+  const validateSession = useCallback(async () => {
     return await refreshSession();
-  };
+  }, [refreshSession]);
 
   const getToken = useCallback(async () => {
     try {
-      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('❌ Session error:', sessionError);
-        return null;
-      }
-      
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
       if (currentSession?.access_token) {
         const expiresAt = currentSession.expires_at;
         const now = Math.floor(Date.now() / 1000);
         
-        if (expiresAt && expiresAt > now) {
-          console.log('✅ Using existing valid token');
-          return currentSession.access_token;
-        }
+        if (expiresAt && expiresAt > now) return currentSession.access_token;
         
-        console.log('🔄 Token expired, refreshing...');
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-        
-        if (refreshError) {
-          console.error('❌ Token refresh failed:', refreshError);
-          return null;
-        }
-        
+        const { data: refreshData } = await supabase.auth.refreshSession();
         return refreshData.session?.access_token || null;
       }
-      
-      console.warn('⚠️ No active session found');
       return null;
     } catch (error) {
-      console.error('❌ Unexpected error getting token:', error);
+      console.error('❌ Token error:', error);
       return null;
     }
   }, []);
@@ -443,7 +401,8 @@ export function AuthProvider({ children }) {
     loginWithGoogle,
     logout,
     loading,
-    refreshProfile: () => user && fetchUserProfile(user.id),
+    refreshProfile,
+    updateProfileImmediately,
     validateSession,
     getToken,
   };

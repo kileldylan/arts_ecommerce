@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Container, Typography, Box, Card, CardContent, TextField,
   Button, Avatar, Grid, Chip, Divider, Alert, CircularProgress, LinearProgress
@@ -8,134 +8,110 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabaseClient';
 
 export default function ArtistProfile() {
-  const { user, profile, refreshProfile, loading: authLoading, updateProfileImmediately } = useAuth();  const [isEditing, setIsEditing] = useState(false);
+  const { user, profile, refreshProfile, loading: authLoading, updateProfileImmediately } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [avatarFile, setAvatarFile] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState('');
+  
+  // Cancel previous requests
+  const abortControllerRef = useRef(null);
 
-  useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        if (!user) {
-          setError('No user found. Please log in.');
-          return;
-        }
-
-        // Fetch fresh profile data with all fields
-        const { data, error: fetchError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (fetchError) {
-          console.error('Error fetching profile:', fetchError);
-          setError('Failed to load profile');
-          return;
-        }
-
-        setProfileData(data);
-      } catch (err) {
+  const loadProfile = useCallback(async (forceRefresh = false) => {
+    if (!user) return;
+    
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Use AuthContext's cached profile first
+      if (!forceRefresh && profile) {
+        console.log('✅ Using cached profile from AuthContext');
+        setProfileData(profile);
+        setLoading(false);
+        return;
+      }
+      
+      const { data, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      
+      setProfileData(data);
+    } catch (err) {
+      if (err.name !== 'AbortError') {
         console.error('Error loading profile:', err);
         setError('Failed to load profile');
-      } finally {
-        setLoading(false);
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  }, [user, profile]);
 
+  useEffect(() => {
     if (user && !authLoading) {
       loadProfile();
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, loadProfile]);
 
-  const handleAvatarChange = (e) => {
+  const handleAvatarChange = useCallback((e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type and size
       if (!file.type.startsWith('image/')) {
-        setError('Please select a valid image file (JPEG, PNG, etc.)');
+        setError('Please select a valid image file');
         return;
       }
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 5 * 1024 * 1024) {
         setError('Image size should be less than 5MB');
         return;
       }
       setAvatarFile(file);
       setError('');
     }
-  };
+  }, []);
 
-  const uploadAvatar = async (file, userId) => {
+  const uploadAvatar = useCallback(async (file, userId) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true, cacheControl: '3600' });
+    
+    if (uploadError) throw uploadError;
+    
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+    return publicUrl;
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    
+    let avatarUrl = profileData?.avatar;
+    
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${userId}/${Math.random()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-
-      console.log('Uploading avatar to:', filePath);
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { 
-          upsert: true,
-          cacheControl: '3600'
-        });
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw uploadError;
-      }
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      console.log('Avatar uploaded successfully:', publicUrl);
-      return publicUrl;
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      throw new Error('Failed to upload avatar: ' + error.message);
-    }
-  };
-
-    const handleSave = async () => {
-    try {
-      setSaving(true);
-      setError('');
-      setSuccess('');
-
-      let avatarUrl = profileData?.avatar;
-
-      // Upload new avatar if selected
       if (avatarFile) {
-        try {
-          avatarUrl = await uploadAvatar(avatarFile, user.id);
-          
-          // IMMEDIATELY update the UI without waiting for the full save
-          const updatedProfileWithAvatar = {
-            ...profileData,
-            avatar: avatarUrl
-          };
-          
-          // Update both local state and AuthContext immediately
-          setProfileData(updatedProfileWithAvatar);
-          if (updateProfileImmediately) {
-            updateProfileImmediately(updatedProfileWithAvatar);
-          }
-          
-        } catch (uploadError) {
-          setError(uploadError.message);
-          return;
-        }
+        avatarUrl = await uploadAvatar(avatarFile, user.id);
+        const updatedWithAvatar = { ...profileData, avatar: avatarUrl };
+        setProfileData(updatedWithAvatar);
+        if (updateProfileImmediately) updateProfileImmediately(updatedWithAvatar);
       }
-
-      // Prepare update data with all fields
+      
       const updateData = {
         first_name: profileData.first_name || '',
         last_name: profileData.last_name || '',
@@ -149,35 +125,21 @@ export default function ArtistProfile() {
         phone: profileData.phone || '',
         updated_at: new Date().toISOString(),
       };
-
-      // Add avatar URL if we have a new one
-      if (avatarUrl) {
-        updateData.avatar = avatarUrl;
-      }
-
-      console.log('Updating profile with data:', updateData);
-
-      // Update profile in Supabase
+      
+      if (avatarUrl) updateData.avatar = avatarUrl;
+      
       const { error: updateError } = await supabase
         .from('profiles')
         .update(updateData)
         .eq('id', user.id);
-
-      if (updateError) {
-        console.error('Update error:', updateError);
-        throw updateError;
-      }
-
-      // Force refresh the profile in AuthContext to ensure consistency
-      if (refreshProfile) {
-        await refreshProfile(true); // Force refresh
-      }
+      
+      if (updateError) throw updateError;
+      
+      if (refreshProfile) await refreshProfile(true);
       
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
       setAvatarFile(null);
-      
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       console.error('Error updating profile:', err);
@@ -185,269 +147,135 @@ export default function ArtistProfile() {
     } finally {
       setSaving(false);
     }
-  };
+  }, [profileData, avatarFile, user?.id, refreshProfile, updateProfileImmediately, uploadAvatar]);
 
-  const handleInputChange = (field, value) => {
-    setProfileData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  const handleInputChange = useCallback((field, value) => {
+    setProfileData(prev => ({ ...prev, [field]: value }));
+  }, []);
 
-  // Show loading state
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <Box sx={{ width: '100%' }}>
         <LinearProgress />
       </Box>
     );
   }
-
-  // Show error state
+  
   if (error && !profileData) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-        <Button variant="contained" onClick={() => window.location.reload()}>
-          Retry
-        </Button>
+        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+        <Button variant="contained" onClick={() => loadProfile(true)}>Retry</Button>
       </Container>
     );
   }
-
-  // Show no profile state
+  
   if (!profileData) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Alert severity="warning">
-          No profile found. Please complete your profile setup.
-        </Alert>
+        <Alert severity="warning">No profile found. Please complete your profile setup.</Alert>
       </Container>
     );
   }
-
+  
   const fullName = `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim() || 'Unknown Artist';
   const avatarUrl = avatarFile ? URL.createObjectURL(avatarFile) : profileData.avatar;
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h3" fontWeight="bold" gutterBottom>
-        Artist Profile
-      </Typography>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {success}
-        </Alert>
-      )}
-
+      <Typography variant="h3" fontWeight="bold" gutterBottom>Artist Profile</Typography>
+      
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+      
       <Grid container spacing={4}>
-        {/* Left Section */}
         <Grid item xs={12} md={4}>
           <Card sx={{ p: 2 }}>
             <CardContent sx={{ textAlign: 'center' }}>
-              <Avatar
-                sx={{ width: 120, height: 120, mx: 'auto', mb: 2 }}
-                src={avatarUrl}
-                alt={fullName}
-              />
+              <Avatar sx={{ width: 120, height: 120, mx: 'auto', mb: 2 }} src={avatarUrl} alt={fullName} />
               {isEditing && (
-                <Button 
-                  component="label" 
-                  startIcon={<CameraAlt />} 
-                  variant="outlined" 
-                  sx={{ mb: 3 }}
-                  disabled={saving}
-                >
+                <Button component="label" startIcon={<CameraAlt />} variant="outlined" sx={{ mb: 3 }} disabled={saving}>
                   Change Photo
-                  <input 
-                    type="file" 
-                    hidden 
-                    accept="image/*" 
-                    onChange={handleAvatarChange} 
-                  />
+                  <input type="file" hidden accept="image/*" onChange={handleAvatarChange} />
                 </Button>
               )}
               <Typography variant="h6">{fullName}</Typography>
-              <Chip 
-                label={profileData.specialty || 'Artist'} 
-                color="primary" 
-                sx={{ mt: 1 }} 
-              />
+              <Chip label={profileData.specialty || 'Artist'} color="primary" sx={{ mt: 1 }} />
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
                 Member since {new Date(profileData.created_at).toLocaleDateString()}
               </Typography>
             </CardContent>
           </Card>
-
-          {/* Contact & Social Links */}
+          
           <Card sx={{ mt: 3, p: 2 }}>
             <Typography variant="h6" gutterBottom>Contact & Social Links</Typography>
-            
-            {/* Phone */}
             <Typography variant="subtitle2" sx={{ mt: 1 }}>Phone</Typography>
             {isEditing ? (
-              <TextField
-                fullWidth
-                value={profileData.phone || ''}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                sx={{ mb: 2 }}
-                disabled={saving}
-                placeholder="Your phone number"
-              />
+              <TextField fullWidth value={profileData.phone || ''} onChange={(e) => handleInputChange('phone', e.target.value)} sx={{ mb: 2 }} disabled={saving} />
             ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {profileData.phone || 'No phone number'}
-              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{profileData.phone || 'No phone number'}</Typography>
             )}
-
-            {/* Social Links */}
-            {['website', 'instagram', 'facebook', 'twitter'].map((platform) =>
-              isEditing ? (
-                <TextField
-                  key={platform}
-                  fullWidth
-                  label={platform.charAt(0).toUpperCase() + platform.slice(1)}
-                  value={profileData[platform] || ''}
-                  onChange={(e) => handleInputChange(platform, e.target.value)}
-                  sx={{ mb: 2 }}
-                  disabled={saving}
-                  placeholder={`Your ${platform} URL`}
-                />
-              ) : (
-                profileData[platform] && (
-                  <Typography key={platform} variant="body2" sx={{ mb: 1 }}>
-                    {platform}: {profileData[platform]}
-                  </Typography>
-                )
-              )
-            )}
-            {!isEditing && !['website', 'instagram', 'facebook', 'twitter'].some(p => profileData[p]) && (
-              <Typography variant="body2" color="text.secondary">
-                No social links added yet.
-              </Typography>
-            )}
+            
+            {['website', 'instagram', 'facebook', 'twitter'].map((platform) => isEditing ? (
+              <TextField key={platform} fullWidth label={platform.charAt(0).toUpperCase() + platform.slice(1)} value={profileData[platform] || ''} onChange={(e) => handleInputChange(platform, e.target.value)} sx={{ mb: 2 }} disabled={saving} />
+            ) : profileData[platform] && (
+              <Typography key={platform} variant="body2" sx={{ mb: 1 }}>{platform}: {profileData[platform]}</Typography>
+            ))}
           </Card>
         </Grid>
-
-        {/* Right Section */}
+        
         <Grid item xs={12} md={8}>
           <Card sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
               <Typography variant="h5">Profile Information</Typography>
               {isEditing ? (
-                <Button 
-                  startIcon={saving ? <CircularProgress size={16} /> : <Save />} 
-                  variant="contained" 
-                  onClick={handleSave}
-                  disabled={saving}
-                >
+                <Button startIcon={saving ? <CircularProgress size={16} /> : <Save />} variant="contained" onClick={handleSave} disabled={saving}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </Button>
               ) : (
-                <Button 
-                  startIcon={<Edit />} 
-                  variant="outlined" 
-                  onClick={() => setIsEditing(true)}
-                >
-                  Edit Profile
-                </Button>
+                <Button startIcon={<Edit />} variant="outlined" onClick={() => setIsEditing(true)}>Edit Profile</Button>
               )}
             </Box>
             <Divider sx={{ mb: 3 }} />
-
-            {/* Name Fields */}
+            
             <Grid container spacing={2} sx={{ mb: 3 }}>
               <Grid item xs={12} sm={6}>
                 <Typography variant="subtitle2">First Name</Typography>
                 {isEditing ? (
-                  <TextField
-                    fullWidth
-                    value={profileData.first_name || ''}
-                    onChange={(e) => handleInputChange('first_name', e.target.value)}
-                    disabled={saving}
-                  />
+                  <TextField fullWidth value={profileData.first_name || ''} onChange={(e) => handleInputChange('first_name', e.target.value)} disabled={saving} />
                 ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    {profileData.first_name || 'Not set'}
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary">{profileData.first_name || 'Not set'}</Typography>
                 )}
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="subtitle2">Last Name</Typography>
                 {isEditing ? (
-                  <TextField
-                    fullWidth
-                    value={profileData.last_name || ''}
-                    onChange={(e) => handleInputChange('last_name', e.target.value)}
-                    disabled={saving}
-                  />
+                  <TextField fullWidth value={profileData.last_name || ''} onChange={(e) => handleInputChange('last_name', e.target.value)} disabled={saving} />
                 ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    {profileData.last_name || 'Not set'}
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary">{profileData.last_name || 'Not set'}</Typography>
                 )}
               </Grid>
             </Grid>
-
-            {/* Bio */}
+            
             <Typography variant="subtitle2">Bio</Typography>
             {isEditing ? (
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                value={profileData.bio || ''}
-                onChange={(e) => handleInputChange('bio', e.target.value)}
-                sx={{ mb: 3 }}
-                disabled={saving}
-                placeholder="Tell us about yourself and your art..."
-              />
+              <TextField fullWidth multiline rows={4} value={profileData.bio || ''} onChange={(e) => handleInputChange('bio', e.target.value)} sx={{ mb: 3 }} disabled={saving} />
             ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                {profileData.bio || 'No bio yet.'}
-              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>{profileData.bio || 'No bio yet.'}</Typography>
             )}
-
-            {/* Specialty */}
+            
             <Typography variant="subtitle2">Specialty</Typography>
             {isEditing ? (
-              <TextField
-                fullWidth
-                value={profileData.specialty || ''}
-                onChange={(e) => handleInputChange('specialty', e.target.value)}
-                sx={{ mb: 3 }}
-                disabled={saving}
-                placeholder="e.g., Painting, Sculpture, Digital Art..."
-              />
+              <TextField fullWidth value={profileData.specialty || ''} onChange={(e) => handleInputChange('specialty', e.target.value)} sx={{ mb: 3 }} disabled={saving} />
             ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                {profileData.specialty || 'No specialty specified'}
-              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>{profileData.specialty || 'No specialty specified'}</Typography>
             )}
-
-            {/* Portfolio */}
+            
             <Typography variant="subtitle2">Portfolio</Typography>
             {isEditing ? (
-              <TextField
-                fullWidth
-                value={profileData.portfolio || ''}
-                onChange={(e) => handleInputChange('portfolio', e.target.value)}
-                disabled={saving}
-                placeholder="Link to your portfolio website..."
-              />
+              <TextField fullWidth value={profileData.portfolio || ''} onChange={(e) => handleInputChange('portfolio', e.target.value)} disabled={saving} />
             ) : (
-              <Typography variant="body2" color="text.secondary">
-                {profileData.portfolio || 'No portfolio link'}
-              </Typography>
+              <Typography variant="body2" color="text.secondary">{profileData.portfolio || 'No portfolio link'}</Typography>
             )}
           </Card>
         </Grid>
