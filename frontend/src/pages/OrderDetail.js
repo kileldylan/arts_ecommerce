@@ -15,7 +15,8 @@ import {
   StepLabel,
   LinearProgress,
   Stack,
-  Alert
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import {
   ArrowBack,
@@ -26,7 +27,8 @@ import {
   Pending,
   LocalShipping,
   CalendarToday,
-  Receipt
+  Receipt,
+  ErrorOutline
 } from '@mui/icons-material';
 import { useOrders } from '../contexts/OrderContext';
 
@@ -106,15 +108,22 @@ const InfoCard = ({ title, icon, children, sx = {} }) => (
 export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getOrder, getOrderHistory, loading } = useOrders();
+  const { getOrder, loading: contextLoading } = useOrders();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchOrderData = async () => {
       try {
+        setLoading(true);
         setError(null);
+        
+        console.log('Fetching order with ID:', id);
+        
         const orderData = await getOrder(id);
+        
+        console.log('Received order data:', orderData);
         
         if (!orderData) {
           setError('Order not found');
@@ -125,11 +134,16 @@ export default function OrderDetail() {
       } catch (error) {
         console.error('Error fetching order data:', error);
         setError(error.message || 'Failed to load order details');
+      } finally {
+        setLoading(false);
       }
     };
     
     if (id) {
       fetchOrderData();
+    } else {
+      setError('No order ID provided');
+      setLoading(false);
     }
   }, [id, getOrder]);
 
@@ -138,6 +152,21 @@ export default function OrderDetail() {
     const steps = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
     const index = steps.indexOf(order.status);
     return index === -1 ? 0 : index;
+  };
+
+  // Safe parsing of shipping address
+  const getShippingAddress = () => {
+    if (!order?.shipping_address) return null;
+    
+    try {
+      if (typeof order.shipping_address === 'string') {
+        return JSON.parse(order.shipping_address);
+      }
+      return order.shipping_address;
+    } catch (error) {
+      console.error('Error parsing shipping address:', error);
+      return null;
+    }
   };
 
   // Show loading state
@@ -149,15 +178,64 @@ export default function OrderDetail() {
     );
   }
 
-  // Parse shipping address if it's a string
-  const shippingAddress = typeof order.shipping_address === 'string' 
-    ? JSON.parse(order.shipping_address) 
-    : order.shipping_address;
+  // Show error state
+  if (error) {
+    return (
+      <Container maxWidth="md" sx={{ py: 8 }}>
+        <Alert 
+          severity="error" 
+          icon={<ErrorOutline />}
+          action={
+            <Button color="inherit" size="small" onClick={() => navigate('/customer/orders')}>
+              Back to Orders
+            </Button>
+          }
+        >
+          <Typography variant="subtitle1" fontWeight={600}>Error Loading Order</Typography>
+          <Typography variant="body2">{error}</Typography>
+        </Alert>
+      </Container>
+    );
+  }
 
-  // Get customer info from order
-  const customerName = order.customer?.first_name || order.last_name || 'Customer';
-  const customerEmail = order.customer?.email || order.customer_email || 'Not provided';
-  const customerPhone = order.customer?.phone || order.phone || order.customer_phone || 'Not provided';
+  // Show not found state
+  if (!order) {
+    return (
+      <Container maxWidth="md" sx={{ py: 8 }}>
+        <Alert 
+          severity="warning"
+          action={
+            <Button color="inherit" size="small" onClick={() => navigate('/customer/orders')}>
+              Back to Orders
+            </Button>
+          }
+        >
+          <Typography variant="subtitle1" fontWeight={600}>Order Not Found</Typography>
+          <Typography variant="body2">The order you're looking for doesn't exist or you don't have access to it.</Typography>
+        </Alert>
+      </Container>
+    );
+  }
+
+  const shippingAddress = getShippingAddress();
+  
+  // Get customer info with safe fallbacks
+  const customerName = order.customer?.first_name || 
+                      order.customer?.name || 
+                      order.last_name || 
+                      order.customer_name || 
+                      'Customer';
+  
+  const customerEmail = order.customer?.email || 
+                        order.customer_email || 
+                        order.email || 
+                        'Not provided';
+  
+  const customerPhone = order.customer?.phone || 
+                        order.phone || 
+                        order.customer_phone || 
+                        order.phone_number || 
+                        'Not provided';
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -192,7 +270,7 @@ export default function OrderDetail() {
               <Grid item xs={12} md={6}>
                 <Stack spacing={1}>
                   <Typography variant="h3" fontWeight={700} color={themeColors.textPrimary}>
-                    Order #{order.order_number}
+                    Order #{order.order_number || order.id}
                   </Typography>
                   <Stack direction="row" spacing={2} alignItems="center">
                     <Stack direction="row" spacing={1} alignItems="center" color={themeColors.textSecondary}>
@@ -210,7 +288,10 @@ export default function OrderDetail() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <Stack alignItems={{ md: 'flex-end' }} spacing={2}>
-                  <StatusBadge status={order.status} paymentStatus={order.payment_status} />
+                  <StatusBadge 
+                    status={order.status || 'pending'} 
+                    paymentStatus={order.payment_status || 'pending'} 
+                  />
                 </Stack>
               </Grid>
             </Grid>
@@ -254,24 +335,24 @@ export default function OrderDetail() {
             <Stack spacing={2}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography variant="body2" color={themeColors.textSecondary}>Subtotal:</Typography>
-                <Typography variant="body1" fontWeight={600}>Ksh {order.subtotal?.toLocaleString() || 0}</Typography>
+                <Typography variant="body1" fontWeight={600}>Ksh {(order.subtotal || 0).toLocaleString()}</Typography>
               </Stack>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography variant="body2" color={themeColors.textSecondary}>Shipping:</Typography>
-                <Typography variant="body1" fontWeight={600}>Ksh {order.shipping_amount?.toLocaleString() || 0}</Typography>
+                <Typography variant="body1" fontWeight={600}>Ksh {(order.shipping_amount || 0).toLocaleString()}</Typography>
               </Stack>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography variant="body2" color={themeColors.textSecondary}>Tax:</Typography>
-                <Typography variant="body1" fontWeight={600}>Ksh {order.tax_amount?.toLocaleString() || 0}</Typography>
+                <Typography variant="body1" fontWeight={600}>Ksh {(order.tax_amount || 0).toLocaleString()}</Typography>
               </Stack>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography variant="body2" color={themeColors.textSecondary}>Discount:</Typography>
-                <Typography variant="body1" fontWeight={600} color={themeColors.error}>- Ksh {order.discount_amount?.toLocaleString() || 0}</Typography>
+                <Typography variant="body1" fontWeight={600} color={themeColors.error}>- Ksh {(order.discount_amount || 0).toLocaleString()}</Typography>
               </Stack>
               <Divider />
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography variant="h6" fontWeight={700}>Total:</Typography>
-                <Typography variant="h6" fontWeight={700} color={themeColors.primary}>Ksh {order.total_amount?.toLocaleString() || 0}</Typography>
+                <Typography variant="h6" fontWeight={700} color={themeColors.primary}>Ksh {(order.total_amount || order.total || 0).toLocaleString()}</Typography>
               </Stack>
             </Stack>
           </InfoCard>
@@ -282,20 +363,25 @@ export default function OrderDetail() {
             <Stack spacing={1}>
               <Typography variant="body1" fontWeight={600}>{customerName}</Typography>
               <Typography variant="body2" color={themeColors.textSecondary}>{customerPhone}</Typography>
+              <Typography variant="body2" color={themeColors.textSecondary}>{customerEmail}</Typography>
             </Stack>
           </InfoCard>
         </Grid>
 
         <Grid item xs={12} md={3}>
           <InfoCard title="Shipping Address" icon={<LocationOn />}>
-            <Stack spacing={1}>
-              <Typography variant="body1" fontWeight={600}>{shippingAddress?.street || 'Not provided'}</Typography>
-              <Typography variant="body2" color={themeColors.textSecondary}>
-                {shippingAddress?.city || ''}, {shippingAddress?.state || ''}
-              </Typography>
-              <Typography variant="body2" color={themeColors.textSecondary}>{shippingAddress?.country || ''}</Typography>
-              <Typography variant="body2" color={themeColors.textSecondary}>{shippingAddress?.postal_code || ''}</Typography>
-            </Stack>
+            {shippingAddress ? (
+              <Stack spacing={1}>
+                <Typography variant="body1" fontWeight={600}>{shippingAddress.street || shippingAddress.address || 'Not provided'}</Typography>
+                <Typography variant="body2" color={themeColors.textSecondary}>
+                  {shippingAddress.city || ''}, {shippingAddress.state || shippingAddress.county || ''}
+                </Typography>
+                <Typography variant="body2" color={themeColors.textSecondary}>{shippingAddress.country || 'Kenya'}</Typography>
+                <Typography variant="body2" color={themeColors.textSecondary}>{shippingAddress.postal_code || shippingAddress.zip || ''}</Typography>
+              </Stack>
+            ) : (
+              <Typography variant="body2" color={themeColors.textSecondary}>No shipping address provided</Typography>
+            )}
           </InfoCard>
         </Grid>
 
@@ -303,44 +389,62 @@ export default function OrderDetail() {
           <InfoCard title="Payment Information" icon={<Payment />}>
             <Stack spacing={1}>
               <Typography variant="body1" fontWeight={600} textTransform="capitalize">
-                {order.payment_method?.replace('_', ' ') || 'Not specified'}
+                {order.payment_method?.replace(/_/g, ' ') || 'Not specified'}
               </Typography>
               <Chip
-                label={paymentConfig[order.payment_status]?.label || order.payment_status}
-                color={paymentConfig[order.payment_status]?.color || 'default'}
+                label={paymentConfig[order.payment_status]?.label || order.payment_status || 'Pending'}
+                color={paymentConfig[order.payment_status]?.color || 'warning'}
                 size="small"
                 sx={{ fontWeight: 600, alignSelf: 'flex-start' }}
               />
+              {order.mpesa_receipt_number && (
+                <Typography variant="caption" color={themeColors.textSecondary}>
+                  Receipt: {order.mpesa_receipt_number}
+                </Typography>
+              )}
             </Stack>
           </InfoCard>
         </Grid>
       </Grid>
 
       {/* Order Items Section */}
-      {order.order_items && order.order_items.length > 0 && (
+      {order.order_items && order.order_items.length > 0 ? (
         <Card sx={{ borderRadius: 2, border: `1px solid ${themeColors.border}` }}>
           <CardContent>
             <Typography variant="h6" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
-              Order Items
+              Order Items ({order.order_items.length})
             </Typography>
             <Stack spacing={2}>
               {order.order_items.map((item, index) => (
                 <Box key={index}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1 }}>
                     <Box>
-                      <Typography variant="body1" fontWeight={600}>{item.product_name}</Typography>
+                      <Typography variant="body1" fontWeight={600}>{item.product_name || item.name}</Typography>
                       <Typography variant="body2" color={themeColors.textSecondary}>
-                        Quantity: {item.quantity} × Ksh {item.product_price?.toLocaleString()}
+                        Quantity: {item.quantity} × Ksh {(item.product_price || item.price || 0).toLocaleString()}
                       </Typography>
+                      {item.variant && (
+                        <Typography variant="caption" color={themeColors.textSecondary}>
+                          Variant: {item.variant}
+                        </Typography>
+                      )}
                     </Box>
                     <Typography variant="body1" fontWeight={600}>
-                      Ksh {item.total_price?.toLocaleString()}
+                      Ksh {(item.total_price || item.total || (item.quantity * (item.product_price || item.price)) || 0).toLocaleString()}
                     </Typography>
                   </Stack>
                   {index < order.order_items.length - 1 && <Divider />}
                 </Box>
               ))}
             </Stack>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card sx={{ borderRadius: 2, border: `1px solid ${themeColors.border}` }}>
+          <CardContent>
+            <Typography variant="body1" color={themeColors.textSecondary} textAlign="center">
+              No items found for this order
+            </Typography>
           </CardContent>
         </Card>
       )}

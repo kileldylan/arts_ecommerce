@@ -520,7 +520,10 @@ export default function ModernDashboard() {
     alignItems: 'center',
     overflow: 'hidden',
     // Responsive background image with different positioning for mobile
-    backgroundImage: `url('/hero_image.jpg')`,
+    backgroundImage: {
+      xs: "url('/hero_mobile.jpg')",
+      sm: "url('/hero_image.jpg')",
+    },
     backgroundSize: { xs: 'auto 100%', sm: 'cover', md: 'cover' },
     backgroundPosition: { xs: 'center center', sm: 'center', md: 'center' },
     backgroundRepeat: 'no-repeat',
