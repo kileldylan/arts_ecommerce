@@ -512,70 +512,59 @@ export default function ModernDashboard() {
 <Box
   sx={{
     position: 'relative',
-    minHeight: { xs: 280, sm: 380, md: 450, lg: 500 }, // 🔥 slightly increased for mobile
+    backgroundColor: '#e9e6df',
+    color: 'white',
+    minHeight: { xs: 280, sm: 350, md: 450, lg: 500 },
     mt: { xs: 7, sm: 8, md: 0 },
     display: 'flex',
     alignItems: 'center',
     overflow: 'hidden',
-  }}
->
-  {/* ✅ REAL IMAGE LAYER */}
-  <Box
-    component="img"
-    src="/hero_image.jpg"
-    alt="Hero"
-    sx={{
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      objectFit: 'cover', // 🔥 this is the magic
-      objectPosition: { xs: 'center top', sm: 'center' }, // better mobile focus
-      zIndex: 0
-    }}
-  />
-
-  {/* ✅ OVERLAY */}
-  <Box
-    sx={{
+    // Responsive background image with different positioning for mobile
+    backgroundImage: `url('/hero_image.jpg')`,
+    backgroundSize: { xs: 'contain', sm: 'cover', md: 'cover' },
+    backgroundPosition: 'center',
+    backgroundColor: '#e9e6df', 
+    backgroundRepeat: 'no-repeat',
+    '&::before': {
+      content: '""',
       position: 'absolute',
       inset: 0,
-      backgroundColor: 'rgba(0,0,0,0.35)',
-      zIndex: 1
-    }}
-  />
-
-  {/* ✅ CONTENT */}
-  <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2 }}>
+      backgroundColor: 'rgba(0,0,0,0.35)', // Slightly darker for better text contrast
+      zIndex: 0
+    }
+  }}
+>
+  <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1, px: { xs: 2, sm: 3, md: 4 } }}>
     <Box sx={{ 
       textAlign: 'center', 
       maxWidth: { xs: '100%', sm: 520, md: 720 }, 
-      mx: 'auto'
+      mx: 'auto',
+      px: { xs: 1, sm: 2 }
     }}>
       <Typography 
         variant="h4" 
         fontWeight="800" 
         sx={{ 
           mb: { xs: 1, sm: 1.5, md: 2 },
-          textShadow: '0 2px 12px rgba(247, 228, 228, 0.4)',
+          textShadow: '0 2px 12px rgba(0,0,0,0.4)',
           fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem', lg: '3rem' },
+          lineHeight: { xs: 1.2, sm: 1.3 }
         }}
       >
         Discover Unique Art & Decor
       </Typography>
-
       <Typography 
         variant="subtitle1" 
         sx={{ 
           mb: { xs: 2, sm: 2.5, md: 3 },
+          fontWeight: 400, 
           opacity: 0.95,
           fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1.1rem' },
+          px: { xs: 1, sm: 0 }
         }}
       >
         Transform your space with art that speaks and gifts that lasts.
       </Typography>
-
       <TextField
         fullWidth
         placeholder="Search for art, frames, decor..."
@@ -594,7 +583,7 @@ export default function ModernDashboard() {
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
-              <Search sx={{ color: themeColors.lightText }} />
+              <Search sx={{ color: themeColors.lightText, fontSize: { xs: 18, sm: 20, md: 24 } }} />
             </InputAdornment>
           )
         }}
