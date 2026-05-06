@@ -126,7 +126,7 @@ export function OrderProvider({ children }) {
         const { data: profileData } = await supabase
           .from('profiles')
           .select('user_type')
-          .eq('id', currentUserId')
+          .eq('id', currentUserId)
           .maybeSingle(); // Use maybeSingle to avoid errors
         if (profileData) {
           userType = profileData.user_type;
