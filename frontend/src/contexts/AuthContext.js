@@ -1,6 +1,6 @@
 // src/contexts/AuthContext.js
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
-import { supabase, checkSessionHealth, extendSession } from '../utils/supabaseClient';
+import { supabase } from '../utils/supabaseClient';
 
 const AuthContext = createContext();
 
@@ -171,17 +171,17 @@ export function AuthProvider({ children }) {
     }
   }, [handleGoogleUserProfile, fetchUserProfile]);
 
-  // ================== MAIN AUTH INITIALIZATION ==================
+  // ================== MAIN AUTH INITIALIZATION (mobile‑friendly) ==================
   useEffect(() => {
     let isMounted = true;
-    let sessionKeepAliveInterval = null;
+    let visibilityHandler = null;
 
     const initializeAuth = async () => {
       try {
         setLoading(true);
-        console.log('🚀 Initializing auth...');
+        console.log('🚀 Initializing auth (mobile optimised)...');
 
-        // 1. Get cached session from localStorage
+        // 1. Get cached session
         const { data: { session: cachedSession } } = await supabase.auth.getSession();
 
         if (!cachedSession?.user) {
@@ -221,7 +221,7 @@ export function AuthProvider({ children }) {
         if (isMounted) {
           setSession(refreshedSession);
           setUser(refreshedSession.user);
-          setLoading(false);
+          setLoading(false); // UI can render now, profile loads in background
 
           const isGoogle =
             refreshedSession.user.app_metadata?.provider === 'google' ||
@@ -247,19 +247,7 @@ export function AuthProvider({ children }) {
 
     initializeAuth();
 
-    // ✅ KEEP SESSION ALIVE - Refresh token every 10 minutes
-    sessionKeepAliveInterval = setInterval(async () => {
-      if (session && user) {
-        console.log('🔄 Keeping session alive...');
-        const refreshed = await extendSession();
-        if (refreshed && isMounted) {
-          setSession(refreshed);
-          setUser(refreshed.user);
-        }
-      }
-    }, 10 * 60 * 1000); // Every 10 minutes
-
-    // Auth state change listener
+    // Auth state change listener (from Supabase)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       console.log('🔐 Auth state change:', event);
 
@@ -284,12 +272,13 @@ export function AuthProvider({ children }) {
       }
     });
 
-    // Mobile: re-validate session when app becomes visible
+    // Mobile: re‑validate session when app becomes visible (tab/window focus)
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        console.log('📱 App became visible, re-validating session...');
+        console.log('📱 App became visible, re‑validating session...');
         const validSession = await refreshSession();
         if (!validSession && isMounted) {
+          // No valid session → force logged out state
           setSession(null);
           setUser(null);
           setProfile(null);
@@ -301,11 +290,10 @@ export function AuthProvider({ children }) {
     // Cleanup
     return () => {
       isMounted = false;
-      if (sessionKeepAliveInterval) clearInterval(sessionKeepAliveInterval);
       subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [handleGoogleUserProfile, fetchUserProfile, refreshSession, session, user]);
+  }, [handleGoogleUserProfile, fetchUserProfile, refreshSession]);
 
   // ================== LOGIN / REGISTER / LOGOUT ==================
   const login = useCallback(async (email, password) => {
@@ -314,7 +302,7 @@ export function AuthProvider({ children }) {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       console.log('✅ Login successful');
-      await refreshSession();
+      await refreshSession(); // ensures fresh session and profile
       return { success: true, user: data.user };
     } catch (error) {
       console.error('❌ Login failed:', error);
@@ -391,6 +379,7 @@ export function AuthProvider({ children }) {
 
       await supabase.auth.signOut();
       localStorage.removeItem('supabase.auth.token');
+      sessionStorage.removeItem('supabase.auth.token');
       console.log('✅ Logout successful');
       return { success: true };
     } catch (error) {
@@ -398,6 +387,8 @@ export function AuthProvider({ children }) {
       setUser(null);
       setProfile(null);
       setSession(null);
+      localStorage.removeItem('supabase.auth.token');
+      sessionStorage.removeItem('supabase.auth.token');
       return { success: false, error: error.message, localCleared: true };
     }
   }, []);
