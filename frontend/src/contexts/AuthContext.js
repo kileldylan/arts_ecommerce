@@ -395,6 +395,7 @@ export function AuthProvider({ children }) {
     session,
     userData: user ? { ...user, profile } : null,
     isAuthenticated: !!user && !!session,
+    sessionReady: !loading && !!session,
     userType: profile?.user_type || 'customer',
     login,
     register,

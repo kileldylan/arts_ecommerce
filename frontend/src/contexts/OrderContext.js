@@ -16,14 +16,15 @@ export function OrderProvider({ children }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { profile, validateSession } = useAuth();
+  const { profile, validateSession, sessionReady, loading: authLoading } = useAuth();
   
   const userIdRef = useRef(null);
   const userTypeRef = useRef(null);
   const artistIdRef = useRef(null);
   const isFetchingRef = useRef(false);
+  const abortControllerRef = useRef(null);
   
-  // Enhanced cache with shorter duration for orders
+  // Enhanced cache
   const cacheRef = useRef({
     orders: null,
     ordersByStatus: new Map(),
@@ -82,60 +83,87 @@ export function OrderProvider({ children }) {
     return user.id;
   };
 
-  // OPTIMIZED: Get orders with pagination and caching - FIXED for mobile
+  // ✅ MOBILE OPTIMIZED: Get orders with timeout and auth readiness check
   const getOrders = useCallback(async (options = {}) => {
-    const { forceRefresh = false, status = null, page = 1, limit = 10 } = options;
+    const { forceRefresh = false, status = null } = options;
     
-    // ✅ PREVENT MULTIPLE CONCURRENT REQUESTS
-    if (isFetchingRef.current && !forceRefresh) {
-      console.log('⏳ Order fetch already in progress, waiting...');
-      // Wait for existing request to complete
-      return new Promise((resolve) => {
-        const checkInterval = setInterval(() => {
-          if (!isFetchingRef.current) {
-            clearInterval(checkInterval);
-            resolve(cacheRef.current.orders || []);
-          }
-        }, 100);
-      });
+    // ✅ CRITICAL: Wait for auth to be ready on mobile
+    if (!sessionReady && !forceRefresh) {
+      console.log('⏳ Session not ready, waiting...');
+      // Wait up to 5 seconds for session to be ready
+      for (let i = 0; i < 50; i++) {
+        if (sessionReady) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (!sessionReady) {
+        console.log('⚠️ Session still not ready after waiting');
+        setError('Still loading your account. Please wait...');
+        return cacheRef.current.orders || [];
+      }
     }
     
-    // Check cache (INCREASED DURATION)
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Check cache
     const now = Date.now();
     if (!forceRefresh && cacheRef.current.orders && 
         (now - cacheRef.current.lastFetch) < cacheRef.current.cacheDuration) {
       console.log('✅ Serving orders from cache');
       setOrders(cacheRef.current.orders);
+      setLoading(false);
       return cacheRef.current.orders;
     }
 
-    // Set fetching flag
+    // Prevent multiple concurrent requests
+    if (isFetchingRef.current && !forceRefresh) {
+      console.log('⏳ Order fetch already in progress');
+      return cacheRef.current.orders || [];
+    }
+
     isFetchingRef.current = true;
     setLoading(true);
     setError(null);
     
+    // ✅ Create abort controller for timeout
+    abortControllerRef.current = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.log('⏰ Request timeout - aborting');
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      setLoading(false);
+      isFetchingRef.current = false;
+      setError('Request timed out. Please check your connection.');
+    }, 15000); // 15 second timeout for mobile
+  
     try {
       console.log('🔄 Fetching orders from Supabase...');
       
-      await ensureValidSession('fetch orders');
+      const session = await ensureValidSession('fetch orders');
+      if (!session) {
+        throw new Error('No valid session');
+      }
       
       const currentUserId = await getCurrentUserId();
       
-      // Get user profile - CACHE THIS TOO
+      // Get user profile
       let userType = userTypeRef.current;
       if (!userType) {
         const { data: profileData } = await supabase
           .from('profiles')
           .select('user_type')
           .eq('id', currentUserId)
-          .maybeSingle(); // Use maybeSingle to avoid errors
+          .maybeSingle();
         if (profileData) {
           userType = profileData.user_type;
           userTypeRef.current = userType;
         }
       }
       
-      // Build query - REMOVED PAGINATION FOR INITIAL LOAD (fetch all relevant orders)
+      // Build query
       let query = supabase
         .from('orders')
         .select('*, order_items(*)')
@@ -150,10 +178,14 @@ export function OrderProvider({ children }) {
         query = query.eq('customer_id', currentUserId);
       }
       
-      // ✅ REMOVED pagination range for initial load - fetch all at once for better UX
-      // Mobile networks handle one request better than multiple paginated requests
+      // Apply status filter
+      if (status && status !== 'all') {
+        query = query.eq('status', status);
+      }
       
       const { data: ordersData, error: supabaseError } = await query;
+      
+      clearTimeout(timeoutId);
       
       if (supabaseError) throw supabaseError;
       
@@ -162,25 +194,41 @@ export function OrderProvider({ children }) {
       // Process orders
       const processedOrders = (ordersData || []).map(processOrderData);
       
-      // Update cache with LONGER duration
+      // Update cache
       cacheRef.current.orders = processedOrders;
       cacheRef.current.lastFetch = now;
-      cacheRef.current.cacheDuration = 5 * 60 * 1000; // 5 minutes
       
       setOrders(processedOrders);
       return processedOrders;
       
     } catch (err) {
-      console.error('❌ Get orders error:', err);
-      setError(err.message);
+      clearTimeout(timeoutId);
+      
+      // Handle abort errors gracefully
+      if (err.name === 'AbortError') {
+        console.log('Request was aborted due to timeout');
+        setError('Network request timed out. Please check your connection.');
+      } else {
+        console.error('❌ Get orders error:', err);
+        setError(err.message || 'Failed to load orders');
+      }
+      
+      // Return cached data if available (better than nothing)
+      if (cacheRef.current.orders) {
+        console.log('⚠️ Returning stale cached data due to error');
+        setOrders(cacheRef.current.orders);
+        return cacheRef.current.orders;
+      }
+      
       return [];
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
+      abortControllerRef.current = null;
     }
-  }, []);
+  }, [sessionReady, processOrderData]);
 
-  // OPTIMIZED: Get single order with caching
+  // ✅ Get single order with caching
   const getOrder = useCallback(async (orderId, forceRefresh = false) => {
     if (!orderId) throw new Error('Order ID is required');
 
@@ -247,7 +295,7 @@ export function OrderProvider({ children }) {
     }
   }, [processOrderData]);
 
-  // OPTIMIZED: Create order
+  // Create order (keep as is)
   const createOrder = useCallback(async (orderData) => {
     setLoading(true);
     setError(null);
@@ -510,10 +558,13 @@ export function OrderProvider({ children }) {
     cacheRef.current.lastFetch = 0;
   }, []);
 
-  // Initial load
+  // ✅ MOBILE FIX: Only fetch orders when session is ready
   useEffect(() => {
-    if (profile) getOrders();
-  }, [profile?.id, getOrders]);
+    if (sessionReady && profile) {
+      console.log('✅ Session ready, fetching orders...');
+      getOrders();
+    }
+  }, [sessionReady, profile?.id, getOrders]);
 
   const value = {
     orders,

@@ -95,7 +95,7 @@ export default function CustomerOrders() {
           color={themeColors.textSecondary}
           sx={{ textAlign: 'center' }}
         >
-          Loading order details...
+          Loading your orders...
         </Typography>
         <LinearProgress 
           sx={{ 
