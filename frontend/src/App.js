@@ -16,7 +16,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ElegantNavbar from "./components/ELegantNavbar";
 import CustomSpinner from './components/CustomSpinner';
 import './App.css';
-import { checkSessionHealth } from './utils/supabaseClient';
 
 // Lazy load pages for better performance
 const Login = lazy(() => import('./pages/Login'));
@@ -88,38 +87,8 @@ const SessionRecovery = () => {
 };
 
 function AppContent() {
-  const { loading, isAuthenticated} = useAuth();
-
-  // Add this useEffect inside AppContent component (after the existing useAuth hook)
-  useEffect(() => {
-    // Check session health on app load
-    const validateCurrentSession = async () => {
-      const session = await checkSessionHealth();
-      if (!session) {
-        console.log('No valid session found');
-      } else {
-        console.log('✅ Valid session restored from localStorage');
-      }
-    };
-    
-    validateCurrentSession();
-    
-    // Handle coming back online
-    const handleOnline = async () => {
-      console.log('🔄 App came online, checking session...');
-      const session = await checkSessionHealth();
-      if (!session && isAuthenticated) {
-        console.log('Session lost while offline, please refresh');
-      }
-    };
-    
-    window.addEventListener('online', handleOnline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-    };
-  }, [isAuthenticated]);
-    
+  const { loading } = useAuth();
+  
   // ✅ Show custom branded spinner while auth is loading
   if (loading) {
     return <PageLoader />;
