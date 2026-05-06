@@ -17,66 +17,68 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
-  
-  // Cache ref for profile to prevent unnecessary fetches
+
+  // Cache for profile to reduce unnecessary fetches
   const profileCacheRef = useRef({
     data: null,
     lastFetch: 0,
-    cacheDuration: 2 * 60 * 1000 // 2 minutes
+    cacheDuration: 2 * 60 * 1000, // 2 minutes
   });
 
-  // Handle Google user profile creation
+  // ================== PROFILE HELPERS ==================
   const handleGoogleUserProfile = useCallback(async (user) => {
-    if (!user || !user.id) return null;
-    
+    if (!user?.id) return null;
+
     try {
       const now = Date.now();
-      if (profileCacheRef.current.data && 
-          profileCacheRef.current.data.id === user.id &&
-          (now - profileCacheRef.current.lastFetch) < profileCacheRef.current.cacheDuration) {
+      if (
+        profileCacheRef.current.data?.id === user.id &&
+        now - profileCacheRef.current.lastFetch < profileCacheRef.current.cacheDuration
+      ) {
         setProfile(profileCacheRef.current.data);
         return profileCacheRef.current.data;
       }
-      
-      const { data: existingProfile, error: fetchError } = await supabase
+
+      const { data: existing, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .maybeSingle();
-      
-      if (existingProfile) {
-        profileCacheRef.current = { data: existingProfile, lastFetch: Date.now(), cacheDuration: 2 * 60 * 1000 };
-        setProfile(existingProfile);
-        return existingProfile;
+
+      if (existing) {
+        profileCacheRef.current = { data: existing, lastFetch: now };
+        setProfile(existing);
+        return existing;
       }
-      
-      if (!existingProfile && !fetchError) {
+
+      if (!existing && !fetchError) {
         console.log('📝 Creating new profile for Google user...');
         const fullName = user.user_metadata?.full_name || '';
         const firstName = user.user_metadata?.first_name || fullName.split(' ')[0] || '';
         const lastName = user.user_metadata?.last_name || fullName.split(' ').slice(1).join(' ') || '';
         const email = user.email || user.user_metadata?.email || '';
-        
+
         const { data: newProfile, error: insertError } = await supabase
           .from('profiles')
           .insert([{
             id: user.id,
-            email: email,
+            email,
             first_name: firstName,
             last_name: lastName,
             user_type: 'customer',
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           }])
           .select()
           .maybeSingle();
-        
+
         if (insertError) throw insertError;
-        
-        profileCacheRef.current = { data: newProfile, lastFetch: Date.now(), cacheDuration: 2 * 60 * 1000 };
+
+        profileCacheRef.current = { data: newProfile, lastFetch: now };
         setProfile(newProfile);
         return newProfile;
       }
+
       return null;
     } catch (error) {
       console.error('❌ Google profile error:', error);
@@ -84,40 +86,35 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Optimized profile fetcher with caching
   const fetchUserProfile = useCallback(async (userId, forceRefresh = false) => {
     if (!userId) return null;
-    
+
     const now = Date.now();
-    if (!forceRefresh && 
-        profileCacheRef.current.data && 
-        profileCacheRef.current.data.id === userId &&
-        (now - profileCacheRef.current.lastFetch) < profileCacheRef.current.cacheDuration) {
+    if (
+      !forceRefresh &&
+      profileCacheRef.current.data?.id === userId &&
+      now - profileCacheRef.current.lastFetch < profileCacheRef.current.cacheDuration
+    ) {
       setProfile(profileCacheRef.current.data);
       return profileCacheRef.current.data;
     }
-    
+
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
-      
-      if (error) {
-        console.error('Error fetching profile:', error);
-        setProfile(null);
-        return null;
-      }
-      
+
+      if (error) throw error;
+
       if (data) {
-        profileCacheRef.current = { data, lastFetch: now, cacheDuration: 2 * 60 * 1000 };
+        profileCacheRef.current = { data, lastFetch: now };
         setProfile(data);
         return data;
-      } else {
-        setProfile(null);
-        return null;
       }
+      setProfile(null);
+      return null;
     } catch (error) {
       console.error('Profile fetch error:', error);
       setProfile(null);
@@ -134,70 +131,47 @@ export function AuthProvider({ children }) {
 
   const updateProfileImmediately = useCallback((updatedProfile) => {
     if (updatedProfile) {
-      profileCacheRef.current = { 
-        data: updatedProfile, 
-        lastFetch: Date.now(), 
-        cacheDuration: 2 * 60 * 1000 
+      profileCacheRef.current = {
+        data: updatedProfile,
+        lastFetch: Date.now(),
+        cacheDuration: 2 * 60 * 1000,
       };
       setProfile(updatedProfile);
     }
   }, []);
 
+  // ================== SESSION MANAGEMENT ==================
   const refreshSession = useCallback(async () => {
     try {
       console.log('🔄 Refreshing session with server...');
-      const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
-      
-      if (error) {
-        console.warn('Session refresh error:', error.message);
-        // Don't throw here, just return null
+      const { data: { session: refreshed }, error } = await supabase.auth.refreshSession();
+      if (error || !refreshed?.user) {
+        console.warn('Session refresh failed:', error?.message);
         return null;
       }
-      
-      if (refreshedSession?.user) {
-        setSession(refreshedSession);
-        setUser(refreshedSession.user);
-        // Don't await profile fetch - let it happen in background
-        fetchUserProfile(refreshedSession.user.id);
-        return refreshedSession;
+
+      setSession(refreshed);
+      setUser(refreshed.user);
+
+      const isGoogle =
+        refreshed.user.app_metadata?.provider === 'google' ||
+        refreshed.user.user_metadata?.provider === 'google' ||
+        refreshed.user.identities?.some((i) => i.provider === 'google');
+
+      if (isGoogle) {
+        handleGoogleUserProfile(refreshed.user);
+      } else {
+        fetchUserProfile(refreshed.user.id);
       }
-      
-      return null;
+
+      return refreshed;
     } catch (error) {
       console.error('❌ Session refresh failed:', error);
       return null;
     }
-  }, [fetchUserProfile]);
+  }, [handleGoogleUserProfile, fetchUserProfile]);
 
-  const logout = useCallback(async () => {
-    try {
-      console.log('🚪 Logging out...');
-      setUser(null);
-      setProfile(null);
-      setSession(null);
-      profileCacheRef.current = { data: null, lastFetch: 0, cacheDuration: 2 * 60 * 1000 };
-      
-      const { error } = await supabase.auth.signOut();
-      if (error && !error.message.includes('AuthSessionMissingError') && !error.message.includes('session missing')) {
-        throw error;
-      }
-      
-      localStorage.removeItem('supabase.auth.token');
-      sessionStorage.removeItem('supabase.auth.token');
-      console.log('✅ Logout successful');
-      return { success: true };
-    } catch (error) {
-      console.error('❌ Logout error:', error);
-      setUser(null);
-      setProfile(null);
-      setSession(null);
-      localStorage.removeItem('supabase.auth.token');
-      sessionStorage.removeItem('supabase.auth.token');
-      return { success: false, error: error.message, localCleared: true };
-    }
-  }, []);
-
-  // ✅ CRITICAL MOBILE FIX: Force session validation on every app start/visibility
+  // ================== MAIN AUTH INITIALIZATION (mobile‑friendly) ==================
   useEffect(() => {
     let isMounted = true;
     let visibilityHandler = null;
@@ -205,20 +179,12 @@ export function AuthProvider({ children }) {
     const initializeAuth = async () => {
       try {
         setLoading(true);
-        console.log('🚀 Initializing auth (mobile-optimized)...');
-        
-        // Step 1: Get current session from local cache
-        const { data: { session: cachedSession }, error: getSessionError } = await supabase.auth.getSession();
-        
-        if (getSessionError) {
-          console.error('Get session error:', getSessionError);
-          await logout();
-          if (isMounted) setLoading(false);
-          return;
-        }
-        
-        // Step 2: If no cached session, we are logged out
-        if (!cachedSession) {
+        console.log('🚀 Initializing auth (mobile optimised)...');
+
+        // 1. Get cached session
+        const { data: { session: cachedSession } } = await supabase.auth.getSession();
+
+        if (!cachedSession?.user) {
           if (isMounted) {
             setSession(null);
             setUser(null);
@@ -227,15 +193,21 @@ export function AuthProvider({ children }) {
           }
           return;
         }
-        
-        // Step 3: Always refresh session to validate with server (kills stale cached sessions)
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        
-        if (refreshError || !refreshedSession) {
-          console.warn('Session refresh failed, clearing stale session');
+
+        // 2. Force refresh session with timeout (critical for mobile)
+        const refreshPromise = supabase.auth.refreshSession();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('refresh_timeout')), 8000)
+        );
+
+        const { data: { session: refreshedSession }, error: refreshError } = await Promise.race([
+          refreshPromise,
+          timeoutPromise,
+        ]).catch((err) => ({ error: err }));
+
+        if (refreshError || !refreshedSession?.user) {
+          console.warn('Session refresh failed → signing out stale session');
           await supabase.auth.signOut();
-          localStorage.removeItem('supabase.auth.token');
-          sessionStorage.removeItem('supabase.auth.token');
           if (isMounted) {
             setSession(null);
             setUser(null);
@@ -244,18 +216,19 @@ export function AuthProvider({ children }) {
           }
           return;
         }
-        
-        // Valid session exists
+
+        // 3. Valid session
         if (isMounted) {
           setSession(refreshedSession);
           setUser(refreshedSession.user);
           setLoading(false); // UI can render now, profile loads in background
-          
-          const isGoogleUser = refreshedSession.user.app_metadata?.provider === 'google' || 
-                               refreshedSession.user.user_metadata?.provider === 'google' ||
-                               refreshedSession.user.identities?.some(identity => identity.provider === 'google');
-          
-          if (isGoogleUser) {
+
+          const isGoogle =
+            refreshedSession.user.app_metadata?.provider === 'google' ||
+            refreshedSession.user.user_metadata?.provider === 'google' ||
+            refreshedSession.user.identities?.some((i) => i.provider === 'google');
+
+          if (isGoogle) {
             handleGoogleUserProfile(refreshedSession.user);
           } else {
             fetchUserProfile(refreshedSession.user.id);
@@ -264,88 +237,72 @@ export function AuthProvider({ children }) {
       } catch (error) {
         console.error('❌ Auth initialization error:', error);
         if (isMounted) {
+          setLoading(false);
+          setSession(null);
           setUser(null);
           setProfile(null);
-          setSession(null);
-          setLoading(false);
         }
       }
     };
 
     initializeAuth();
 
-    // ✅ Mobile fix: refresh session when app becomes visible (user returns from background)
+    // Auth state change listener (from Supabase)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      console.log('🔐 Auth state change:', event);
+
+      if (['SIGNED_IN', 'TOKEN_REFRESHED', 'USER_UPDATED'].includes(event) && currentSession?.user) {
+        setSession(currentSession);
+        setUser(currentSession.user);
+
+        const isGoogle =
+          currentSession.user.app_metadata?.provider === 'google' ||
+          currentSession.user.user_metadata?.provider === 'google' ||
+          currentSession.user.identities?.some((i) => i.provider === 'google');
+
+        if (isGoogle) handleGoogleUserProfile(currentSession.user);
+        else fetchUserProfile(currentSession.user.id);
+      }
+
+      if (['SIGNED_OUT', 'USER_DELETED'].includes(event)) {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        profileCacheRef.current.data = null;
+      }
+    });
+
+    // Mobile: re‑validate session when app becomes visible (tab/window focus)
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        console.log('📱 App became visible, validating session...');
-        const refreshed = await refreshSession();
-        if (!refreshed && isMounted) {
-          // Session invalid, force re-login by clearing state
+        console.log('📱 App became visible, re‑validating session...');
+        const validSession = await refreshSession();
+        if (!validSession && isMounted) {
+          // No valid session → force logged out state
           setSession(null);
           setUser(null);
           setProfile(null);
         }
       }
     };
-
-    // Listen to auth changes (already provided by Supabase)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log('🔐 Auth state change:', event);
-        
-        switch (event) {
-          case 'SIGNED_IN':
-          case 'TOKEN_REFRESHED':
-          case 'USER_UPDATED':
-            if (currentSession?.user) {
-              setSession(currentSession);
-              setUser(currentSession.user);
-              const isGoogleUser = currentSession.user.app_metadata?.provider === 'google' || 
-                                   currentSession.user.user_metadata?.provider === 'google' ||
-                                   currentSession.user.identities?.some(identity => identity.provider === 'google');
-              if (isGoogleUser) {
-                await handleGoogleUserProfile(currentSession.user);
-              } else {
-                fetchUserProfile(currentSession.user.id);
-              }
-            }
-            break;
-          case 'SIGNED_OUT':
-          case 'USER_DELETED':
-            setSession(null);
-            setUser(null);
-            setProfile(null);
-            profileCacheRef.current = { data: null, lastFetch: 0, cacheDuration: 2 * 60 * 1000 };
-            break;
-          default:
-            break;
-        }
-      }
-    );
-
-    // Periodic session check every 5 minutes (less important on mobile)
-    const sessionCheckInterval = setInterval(() => {
-      refreshSession();
-    }, 5 * 60 * 1000);
-
-    // Add visibility change listener
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    // Cleanup
     return () => {
       isMounted = false;
       subscription.unsubscribe();
-      clearInterval(sessionCheckInterval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [handleGoogleUserProfile, fetchUserProfile, refreshSession, logout]);
+  }, [handleGoogleUserProfile, fetchUserProfile, refreshSession]);
 
+  // ================== LOGIN / REGISTER / LOGOUT ==================
   const login = useCallback(async (email, password) => {
     try {
       console.log('🔐 Login attempt...');
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       console.log('✅ Login successful');
-      await refreshSession();
+      await refreshSession(); // ensures fresh session and profile
       return { success: true, user: data.user };
     } catch (error) {
       console.error('❌ Login failed:', error);
@@ -367,17 +324,25 @@ export function AuthProvider({ children }) {
         },
       });
       if (error) throw error;
+
       if (data.user) {
-        await supabase.from('profiles').insert([{
-          id: data.user.id,
-          email: data.user.email,
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          user_type: userData.userType,
-          created_at: new Date().toISOString(),
-        }]);
+        await supabase.from('profiles').insert([
+          {
+            id: data.user.id,
+            email: data.user.email,
+            first_name: userData.firstName,
+            last_name: userData.lastName,
+            user_type: userData.userType,
+            created_at: new Date().toISOString(),
+          },
+        ]);
       }
-      return { success: true, user: data.user, needsEmailVerification: !data.session };
+
+      return {
+        success: true,
+        user: data.user,
+        needsEmailVerification: !data.session,
+      };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -386,8 +351,12 @@ export function AuthProvider({ children }) {
   const loginWithGoogle = useCallback(async () => {
     try {
       let origin = window.location.origin;
-      origin = origin.replace('lochttps', 'https').replace('httphttp', 'http').replace('httpshttps', 'https');
-      origin = origin.replace('vercel.appalhost', 'vercel.app');
+      origin = origin
+        .replace('lochttps', 'https')
+        .replace('httphttp', 'http')
+        .replace('httpshttps', 'https')
+        .replace('vercel.appalhost', 'vercel.app');
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: `${origin}/oauth-success` },
@@ -397,6 +366,30 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error('❌ Google login error:', error);
       return { success: false, error: error.message };
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      console.log('🚪 Logging out...');
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      profileCacheRef.current = { data: null, lastFetch: 0, cacheDuration: 2 * 60 * 1000 };
+
+      await supabase.auth.signOut();
+      localStorage.removeItem('supabase.auth.token');
+      sessionStorage.removeItem('supabase.auth.token');
+      console.log('✅ Logout successful');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      localStorage.removeItem('supabase.auth.token');
+      sessionStorage.removeItem('supabase.auth.token');
+      return { success: false, error: error.message, localCleared: true };
     }
   }, []);
 
@@ -411,6 +404,7 @@ export function AuthProvider({ children }) {
         const expiresAt = currentSession.expires_at;
         const now = Math.floor(Date.now() / 1000);
         if (expiresAt && expiresAt > now) return currentSession.access_token;
+
         const { data: refreshData } = await supabase.auth.refreshSession();
         return refreshData.session?.access_token || null;
       }
@@ -421,6 +415,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // ================== CONTEXT VALUE ==================
   const value = {
     user,
     profile,
@@ -440,9 +435,5 @@ export function AuthProvider({ children }) {
     getToken,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
