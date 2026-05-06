@@ -1,5 +1,5 @@
-// src/pages/customer/CustomerOrders.js - FIXED VERSION
-import React, { useState, useEffect } from 'react';
+// src/pages/customer/CustomerOrders.js - COMPLETE FIX
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Typography,
@@ -60,26 +60,59 @@ const paymentStatusConfig = {
 
 export default function CustomerOrders() {
   const [tabValue, setTabValue] = useState('all');
-  const { orders, loading, error, getOrders } = useOrders();
-  const { user } = useAuth();
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
+  const { orders, loading, error, getOrders, refreshOrders } = useOrders();
+  const { user, isAuthenticated, loading: authLoading, sessionReady } = useAuth();
   const navigate = useNavigate();
 
+  // ✅ CRITICAL FIX: Wait for session to be ready before fetching orders
   useEffect(() => {
-    if (user) {
-      console.log('Fetching orders for user:', user.id, 'type:', user.user_type);
-      getOrders().catch(err => {
-        console.error('Failed to fetch orders:', err);
-      });
+    // Don't try to fetch if auth is still loading
+    if (authLoading) {
+      console.log('⏳ Auth still loading, waiting...');
+      return;
     }
-  }, [user, getOrders]);
+    
+    // Don't fetch if not authenticated
+    if (!isAuthenticated || !user) {
+      console.log('❌ Not authenticated, skipping order fetch');
+      return;
+    }
+    
+    // Don't fetch if session not ready (critical for mobile!)
+    if (!sessionReady) {
+      console.log('⏳ Session not ready yet, waiting...');
+      return;
+    }
+    
+    // Only fetch if we have orders or it's initial load
+    if (orders.length === 0 || isInitialLoad) {
+      console.log('✅ Session ready, fetching orders...', { 
+        authLoading, 
+        sessionReady, 
+        isAuthenticated,
+        hasOrders: orders.length > 0 
+      });
+      
+      getOrders()
+        .then(() => {
+          setIsInitialLoad(false);
+        })
+        .catch(err => {
+          console.error('Failed to fetch orders:', err);
+          setIsInitialLoad(false);
+        });
+    }
+  }, [authLoading, sessionReady, isAuthenticated, user, getOrders, orders.length, isInitialLoad]);
 
   // Filter orders based on tab
   const filteredOrders = tabValue === 'all' 
     ? orders 
     : orders.filter(order => order.status === tabValue);
 
-  // Show loading state - IMPROVED FOR MOBILE
-  if (loading) {
+  // ✅ Show auth loading state first
+  if (authLoading) {
     return (
       <Box sx={{ 
         display: 'flex', 
@@ -90,29 +123,56 @@ export default function CustomerOrders() {
         gap: 3,
         px: 2
       }}>
-        <Typography 
-          variant="body1" 
-          color={themeColors.textSecondary}
-          sx={{ textAlign: 'center' }}
-        >
-          Loading your orders...
+        <Typography variant="body1" color={themeColors.textSecondary} sx={{ textAlign: 'center' }}>
+          Verifying your account...
         </Typography>
-        <LinearProgress 
-          sx={{ 
-            width: '80%', 
-            maxWidth: 280,
-            borderRadius: 2,
-            height: 4,
-            '& .MuiLinearProgress-bar': {
-              borderRadius: 2
-            }
-          }} 
-        />
+        <LinearProgress sx={{ width: '80%', maxWidth: 280, borderRadius: 2, height: 4 }} />
       </Box>
     );
   }
 
-  if (error) {
+  // ✅ Show session loading state
+  if (!sessionReady && !authLoading && isAuthenticated) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '60vh',
+        gap: 3,
+        px: 2
+      }}>
+        <Typography variant="body1" color={themeColors.textSecondary} sx={{ textAlign: 'center' }}>
+          Preparing your account...
+        </Typography>
+        <LinearProgress sx={{ width: '80%', maxWidth: 280, borderRadius: 2, height: 4 }} />
+      </Box>
+    );
+  }
+
+  // ✅ Show loading state
+  if (loading && orders.length === 0 && !authLoading && sessionReady) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '60vh',
+        gap: 3,
+        px: 2
+      }}>
+        <Typography variant="body1" color={themeColors.textSecondary} sx={{ textAlign: 'center' }}>
+          Loading your orders...
+        </Typography>
+        <LinearProgress sx={{ width: '80%', maxWidth: 280, borderRadius: 2, height: 4 }} />
+      </Box>
+    );
+  }
+
+  // Show error state
+  if (error && orders.length === 0) {
     return (
       <Container maxWidth="lg" sx={{ py: 8, textAlign: 'center' }}>
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -120,7 +180,10 @@ export default function CustomerOrders() {
         </Alert>
         <Button 
           variant="contained" 
-          onClick={() => getOrders()}
+          onClick={() => {
+            setIsInitialLoad(true);
+            refreshOrders();
+          }}
         >
           Try Again
         </Button>
@@ -129,14 +192,9 @@ export default function CustomerOrders() {
   }
 
   const OrderCard = ({ order }) => {
-    // Safely get order items - handle both array and object formats
     const orderItems = order.order_items || [];
     const itemsCount = Array.isArray(orderItems) ? orderItems.length : 0;
-    
-    // Safely format date
     const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : 'Date not available';
-    
-    // Safely format amount
     const totalAmount = order.total_amount ? Number(order.total_amount).toLocaleString() : '0';
     
     return (
@@ -238,7 +296,12 @@ export default function CustomerOrders() {
 
         <Card sx={{ mb: 4 }}>
           <CardContent sx={{ p: 0 }}>
-            <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
+            <Tabs 
+              value={tabValue} 
+              onChange={(e, newValue) => setTabValue(newValue)}
+              variant="scrollable"
+              scrollButtons="auto"
+            >
               <Tab label="All Orders" value="all" />
               <Tab label="Pending" value="pending" />
               <Tab label="Processing" value="processing" />
@@ -264,7 +327,7 @@ export default function CustomerOrders() {
               <Button 
                 variant="contained" 
                 sx={{ mt: 2 }}
-                onClick={() => navigate('/shop')}
+                onClick={() => navigate('/dashboard')}
               >
                 Start Shopping
               </Button>
