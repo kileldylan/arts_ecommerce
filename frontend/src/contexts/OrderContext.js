@@ -21,7 +21,8 @@ export function OrderProvider({ children }) {
   const userIdRef = useRef(null);
   const userTypeRef = useRef(null);
   const artistIdRef = useRef(null);
-
+  const isFetchingRef = useRef(false);
+  
   // Enhanced cache with shorter duration for orders
   const cacheRef = useRef({
     orders: null,
