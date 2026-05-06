@@ -128,7 +128,6 @@ const handleMpesaPayment = async () => {
         setPaymentProcessing(false);
         // Still redirect to orders page after a delay
         setTimeout(() => {
-          clearCart();
           navigate('/customer/orders');
         }, 3000);
       }

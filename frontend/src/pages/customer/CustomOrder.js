@@ -27,6 +27,20 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../../components/Footer';
 
+const themeColors = {
+  primary: '#2563eb',
+  secondary: '#7c3aed',
+  success: '#059669',
+  warning: '#d97706',
+  error: '#dc2626',
+  background: '#f8fafc',
+  surface: '#ffffff',
+  textPrimary: '#1e293b',
+  textSecondary: '#64748b',
+  border: '#e2e8f0',
+  accent: '#f59e0b'
+};
+
 const statusConfig = {
   pending: { label: 'Pending', color: 'warning', icon: <Pending /> },
   confirmed: { label: 'Confirmed', color: 'info', icon: <CheckCircle /> },
@@ -64,11 +78,36 @@ export default function CustomerOrders() {
     ? orders 
     : orders.filter(order => order.status === tabValue);
 
-  // Show loading state
+  // Show loading state - IMPROVED FOR MOBILE
   if (loading) {
     return (
-      <Box sx={{ width: '100%' }}>
-        <LinearProgress />
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '60vh',
+        gap: 3,
+        px: 2
+      }}>
+        <Typography 
+          variant="body1" 
+          color={themeColors.textSecondary}
+          sx={{ textAlign: 'center' }}
+        >
+          Loading order details...
+        </Typography>
+        <LinearProgress 
+          sx={{ 
+            width: '80%', 
+            maxWidth: 280,
+            borderRadius: 2,
+            height: 4,
+            '& .MuiLinearProgress-bar': {
+              borderRadius: 2
+            }
+          }} 
+        />
       </Box>
     );
   }
