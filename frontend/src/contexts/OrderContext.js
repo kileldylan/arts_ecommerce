@@ -27,7 +27,7 @@ export function OrderProvider({ children }) {
     orders: null,
     ordersByStatus: new Map(),
     lastFetch: 0,
-    cacheDuration: 30 * 1000, // 30 seconds (orders change more frequently)
+    cacheDuration: 5 * 60 * 1000,
   });
 
   // Pagination state
@@ -81,18 +81,35 @@ export function OrderProvider({ children }) {
     return user.id;
   };
 
-  // OPTIMIZED: Get orders with pagination and caching
+  // OPTIMIZED: Get orders with pagination and caching - FIXED for mobile
   const getOrders = useCallback(async (options = {}) => {
     const { forceRefresh = false, status = null, page = 1, limit = 10 } = options;
     
-    // Check cache
+    // ✅ PREVENT MULTIPLE CONCURRENT REQUESTS
+    if (isFetchingRef.current && !forceRefresh) {
+      console.log('⏳ Order fetch already in progress, waiting...');
+      // Wait for existing request to complete
+      return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (!isFetchingRef.current) {
+            clearInterval(checkInterval);
+            resolve(cacheRef.current.orders || []);
+          }
+        }, 100);
+      });
+    }
+    
+    // Check cache (INCREASED DURATION)
     const now = Date.now();
-    if (!forceRefresh && cacheRef.current.orders && (now - cacheRef.current.lastFetch) < cacheRef.current.cacheDuration) {
+    if (!forceRefresh && cacheRef.current.orders && 
+        (now - cacheRef.current.lastFetch) < cacheRef.current.cacheDuration) {
       console.log('✅ Serving orders from cache');
       setOrders(cacheRef.current.orders);
       return cacheRef.current.orders;
     }
 
+    // Set fetching flag
+    isFetchingRef.current = true;
     setLoading(true);
     setError(null);
     
@@ -103,24 +120,24 @@ export function OrderProvider({ children }) {
       
       const currentUserId = await getCurrentUserId();
       
-      // Get user profile
+      // Get user profile - CACHE THIS TOO
       let userType = userTypeRef.current;
       if (!userType) {
         const { data: profileData } = await supabase
           .from('profiles')
           .select('user_type')
-          .eq('id', currentUserId)
-          .single();
+          .eq('id', currentUserId')
+          .maybeSingle(); // Use maybeSingle to avoid errors
         if (profileData) {
           userType = profileData.user_type;
           userTypeRef.current = userType;
         }
       }
       
-      // Build query with pagination
+      // Build query - REMOVED PAGINATION FOR INITIAL LOAD (fetch all relevant orders)
       let query = supabase
         .from('orders')
-        .select('*', { count: 'exact' })
+        .select('*, order_items(*)')
         .order('created_at', { ascending: false });
       
       // Apply authorization filters
@@ -132,36 +149,22 @@ export function OrderProvider({ children }) {
         query = query.eq('customer_id', currentUserId);
       }
       
-      // Apply status filter
-      if (status && status !== 'all') {
-        query = query.eq('status', status);
-      }
+      // ✅ REMOVED pagination range for initial load - fetch all at once for better UX
+      // Mobile networks handle one request better than multiple paginated requests
       
-      // Apply pagination
-      const from = (page - 1) * limit;
-      const to = from + limit - 1;
-      query = query.range(from, to);
-      
-      const { data: ordersData, error: supabaseError, count } = await query;
+      const { data: ordersData, error: supabaseError } = await query;
       
       if (supabaseError) throw supabaseError;
       
-      console.log(`✅ Successfully fetched ${ordersData?.length || 0} orders (Total: ${count})`);
-      
-      // Update pagination
-      setPagination({
-        page,
-        limit,
-        total: count || 0,
-        hasMore: (page * limit) < (count || 0)
-      });
+      console.log(`✅ Successfully fetched ${ordersData?.length || 0} orders`);
       
       // Process orders
       const processedOrders = (ordersData || []).map(processOrderData);
       
-      // Update cache
+      // Update cache with LONGER duration
       cacheRef.current.orders = processedOrders;
       cacheRef.current.lastFetch = now;
+      cacheRef.current.cacheDuration = 5 * 60 * 1000; // 5 minutes
       
       setOrders(processedOrders);
       return processedOrders;
@@ -172,6 +175,7 @@ export function OrderProvider({ children }) {
       return [];
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, []);
 
