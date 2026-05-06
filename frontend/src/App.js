@@ -1,36 +1,41 @@
-import { Analytics } from "@vercel/analytics/react"
-import React, {useEffect} from 'react';
+// src/App.js
+import { Analytics } from "@vercel/analytics/react";
+import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { Box } from '@mui/material';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProductProvider } from './contexts/ProductContext';
 import { PaymentProvider } from './contexts/PaymentContext';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import CustomerDashboard from './pages/customer/CustomerDashboard';
-import ProductDetail from './pages/customer/ProductDetail';
-import OAuthSuccess from './pages/OAuthSuccess';
-import ProductList from './pages/artist/ProductList';
-import AddProduct from './pages/artist/AddProduct';
-import EditProduct from './pages/artist/EditProduct';
-import ArtistProfile from './pages/artist/ArtistProfile';
-import Orders from './pages/artist/Orders';
-import './App.css';
-import { Box, CircularProgress } from '@mui/material';
 import { OrderProvider } from './contexts/OrderContext';
-import CustomerOrders from './pages/customer/CustomOrder';
-import OrderDetail from './pages/OrderDetail';
-import Checkout from './pages/customer/Checkout';
 import { CartProvider } from './contexts/CartContext';
-import CRMDashboard from './pages/artist/CRMDashboard';
-import CustomerProfile from './pages/customer/CustomerProfile';
 import { WishlistProvider } from './contexts/WIshlistContext';
-import WishlistPage from './pages/customer/WishlistPage';
-import Dashboard from './pages/Dashboard';
-import AnalyticsDashboard from "./pages/artist/ArtistAnalytics";
-import ArtistDashboard from "./pages/artist/ArtistDashboard";
+import OAuthSuccess from './pages/OAuthSuccess';
+import ProtectedRoute from './components/ProtectedRoute';
 import ElegantNavbar from "./components/ELegantNavbar";
+import CustomSpinner from './components/CustomSpinner';
+import './App.css';
+
+// Lazy load pages for better performance
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const CustomerDashboard = lazy(() => import('./pages/customer/CustomerDashboard'));
+const ProductDetail = lazy(() => import('./pages/customer/ProductDetail'));
+const ProductList = lazy(() => import('./pages/artist/ProductList'));
+const AddProduct = lazy(() => import('./pages/artist/AddProduct'));
+const EditProduct = lazy(() => import('./pages/artist/EditProduct'));
+const ArtistProfile = lazy(() => import('./pages/artist/ArtistProfile'));
+const Orders = lazy(() => import('./pages/artist/Orders'));
+const CustomerOrders = lazy(() => import('./pages/customer/CustomOrder'));
+const OrderDetail = lazy(() => import('./pages/OrderDetail'));
+const Checkout = lazy(() => import('./pages/customer/Checkout'));
+const CRMDashboard = lazy(() => import('./pages/artist/CRMDashboard'));
+const CustomerProfile = lazy(() => import('./pages/customer/CustomerProfile'));
+const WishlistPage = lazy(() => import('./pages/customer/WishlistPage'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const AnalyticsDashboard = lazy(() => import('./pages/artist/ArtistAnalytics'));
+const ArtistDashboard = lazy(() => import('./pages/artist/ArtistDashboard'));
 
 const theme = createTheme({
   palette: {
@@ -46,11 +51,16 @@ const theme = createTheme({
   },
 });
 
+// ✅ Custom branded loader (NO default spinner!)
+const PageLoader = () => <CustomSpinner text="Loading your experience..." />;
+
+// ✅ Auth loader with custom spinner
+const AuthLoader = () => <CustomSpinner text="Verifying your account..." />;
+
 const SessionRecovery = () => {
   const { validateSession, isAuthenticated } = useAuth();
   
   useEffect(() => {
-    // Attempt to recover session on app start and when coming back from background
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && isAuthenticated) {
         console.log('🔄 App became visible, validating session...');
@@ -60,7 +70,6 @@ const SessionRecovery = () => {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    // Also validate session when the window gains focus
     window.addEventListener('focus', () => {
       if (isAuthenticated) {
         console.log('🔄 Window focused, validating session...');
@@ -77,59 +86,108 @@ const SessionRecovery = () => {
   return null;
 };
 
-function ProtectedRoute({ children }) {
-  const { user } = useAuth();
-  return user ? children : <Navigate to="/login" />;
-}
-
 function AppContent() {
   const { loading } = useAuth();
   
+  // ✅ Show custom branded spinner while auth is loading
   if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <PageLoader />;
   }
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <ElegantNavbar />
       <Box component="main" sx={{ flexGrow: 1 }}>
-        <Routes>
-          <Route path="/" element={<Navigate to="/customer/dashboard" />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/oauth-success" element={<OAuthSuccess />} />
-          
-          <Route path="/customer/dashboard" element={<CustomerDashboard />} />
-          <Route path="/product/:id" element={<ProductDetail />} />
-          
-          <Route 
-            path="/dashboard" 
-            element={
+        {/* ✅ Suspense with custom branded spinner */}
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/customer/dashboard" />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/oauth-success" element={<OAuthSuccess />} />
+            
+            {/* Customer Routes */}
+            <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/customer/orders" element={
               <ProtectedRoute>
-                <Dashboard />
+                <CustomerOrders />
               </ProtectedRoute>
-            } 
-          />
-          
-          <Route path="/artist/dashboard" element={<ProtectedRoute><ArtistDashboard /></ProtectedRoute>} />
-          <Route path="/artist/products" element={<ProtectedRoute><ProductList /></ProtectedRoute>} />
-          <Route path="/artist/CRM" element={<ProtectedRoute><CRMDashboard /></ProtectedRoute>} />
-          <Route path="/artist/products/new" element={<ProtectedRoute><AddProduct /></ProtectedRoute>} />
-          <Route path="/artist/products/edit/:id" element={<ProtectedRoute><EditProduct /></ProtectedRoute>} />
-          <Route path="/artist/profile" element={<ProtectedRoute><ArtistProfile /></ProtectedRoute>} />
-          <Route path="/artist/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-          <Route path="/artist/analytics" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
-
-          <Route path="/customer/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
-          <Route path="/customer/orders" element={<ProtectedRoute><CustomerOrders /></ProtectedRoute>} />
-          <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
-          <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
-          <Route path="/customer/profile" element={<ProtectedRoute><CustomerProfile /></ProtectedRoute>} />
-        </Routes>
+            } />
+            <Route path="/orders/:id" element={
+              <ProtectedRoute>
+                <OrderDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/checkout" element={
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            } />
+            <Route path="/customer/profile" element={
+              <ProtectedRoute>
+                <CustomerProfile />
+              </ProtectedRoute>
+            } />
+            <Route path="/customer/wishlist" element={
+              <ProtectedRoute>
+                <WishlistPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Artist Routes */}
+            <Route path="/artist/dashboard" element={
+              <ProtectedRoute>
+                <ArtistDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist/products" element={
+              <ProtectedRoute>
+                <ProductList />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist/CRM" element={
+              <ProtectedRoute>
+                <CRMDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist/products/new" element={
+              <ProtectedRoute>
+                <AddProduct />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist/products/edit/:id" element={
+              <ProtectedRoute>
+                <EditProduct />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist/profile" element={
+              <ProtectedRoute>
+                <ArtistProfile />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist/orders" element={
+              <ProtectedRoute>
+                <Orders />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist/analytics" element={
+              <ProtectedRoute>
+                <AnalyticsDashboard />
+              </ProtectedRoute>
+            } />
+            
+            {/* Dashboard Route */}
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+          </Routes>
+        </Suspense>
       </Box>
     </Box>
   );
@@ -137,26 +195,25 @@ function AppContent() {
 
 function App() {
   return (
-    // ✅ CORRECT: Analytics should be inside but as a sibling or at the end
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
         <ProductProvider>
-          <SessionRecovery/>
+          <SessionRecovery />
           <OrderProvider>
             <CartProvider>
               <WishlistProvider>
                 <PaymentProvider>
-                <Router>
-                  <AppContent />
-                </Router>
+                  <Router>
+                    <AppContent />
+                  </Router>
                 </PaymentProvider>
               </WishlistProvider>
             </CartProvider>
           </OrderProvider>
         </ProductProvider>
       </AuthProvider>
-      <Analytics /> {/* ✅ CORRECT: Place it at the end as a self-closing tag */}
+      <Analytics />
     </ThemeProvider>
   );
 }
