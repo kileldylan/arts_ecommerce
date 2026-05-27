@@ -1,8 +1,11 @@
-// src/contexts/AuthContext.js
+// src/contexts/AuthContext.js - COMPLETE FIXED VERSION
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { supabase, startSessionHeartbeat, stopSessionHeartbeat, isSessionValid } from '../utils/supabaseClient';
 
 const AuthContext = createContext();
+
+// ✅ Generate unique tab ID for this browser tab only
+const TAB_ID = `tab_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
 export function useAuth() {
   const context = useContext(AuthContext);
@@ -17,12 +20,13 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
+  const [userType, setUserType] = useState(null); // ✅ Start with null, NOT 'customer'
 
   // Cache for profile to reduce unnecessary fetches
   const profileCacheRef = useRef({
     data: null,
     lastFetch: 0,
-    cacheDuration: 2 * 60 * 1000, // 2 minutes
+    cacheDuration: 2 * 60 * 1000,
   });
 
   // ================== PROFILE HELPERS ==================
@@ -48,6 +52,11 @@ export function AuthProvider({ children }) {
       if (existing) {
         profileCacheRef.current = { data: existing, lastFetch: now };
         setProfile(existing);
+        const newUserType = existing.user_type || null;
+        setUserType(newUserType);
+        if (newUserType) {
+          sessionStorage.setItem(`userType_${TAB_ID}`, newUserType);
+        }
         return existing;
       }
 
@@ -76,6 +85,8 @@ export function AuthProvider({ children }) {
 
         profileCacheRef.current = { data: newProfile, lastFetch: now };
         setProfile(newProfile);
+        setUserType('customer');
+        sessionStorage.setItem(`userType_${TAB_ID}`, 'customer');
         return newProfile;
       }
 
@@ -111,6 +122,11 @@ export function AuthProvider({ children }) {
       if (data) {
         profileCacheRef.current = { data, lastFetch: now };
         setProfile(data);
+        const newUserType = data.user_type || null;
+        setUserType(newUserType);
+        if (newUserType) {
+          sessionStorage.setItem(`userType_${TAB_ID}`, newUserType);
+        }
         return data;
       }
       setProfile(null);
@@ -137,13 +153,18 @@ export function AuthProvider({ children }) {
         cacheDuration: 2 * 60 * 1000,
       };
       setProfile(updatedProfile);
+      const newUserType = updatedProfile.user_type || null;
+      setUserType(newUserType);
+      if (newUserType) {
+        sessionStorage.setItem(`userType_${TAB_ID}`, newUserType);
+      }
     }
   }, []);
 
   // ================== SESSION MANAGEMENT ==================
   const refreshSession = useCallback(async () => {
     try {
-      console.log('🔄 Refreshing session with server...');
+      console.log(`🔄 Tab ${TAB_ID}: Refreshing session...`);
       const { data: { session: refreshed }, error } = await supabase.auth.refreshSession();
       if (error || !refreshed?.user) {
         console.warn('Session refresh failed:', error?.message);
@@ -159,9 +180,9 @@ export function AuthProvider({ children }) {
         refreshed.user.identities?.some((i) => i.provider === 'google');
 
       if (isGoogle) {
-        handleGoogleUserProfile(refreshed.user);
+        await handleGoogleUserProfile(refreshed.user);
       } else {
-        fetchUserProfile(refreshed.user.id);
+        await fetchUserProfile(refreshed.user.id);
       }
 
       return refreshed;
@@ -178,68 +199,89 @@ export function AuthProvider({ children }) {
 
     const initializeAuth = async () => {
       try {
-        setLoading(true);
-        console.log('🚀 Initializing auth with sessionStorage + heartbeat...');
+        console.log(`🚀 Tab ${TAB_ID}: Initializing auth...`);
 
         const { data: { session: cachedSession } } = await supabase.auth.getSession();
 
+        // ✅ NO SESSION = UNAUTHENTICATED USER - Allow public pages to load immediately
         if (!cachedSession?.user) {
           if (isMounted) {
             setSession(null);
             setUser(null);
             setProfile(null);
-            setLoading(false);
+            setUserType(null);
+            sessionStorage.removeItem(`userType_${TAB_ID}`);
+            setLoading(false); // ✅ Set loading to false IMMEDIATELY for unauthenticated users
           }
           return;
+        }
+
+        // ✅ SESSION EXISTS - Validate and fetch profile data
+        if (isMounted) {
+          setLoading(true); // Only show loading spinner if user WAS authenticated
         }
 
         // Validate session is not expired
         const valid = await isSessionValid();
         if (!valid) {
-          console.log('Session expired, clearing...');
+          console.log(`Tab ${TAB_ID}: Session expired, clearing...`);
           await supabase.auth.signOut();
           if (isMounted) {
             setSession(null);
             setUser(null);
             setProfile(null);
+            setUserType(null);
+            sessionStorage.removeItem(`userType_${TAB_ID}`);
             setLoading(false);
           }
           return;
         }
 
-        // Valid session
+        // Valid session - fetch profile in background, don't block rendering
         if (isMounted) {
           setSession(cachedSession);
           setUser(cachedSession.user);
+          
+          // Set loading to false so app can render - fetch profile in background
           setLoading(false);
-
+          
+          // Fetch profile to get userType (non-blocking)
           const isGoogle = cachedSession.user.app_metadata?.provider === 'google' ||
                           cachedSession.user.user_metadata?.provider === 'google' ||
                           cachedSession.user.identities?.some((i) => i.provider === 'google');
 
+          let profileData = null;
           if (isGoogle) {
-            handleGoogleUserProfile(cachedSession.user);
+            profileData = await handleGoogleUserProfile(cachedSession.user);
           } else {
-            fetchUserProfile(cachedSession.user.id);
+            profileData = await fetchUserProfile(cachedSession.user.id);
+          }
+          
+          // Update userType once fetched
+          const userTypeFromProfile = profileData?.user_type || null;
+          if (isMounted && userTypeFromProfile) {
+            setUserType(userTypeFromProfile);
+            sessionStorage.setItem(`userType_${TAB_ID}`, userTypeFromProfile);
           }
         }
 
         // ✅ Start heartbeat to keep session alive
         stopHeartbeat = startSessionHeartbeat((refreshedSession) => {
           if (isMounted && refreshedSession) {
-            console.log('🔄 Heartbeat refreshed session');
+            console.log(`🔄 Tab ${TAB_ID}: Heartbeat refreshed session`);
             setSession(refreshedSession);
             setUser(refreshedSession.user);
           }
         });
 
       } catch (error) {
-        console.error('❌ Auth initialization error:', error);
+        console.error(`❌ Tab ${TAB_ID}: Auth initialization error:`, error);
         if (isMounted) {
           setLoading(false);
           setSession(null);
           setUser(null);
           setProfile(null);
+          setUserType(null);
         }
       }
     };
@@ -248,7 +290,7 @@ export function AuthProvider({ children }) {
 
     // Auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
-      console.log('🔐 Auth state change:', event);
+      console.log(`🔐 Tab ${TAB_ID}: Auth state change:`, event);
 
       if (['SIGNED_IN', 'TOKEN_REFRESHED', 'USER_UPDATED'].includes(event) && currentSession?.user) {
         setSession(currentSession);
@@ -266,22 +308,25 @@ export function AuthProvider({ children }) {
         setSession(null);
         setUser(null);
         setProfile(null);
+        setUserType(null);
+        sessionStorage.removeItem(`userType_${TAB_ID}`);
         profileCacheRef.current.data = null;
-        stopSessionHeartbeat(); // Stop heartbeat on logout
+        stopSessionHeartbeat();
       }
     });
 
     // Mobile: re-validate session when app becomes visible
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        console.log('📱 App became visible, checking session...');
+        console.log(`📱 Tab ${TAB_ID}: App became visible, checking session...`);
         const valid = await isSessionValid();
         if (!valid && isMounted && session) {
-          console.log('Session expired while away, logging out');
+          console.log(`Tab ${TAB_ID}: Session expired while away`);
           await supabase.auth.signOut();
           setSession(null);
           setUser(null);
           setProfile(null);
+          setUserType(null);
         }
       }
     };
@@ -294,19 +339,19 @@ export function AuthProvider({ children }) {
       subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [handleGoogleUserProfile, fetchUserProfile]); // ✅ FIXED: Removed 'session' from dependencies to prevent infinite loops
+  }, []); // ✅ Empty dependency array - run once per tab
 
   // ================== LOGIN / REGISTER / LOGOUT ==================
   const login = useCallback(async (email, password) => {
     try {
-      console.log('🔐 Login attempt...');
+      console.log(`🔐 Tab ${TAB_ID}: Login attempt...`);
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      console.log('✅ Login successful');
+      console.log(`✅ Tab ${TAB_ID}: Login successful`);
       await refreshSession();
       return { success: true, user: data.user };
     } catch (error) {
-      console.error('❌ Login failed:', error);
+      console.error(`❌ Tab ${TAB_ID}: Login failed:`, error);
       return { success: false, error: error.message };
     }
   }, [refreshSession]);
@@ -372,22 +417,18 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try {
-      console.log('🚪 Logging out...');
+      console.log(`🚪 Tab ${TAB_ID}: Logging out...`);
       setUser(null);
       setProfile(null);
       setSession(null);
+      setUserType(null);
       profileCacheRef.current = { data: null, lastFetch: 0, cacheDuration: 2 * 60 * 1000 };
-
+      sessionStorage.removeItem(`userType_${TAB_ID}`);
       await supabase.auth.signOut();
-      sessionStorage.removeItem('sb-localhost-auth-token'); // Clear sessionStorage
-      console.log('✅ Logout successful');
+      console.log(`✅ Tab ${TAB_ID}: Logout successful`);
       return { success: true };
     } catch (error) {
-      console.error('❌ Logout error:', error);
-      setUser(null);
-      setProfile(null);
-      setSession(null);
-      sessionStorage.removeItem('sb-localhost-auth-token');
+      console.error(`❌ Tab ${TAB_ID}: Logout error:`, error);
       return { success: false, error: error.message, localCleared: true };
     }
   }, []);
@@ -421,8 +462,8 @@ export function AuthProvider({ children }) {
     session,
     userData: user ? { ...user, profile } : null,
     isAuthenticated: !!user && !!session,
-    sessionReady: !loading && !!session,
-    userType: profile?.user_type || 'customer',
+    sessionReady: !loading && !!session && userType !== null,
+    userType: userType || 'guest',
     login,
     register,
     loginWithGoogle,
@@ -434,5 +475,9 @@ export function AuthProvider({ children }) {
     getToken,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }

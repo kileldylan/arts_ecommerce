@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Typography, Box, CircularProgress, Alert, Snackbar, LinearProgress } from '@mui/material';
 import { useProducts } from '../../contexts/ProductContext';
 import ProductForm from '../../forms/ProductForm';
+import CustomSpinner from '../../components/CustomSpinner';
 
 export default function EditProduct() {
   const { id } = useParams();
@@ -62,11 +63,7 @@ export default function EditProduct() {
   };
 
   if (fetchLoading) {
-    return (
-      <Box sx={{ width: '100%' }}>
-        <LinearProgress />
-      </Box>
-    );
+    return <CustomSpinner text="Loading product..." />;
   }
 
 

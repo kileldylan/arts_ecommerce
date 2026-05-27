@@ -31,6 +31,7 @@ import {
   ErrorOutline
 } from '@mui/icons-material';
 import { useOrders } from '../contexts/OrderContext';
+import CustomSpinner from '../components/CustomSpinner';
 
 const themeColors = {
   primary: '#2563eb',
@@ -169,46 +170,9 @@ export default function OrderDetail() {
     }
   };
 
-  // Show loading state - IMPROVED FOR MOBILE
+  // Show loading state
   if (loading) {
-    return (
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '60vh',
-        gap: 3,
-        px: 2
-      }}>
-        <CircularProgress 
-          size={48}
-          thickness={4}
-          sx={{ 
-            color: themeColors.primary,
-            display: 'block'
-          }} 
-        />
-        <Typography 
-          variant="body1" 
-          color={themeColors.textSecondary}
-          sx={{ textAlign: 'center' }}
-        >
-          Loading order details...
-        </Typography>
-        <LinearProgress 
-          sx={{ 
-            width: '80%', 
-            maxWidth: 280,
-            borderRadius: 2,
-            height: 4,
-            '& .MuiLinearProgress-bar': {
-              borderRadius: 2
-            }
-          }} 
-        />
-      </Box>
-    );
+    return <CustomSpinner text="Loading order details..." />;
   }
 
   // Show error state

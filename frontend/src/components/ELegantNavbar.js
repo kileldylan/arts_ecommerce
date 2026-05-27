@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// src/components/ElegantNavbar.js - COMPLETE REWRITE (NO FLICKERING)
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -31,17 +32,15 @@ import {
   ShoppingBag,
   Analytics,
   Group,
-  AccountCircle,
+  Login as LoginIcon,
+  AppRegistration as RegisterIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '../utils/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
-// Hide app bar on scroll
 function HideOnScroll(props) {
   const { children } = props;
   const trigger = useScrollTrigger();
-
   return (
     <Slide appear={false} direction="down" in={!trigger}>
       {children}
@@ -54,126 +53,25 @@ export default function ElegantNavbar() {
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, user, profile, userType, logout, loading, validateSession } = useAuth();
-  const [localUserType, setLocalUserType] = useState(null);
-  const [authInitialized, setAuthInitialized] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { 
+    isAuthenticated, 
+    profile, 
+    userType, 
+    logout, 
+    loading, 
+    sessionReady 
+  } = useAuth();
 
-  const isLoading = loading || !authInitialized || isLoggingOut;
+  const isAuthPage = ['/login', '/register', '/forgot-password', '/reset-password', '/oauth-success']
+    .some(path => location.pathname.startsWith(path));
 
-  // Check if we're on auth pages (login, register, etc.)
-  const isAuthPage = useMemo(() => {
-    const authPaths = ['/login', '/register', '/forgot-password', '/reset-password', '/oauth-success'];
-    return authPaths.some(path => location.pathname.startsWith(path));
-  }, [location.pathname]);
-
-  // Clear UI immediately when on auth pages
-  useEffect(() => {
-    if (isAuthPage && !isAuthenticated) {
-      setLocalUserType(null);
-      setAuthInitialized(false);
-    }
-  }, [isAuthPage, isAuthenticated]);
-
-  // Sync userType locally
-  useEffect(() => {
-    let mounted = true;
-    
-    const syncUserType = async () => {
-      if (isAuthPage) {
-        if (mounted) {
-          setLocalUserType(null);
-          setAuthInitialized(true);
-        }
-        return;
-      }
-      
-      if (!isAuthenticated) {
-        if (mounted) {
-          setLocalUserType(null);
-          setAuthInitialized(true);
-        }
-        return;
-      }
-      
-      if (!loading && isAuthenticated) {
-        if (mounted) {
-          setLocalUserType(userType);
-          setAuthInitialized(true);
-        }
-      } else if (loading) {
-        try {
-          const session = await validateSession();
-          if (mounted && session?.user) {
-            const { data: freshProfile } = await supabase
-              .from('profiles')
-              .select('user_type')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (freshProfile && mounted) {
-              setLocalUserType(freshProfile.user_type);
-            }
-          }
-          if (mounted) setAuthInitialized(true);
-        } catch (err) {
-          console.debug('Session validation during navbar sync:', err);
-          if (mounted) setAuthInitialized(true);
-        }
-      }
-    };
-    
-    syncUserType();
-    
-    return () => {
-      mounted = false;
-    };
-  }, [userType, loading, validateSession, isAuthenticated, isAuthPage]);
-
-  // Re-validate when tab becomes visible
-  useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && !isAuthPage && isAuthenticated) {
-        console.log('🔄 Tab became visible, re-validating session...');
-        const session = await validateSession();
-        if (session?.user) {
-          const { data: freshProfile } = await supabase
-            .from('profiles')
-            .select('user_type')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (freshProfile && freshProfile.user_type !== localUserType) {
-            console.log('🔄 User type changed from', localUserType, 'to', freshProfile.user_type);
-            setLocalUserType(freshProfile.user_type);
-          }
-        } else if (!session) {
-          setLocalUserType(null);
-        }
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [validateSession, localUserType, isAuthPage, isAuthenticated]);
-
-  const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
-  const handleMenuClose = () => setAnchorEl(null);
+  // Don't show navbar on auth pages
+  if (isAuthPage) return null;
 
   const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      setLocalUserType(null);
-      setAuthInitialized(false);
-      await logout();
-      navigate('/login');
-      handleMenuClose();
-      setMobileMenuOpen(false);
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setIsLoggingOut(false);
-    }
+    await logout();
+    navigate('/login');
+    handleMenuClose();
   };
 
   const handleNavigation = (path) => {
@@ -182,19 +80,22 @@ export default function ElegantNavbar() {
     handleMenuClose();
   };
 
-  // Get nav items based on LOCAL user type
-  const getNavItems = useCallback(() => {
+  const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
+
+  // ✅ Direct navigation items based on userType - NO local state
+  const getNavItems = () => {
     const commonItems = [
       { label: 'Home', path: '/dashboard', icon: <Dashboard /> },
     ];
 
-    if (isAuthPage || !isAuthenticated || isLoading || isLoggingOut) {
+    // Not authenticated or still loading - show only home
+    if (!isAuthenticated || !sessionReady || loading) {
       return commonItems;
     }
 
-    const activeUserType = localUserType || userType;
-    
-    switch (activeUserType) {
+    // Switch based on actual userType from AuthContext
+    switch (userType) {
       case 'admin':
         return [
           ...commonItems,
@@ -216,34 +117,31 @@ export default function ElegantNavbar() {
           { label: 'My Orders', path: '/customer/orders', icon: <ShoppingBag /> },
         ];
     }
-  }, [isAuthenticated, isAuthPage, localUserType, userType, isLoading, isLoggingOut]);
+  };
 
-  const getDisplayName = useCallback(() => {
-    if (isAuthPage || !isAuthenticated || isLoading || isLoggingOut) return 'Guest';
-    
-    if (profile?.first_name && profile?.last_name) {
-      return `${profile.first_name} ${profile.last_name}`;
-    }
-    if (profile?.first_name) {
-      return profile.first_name;
-    }
-    return user?.email?.split('@')[0] || 'User';
-  }, [user, profile, isAuthenticated, isLoading, isAuthPage, isLoggingOut]);
+  const navItems = getNavItems();
+  
+  const displayName = profile?.first_name 
+    ? `${profile.first_name} ${profile.last_name || ''}`.trim()
+    : 'User';
 
-  const getAvatarInitial = useCallback(() => {
-    if (isAuthPage || !isAuthenticated || isLoading || isLoggingOut) return '';
-    
-    if (profile?.first_name) {
-      return profile.first_name.charAt(0).toUpperCase();
-    }
-    if (profile?.last_name) {
-      return profile.last_name.charAt(0).toUpperCase();
-    }
-    return user?.email?.charAt(0).toUpperCase() || '';
-  }, [user, profile, isAuthenticated, isLoading, isAuthPage, isLoggingOut]);
-
-  const navItems = useMemo(() => getNavItems(), [getNavItems]);
-  const isValidAuth = isAuthenticated && !isAuthPage && !isLoggingOut;
+  // ✅ Show loading skeleton ONLY if auth is checking (for authenticated users)
+  // Unauthenticated users should see login/signup buttons immediately
+  if (loading && isAuthenticated) {
+    return (
+      <AppBar position="fixed" sx={{ backgroundColor: 'white', boxShadow: 'none' }}>
+        <Container maxWidth="xl">
+          <Toolbar sx={{ py: 1 }}>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: '#2C3E50' }}>
+              Branchi Arts & Gifts
+            </Typography>
+            <Box sx={{ flexGrow: 1 }} />
+            <Skeleton variant="circular" width={40} height={40} />
+          </Toolbar>
+        </Container>
+      </AppBar>
+    );
+  }
 
   return (
     <>
@@ -278,95 +176,61 @@ export default function ElegantNavbar() {
                 Branchi Arts & Gifts
               </Typography>
 
-              {/* Desktop Menu - Only show when NOT on auth pages */}
-              {!isAuthPage && (
-                <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1, flexGrow: 1 }}>
-                  {navItems.map((item) => (
-                    <Button
-                      key={item.path}
-                      onClick={() => handleNavigation(item.path)}
-                      sx={{
-                        color: 'text.primary',
-                        fontWeight: 500,
-                        fontSize: '0.95rem',
-                        px: 2,
-                        py: 1,
-                        borderRadius: '8px',
-                        '&:hover': {
-                          backgroundColor: 'rgba(44, 62, 80, 0.04)',
-                          transform: 'translateY(-1px)'
-                        },
-                        transition: 'all 0.2s ease-in-out'
-                      }}
-                    >
-                      {item.label}
-                    </Button>
-                  ))}
-                </Box>
-              )}
+              {/* Desktop Menu */}
+              <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1, flexGrow: 1 }}>
+                {navItems.map((item) => (
+                  <Button
+                    key={item.path}
+                    onClick={() => handleNavigation(item.path)}
+                    sx={{
+                      color: 'text.primary',
+                      fontWeight: 500,
+                      fontSize: '0.95rem',
+                      px: 2,
+                      py: 1,
+                      borderRadius: '8px',
+                      '&:hover': {
+                        backgroundColor: 'rgba(44, 62, 80, 0.04)',
+                        transform: 'translateY(-1px)'
+                      },
+                    }}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </Box>
 
               {/* Right Actions */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 'auto' }}>
-                {isValidAuth && !isLoading ? (
+                {isAuthenticated ? (
                   <>
                     <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ textAlign: 'right' }}>
-                        <Typography variant="body2" fontWeight="600" color="text.primary">
-                          {getDisplayName()}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                          {localUserType === 'admin' ? 'Admin' : localUserType === 'artist' ? 'Artist' : 'Customer'}
-                        </Typography>
-                      </Box>
+                      <Typography variant="body2" fontWeight="600" color="text.primary">
+                        {displayName}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        {userType === 'admin' ? 'Admin' : userType === 'artist' ? 'Artist' : 'Customer'}
+                      </Typography>
                     </Box>
                     
-                    <IconButton
-                      onClick={handleMenuOpen}
-                      sx={{ 
-                        color: 'text.primary',
-                        '&:hover': { backgroundColor: 'rgba(44, 62, 80, 0.04)' }
-                      }}
-                    >
+                    <IconButton onClick={handleMenuOpen}>
                       <Avatar
                         sx={{
                           width: 36,
                           height: 36,
-                          backgroundColor: localUserType === 'admin' ? '#E74C3C' : localUserType === 'artist' ? '#F39C12' : '#2C3E50',
-                          fontWeight: '600',
-                          fontSize: '1rem',
+                          backgroundColor: userType === 'admin' ? '#E74C3C' : userType === 'artist' ? '#F39C12' : '#2C3E50',
                         }}
                       >
-                        {getAvatarInitial()}
+                        {displayName.charAt(0).toUpperCase()}
                       </Avatar>
                     </IconButton>
                     
-                    <Menu
-                      anchorEl={anchorEl}
-                      open={Boolean(anchorEl)}
-                      onClose={handleMenuClose}
-                      PaperProps={{
-                        sx: {
-                          backgroundColor: 'white',
-                          color: 'text.primary',
-                          border: '1px solid rgba(0,0,0,0.1)',
-                          borderRadius: '12px',
-                          marginTop: '8px',
-                          minWidth: 180,
-                          boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
-                        },
-                      }}
-                    >
-                      <MenuItem
-                        onClick={() =>
-                          handleNavigation(
-                            localUserType === 'admin' 
-                              ? '/admin/profile'
-                              : localUserType === 'artist' 
-                                ? '/artist/profile' 
-                                : '/customer/profile'
-                          )
-                        }
-                      >
+                    <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+                      <MenuItem onClick={() => handleNavigation(
+                        userType === 'admin' ? '/admin/profile' : 
+                        userType === 'artist' ? '/artist/profile' : 
+                        '/customer/profile'
+                      )}>
                         <ListItemIcon><Person fontSize="small" /></ListItemIcon>
                         <ListItemText primary="Profile" />
                       </MenuItem>
@@ -376,95 +240,63 @@ export default function ElegantNavbar() {
                       </MenuItem>
                     </Menu>
                   </>
-                ) : isAuthPage ? (
-                  // ✅ On auth pages - show NOTHING in the right side (no login/signup buttons)
-                  // This space intentionally left empty
-                  <Box sx={{ width: { xs: 40, md: 0 } }} />
-                ) : isLoading && !isAuthPage ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Skeleton variant="circular" width={36} height={36} />
-                    <Skeleton variant="text" width={80} height={20} />
+                ) : (
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Button startIcon={<LoginIcon />} onClick={() => navigate('/login')}>
+                      Login
+                    </Button>
+                    <Button startIcon={<RegisterIcon />} variant="contained" onClick={() => navigate('/register')}>
+                      Sign Up
+                    </Button>
                   </Box>
-                ) : null}
-
-                {/* Mobile Menu Button - Only show when NOT on auth pages */}
-                {!isAuthPage && (
-                  <IconButton
-                    sx={{ display: { md: 'none' }, color: 'text.primary' }}
-                    onClick={() => setMobileMenuOpen(true)}
-                  >
-                    <MenuIcon />
-                  </IconButton>
                 )}
+
+                <IconButton sx={{ display: { md: 'none' } }} onClick={() => setMobileMenuOpen(true)}>
+                  <MenuIcon />
+                </IconButton>
               </Box>
             </Toolbar>
           </Container>
         </AppBar>
       </HideOnScroll>
 
-      {/* Mobile Menu Drawer - Only show when NOT on auth pages */}
-      {!isAuthPage && (
-        <Drawer
-          anchor="right"
-          open={mobileMenuOpen}
-          onClose={() => setMobileMenuOpen(false)}
-          sx={{
-            '& .MuiDrawer-paper': {
-              width: 280,
-              backgroundColor: 'rgba(255, 255, 255, 0.98)',
-              backdropFilter: 'blur(20px)'
-            }
-          }}
-        >
-          <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6" fontWeight="600">Menu</Typography>
-              <IconButton onClick={() => setMobileMenuOpen(false)}><Close /></IconButton>
-            </Box>
-            <Divider sx={{ mb: 2 }} />
-            
-            <List sx={{ flexGrow: 1 }}>
-              {navItems.map((item) => (
-                <ListItem key={item.path} onClick={() => handleNavigation(item.path)} sx={{ borderRadius: '8px', mb: 0.5, '&:hover': { backgroundColor: 'rgba(44, 62, 80, 0.04)' } }}>
-                  <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 500 }} />
-                </ListItem>
-              ))}
-            </List>
-
-            {isValidAuth && !isLoading ? (
-              <Box sx={{ borderTop: '1px solid rgba(0,0,0,0.1)', pt: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, px: 1 }}>
-                  <Avatar sx={{ width: 32, height: 32, backgroundColor: localUserType === 'admin' ? '#E74C3C' : localUserType === 'artist' ? '#F39C12' : '#2C3E50', mr: 2 }}>
-                    {getAvatarInitial()}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="body2" fontWeight="600">{getDisplayName()}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {localUserType === 'admin' ? 'Admin' : localUserType === 'artist' ? 'Artist' : 'Customer'}
-                    </Typography>
-                  </Box>
-                </Box>
-                <Button fullWidth variant="outlined" startIcon={<ExitToApp />} onClick={handleLogout} sx={{ color: 'text.primary', borderColor: 'rgba(0,0,0,0.2)' }}>
-                  Logout
-                </Button>
-              </Box>
-            ) : !isAuthPage && (
-              // Only show login/signup in drawer when NOT on auth pages and not authenticated
-              <Box sx={{ borderTop: '1px solid rgba(0,0,0,0.1)', pt: 2 }}>
-                <Button fullWidth variant="contained" onClick={() => handleNavigation('/login')} sx={{ backgroundColor: '#2C3E50', mb: 1 }}>
-                  Login
-                </Button>
-                <Button fullWidth variant="outlined" onClick={() => handleNavigation('/register')} sx={{ borderColor: '#2C3E50', color: '#2C3E50' }}>
-                  Sign Up
-                </Button>
-              </Box>
-            )}
+      {/* Mobile Drawer */}
+      <Drawer anchor="right" open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}>
+        <Box sx={{ width: 280, p: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" fontWeight="600">Menu</Typography>
+            <IconButton onClick={() => setMobileMenuOpen(false)}><Close /></IconButton>
           </Box>
-        </Drawer>
-      )}
+          <Divider sx={{ mb: 2 }} />
+          
+          <List>
+            {navItems.map((item) => (
+              <ListItem key={item.path} onClick={() => handleNavigation(item.path)}>
+                <ListItemIcon>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} />
+              </ListItem>
+            ))}
+          </List>
 
-      {/* Spacer for fixed app bar */}
+          <Divider sx={{ my: 2 }} />
+          
+          {isAuthenticated ? (
+            <Button fullWidth variant="outlined" startIcon={<ExitToApp />} onClick={handleLogout}>
+              Logout
+            </Button>
+          ) : (
+            <Box>
+              <Button fullWidth variant="contained" onClick={() => handleNavigation('/login')} sx={{ mb: 1 }}>
+                Login
+              </Button>
+              <Button fullWidth variant="outlined" onClick={() => handleNavigation('/register')}>
+                Sign Up
+              </Button>
+            </Box>
+          )}
+        </Box>
+      </Drawer>
+
       <Toolbar sx={{ minHeight: '70px !important' }} />
     </>
   );

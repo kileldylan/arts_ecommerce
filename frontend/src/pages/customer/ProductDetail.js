@@ -35,6 +35,7 @@ import { alpha } from '@mui/material/styles';
 import { useProducts } from '../../contexts/ProductContext';
 import { useCart } from '../../contexts/CartContext';
 import Footer from '../../components/Footer';
+import CustomSpinner from '../../components/CustomSpinner';
 
 const themeColors = {
   primary: '#2C3E50',
@@ -127,11 +128,7 @@ export default function ProductDetail() {
 
   // Show loading state
   if (loading) {
-    return (
-      <Box sx={{ width: '100%' }}>
-        <LinearProgress />
-      </Box>
-    );
+    return <CustomSpinner text="Loading product details..." />;
   }
 
   if (error) {

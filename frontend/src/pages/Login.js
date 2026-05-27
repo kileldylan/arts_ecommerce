@@ -6,6 +6,7 @@ import {
   Divider, Alert, Container
 } from '@mui/material';
 import { Google } from '@mui/icons-material';
+import CustomSpinner from '../components/CustomSpinner';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -59,6 +60,10 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  if (loading) {
+    return <CustomSpinner text="Signing you in..." />;
+  }
 
   return (
     <Container component="main" maxWidth="sm">

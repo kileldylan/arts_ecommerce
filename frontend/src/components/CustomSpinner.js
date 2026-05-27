@@ -1,7 +1,7 @@
 // src/components/CustomSpinner.js
 import { Box, keyframes } from '@mui/material';
 
-// Create spinning animation
+// Cinematic rotate animation
 const spin = keyframes`
   0% {
     transform: rotate(0deg);
@@ -11,80 +11,149 @@ const spin = keyframes`
   }
 `;
 
-// Optional: Pulse animation for better effect
-const pulse = keyframes`
+// Cinematic pulse for the glow
+const glow = keyframes`
   0% {
-    opacity: 0.6;
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.3));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(0, 0, 0, 0.6));
+    transform: scale(1.05);
+  }
+  100% {
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.3));
+    transform: scale(1);
+  }
+`;
+
+// Orbiting ring animation
+const orbitRing = keyframes`
+  0% {
+    transform: rotate(0deg);
+    opacity: 0.3;
   }
   50% {
     opacity: 1;
   }
   100% {
-    opacity: 0.6;
+    transform: rotate(360deg);
+    opacity: 0.3;
   }
 `;
 
-export default function CustomSpinner({ size = 80, text = "Loading..." }) {
+// Second ring with opposite direction
+const orbitRingReverse = keyframes`
+  0% {
+    transform: rotate(360deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+`;
+
+export default function CustomSpinner({ size = 80 }) {
   return (
     <Box
       sx={{
         display: 'flex',
-        flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
         height: '100vh',
         width: '100%',
-        gap: 3,
-        backgroundColor: '#FAFAFA',
+        backgroundColor: '#0a0a0a', // Dark cinematic background
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
-      {/* Spinning Logo Container */}
+      {/* Cinematic vignette effect */}
       <Box
         sx={{
-          width: size,
-          height: size,
-          animation: `${spin} 1.5s linear infinite`,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%)',
+          pointerEvents: 'none',
+        }}
+      />
+      
+      {/* Main spinner container */}
+      <Box
+        sx={{
+          position: 'relative',
+          width: size * 2.5,
+          height: size * 2.5,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
         }}
       >
-        {/* Your Logo - Replace with your actual logo */}
-        <img
-          src="/branchi_logo.png"
-          alt="Branchi Arts"
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'contain',
-          }}
-        />
-      </Box>
-      
-      {/* Optional: Animated text */}
-      <Box
-        sx={{
-          animation: `${pulse} 1.5s ease-in-out infinite`,
-          textAlign: 'center',
-        }}
-      >
-        <Box
-          component="img"
-          src="/brand-name.png" // Optional: Your brand name as image
-          alt="Branchi Arts & Gifts"
-          sx={{ height: 30, mb: 1 }}
-        />
+        {/* Orbiting ring 1 - outer */}
         <Box
           sx={{
-            width: 40,
-            height: 2,
-            backgroundColor: '#2C3E50',
-            margin: '0 auto',
-            borderRadius: 1,
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            borderRadius: '50%',
+            border: `2px solid rgba(255, 255, 255, 0.15)`,
+            borderTop: `2px solid rgba(255, 255, 255, 0.8)`,
+            borderRight: `2px solid rgba(255, 255, 255, 0.4)`,
+            animation: `${orbitRing} 3s linear infinite`,
           }}
         />
-        <Box sx={{ mt: 2, color: '#7F8C8D', fontSize: '0.875rem' }}>
-          {text}
+        
+        {/* Orbiting ring 2 - middle, reverse direction */}
+        <Box
+          sx={{
+            position: 'absolute',
+            width: '75%',
+            height: '75%',
+            borderRadius: '50%',
+            border: `1.5px solid rgba(255, 215, 0, 0.15)`,
+            borderBottom: `1.5px solid rgba(255, 215, 0, 0.6)`,
+            borderLeft: `1.5px solid rgba(255, 215, 0, 0.3)`,
+            animation: `${orbitRingReverse} 2.5s linear infinite`,
+          }}
+        />
+        
+        {/* Orbiting ring 3 - inner */}
+        <Box
+          sx={{
+            position: 'absolute',
+            width: '50%',
+            height: '50%',
+            borderRadius: '50%',
+            border: `1px solid rgba(255, 255, 255, 0.2)`,
+            borderTop: `1px solid rgba(255, 255, 255, 0.7)`,
+            animation: `${spin} 1.8s linear infinite`,
+          }}
+        />
+
+        {/* Logo with cinematic glow */}
+        <Box
+          sx={{
+            width: size,
+            height: size,
+            animation: `${glow} 2s ease-in-out infinite`,
+            position: 'relative',
+            zIndex: 2,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <img
+            src="/branchi_logo.png"
+            alt="Branchi Arts"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              filter: 'brightness(1.05) contrast(1.1)',
+            }}
+          />
         </Box>
       </Box>
     </Box>

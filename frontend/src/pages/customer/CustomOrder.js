@@ -26,6 +26,7 @@ import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../../components/Footer';
+import CustomSpinner from '../../components/CustomSpinner';
 
 const themeColors = {
   primary: '#2563eb',
@@ -113,62 +114,17 @@ export default function CustomerOrders() {
 
   // ✅ Show auth loading state first
   if (authLoading) {
-    return (
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '60vh',
-        gap: 3,
-        px: 2
-      }}>
-        <Typography variant="body1" color={themeColors.textSecondary} sx={{ textAlign: 'center' }}>
-          Verifying your account...
-        </Typography>
-        <LinearProgress sx={{ width: '80%', maxWidth: 280, borderRadius: 2, height: 4 }} />
-      </Box>
-    );
+    return <CustomSpinner text="Verifying your account..." />;
   }
 
   // ✅ Show session loading state
   if (!sessionReady && !authLoading && isAuthenticated) {
-    return (
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '60vh',
-        gap: 3,
-        px: 2
-      }}>
-        <Typography variant="body1" color={themeColors.textSecondary} sx={{ textAlign: 'center' }}>
-          Preparing your account...
-        </Typography>
-        <LinearProgress sx={{ width: '80%', maxWidth: 280, borderRadius: 2, height: 4 }} />
-      </Box>
-    );
+    return <CustomSpinner text="Preparing your account..." />;
   }
 
   // ✅ Show loading state
   if (loading && orders.length === 0 && !authLoading && sessionReady) {
-    return (
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '60vh',
-        gap: 3,
-        px: 2
-      }}>
-        <Typography variant="body1" color={themeColors.textSecondary} sx={{ textAlign: 'center' }}>
-          Loading your orders...
-        </Typography>
-        <LinearProgress sx={{ width: '80%', maxWidth: 280, borderRadius: 2, height: 4 }} />
-      </Box>
-    );
+    return <CustomSpinner text="Loading your orders..." />;
   }
 
   // Show error state

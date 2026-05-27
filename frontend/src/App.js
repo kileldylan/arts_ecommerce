@@ -87,10 +87,11 @@ const SessionRecovery = () => {
 };
 
 function AppContent() {
-  const { loading } = useAuth();
+  const { loading, isAuthenticated } = useAuth();
   
-  // ✅ Show custom branded spinner while auth is loading
-  if (loading) {
+  // ✅ Only show loading spinner if auth is still initializing (for authenticated users only)
+  // Unauthenticated users can access public pages immediately
+  if (loading && isAuthenticated) {
     return <PageLoader />;
   }
 
@@ -98,7 +99,7 @@ function AppContent() {
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <ElegantNavbar />
       <Box component="main" sx={{ flexGrow: 1 }}>
-        {/* ✅ Suspense with custom branded spinner */}
+        {/* ✅ Suspense with custom branded spinner - but won't block public routes */}
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<Navigate to="/customer/dashboard" />} />

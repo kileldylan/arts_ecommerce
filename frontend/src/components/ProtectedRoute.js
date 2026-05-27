@@ -16,10 +16,11 @@ export default function ProtectedRoute({
   allowedRoles = ['customer', 'artist', 'admin'], // Roles allowed to access this route
   redirectTo = '/login' // Where to redirect if not authenticated
 }) {
-  const { isAuthenticated, userType, loading, sessionReady } = useAuth();
+  const { isAuthenticated, userType, loading } = useAuth();
 
-  // Show custom branded spinner while checking authentication
-  if (loading || !sessionReady) {
+  // ✅ Show "Verifying your account..." ONLY if auth is still loading AND user is authenticated
+  // If loading but no auth, just redirect immediately (don't show spinner)
+  if (loading && isAuthenticated) {
     return <CustomSpinner text="Verifying your account..." />;
   }
 

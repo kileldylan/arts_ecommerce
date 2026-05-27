@@ -8,6 +8,7 @@ import {
   InputAdornment, IconButton, OutlinedInput, InputLabel
 } from '@mui/material';
 import { Visibility, VisibilityOff, Google } from '@mui/icons-material';
+import CustomSpinner from '../components/CustomSpinner';
 
 const steps = ['Account Type', 'Basic Information', 'Additional Details'];
 
@@ -326,6 +327,10 @@ export default function Register() {
         return <div>Unknown step</div>;
     }
   };
+
+  if (loading) {
+    return <CustomSpinner text="Creating your account..." />;
+  }
 
   return (
     <Container component="main" maxWidth="md">

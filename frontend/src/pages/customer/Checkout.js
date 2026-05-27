@@ -12,6 +12,7 @@ import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePayment } from '../../contexts/PaymentContext';
 import { supabase } from '../../utils/supabaseClient';
+import CustomSpinner from '../../components/CustomSpinner';
 
 const themeColors = {
   primary: '#2C3E50',
@@ -268,6 +269,10 @@ const pollPaymentStatus = async (orderId, checkoutRequestId) => {
         </Button>
       </Container>
     );
+  }
+
+  if (paymentProcessing) {
+    return <CustomSpinner text="Processing your payment..." />;
   }
 
   return (

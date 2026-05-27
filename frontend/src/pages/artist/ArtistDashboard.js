@@ -25,6 +25,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../../contexts/ProductContext';
+import CustomSpinner from '../../components/CustomSpinner';
 
 // Modern color palette
 const themeColors = {
@@ -211,6 +212,10 @@ export default function ArtistDashboard() {
       </Box>
     </Paper>
   );
+
+  if (loading) {
+    return <CustomSpinner text="Loading your dashboard..." />;
+  }
 
   return (
     <>
