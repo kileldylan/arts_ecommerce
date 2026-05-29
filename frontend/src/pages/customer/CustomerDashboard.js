@@ -21,7 +21,13 @@ import {
   useTheme,
   useMediaQuery,
   Drawer,
-  LinearProgress
+  LinearProgress,
+  Paper,
+  Stack,
+  Chip,
+  InputBase,
+  Divider,
+  MobileStepper
 } from '@mui/material';
 import {
   Search,
@@ -32,7 +38,20 @@ import {
   Support,
   Star,
   Check,
-  Close
+  Close,
+  FilterList,
+  Sort,
+  Tune,
+  ClearAll,
+  ArrowBack,
+  ArrowForward,
+  KeyboardArrowLeft,
+  KeyboardArrowRight,
+  Verified,
+  Brush,
+  Storefront,
+  EmojiEvents,
+  FlashOn
 } from '@mui/icons-material';
 import { useProducts } from '../../contexts/ProductContext';
 import { useCart } from '../../contexts/CartContext';
@@ -48,35 +67,53 @@ const themeColors = {
   lightText: '#7F8C8D',
   white: '#FFFFFF',
   border: '#ECF0F1',
-  success: '#27AE60'
+  success: '#27AE60',
+  warmWood: '#8B5A2B',
+  gold: '#D4AF37'
 };
 
-// Fixed categories - NOW INCLUDING "All Products"
-const categories = [
-  { id: '0', name: 'All Products'},
-  { id: '1', name: 'Wood Intarsia'},
-  { id: '2', name: 'Frames'},
-  { id: '3', name: 'Wall Art' },
-  { id: '4', name: 'Sculptures'},
-  { id: '5', name: 'Aesthetic Mirrors' }
+// Hero slides data with responsive images
+const heroSlides = [
+  {
+    id: 1,
+    image: '/images/hero/desktop/hero_image.jpg', // Desktop: 1920×800px
+    tabletImage: '/images/hero/tablet/hero_image_tablet.jpg', // Tablet: 1024×600px
+    mobileImage: '/images/hero/mobile/hero_image_mobile1.jpg', // Mobile: 640×400px
+    title: 'Handcrafted Wood Art',
+    subtitle: 'Each piece tells a story',
+    cta: 'Shop Now',
+    link: '/products'
+  },
+  {
+    id: 2,
+    image: '/images/hero/desktop/slide2.webp',
+    tabletImage: '/images/hero/tablet/slide2.webp',
+    mobileImage: '/images/hero/mobile/slide2.webp',
+    title: 'Custom Intarsia',
+    subtitle: 'Your vision, carved in wood',
+    cta: 'Commission Art',
+    link: '/custom-order'
+  },
+  {
+    id: 3,
+    image: '/images/hero/desktop/slide3.webp',
+    tabletImage: '/images/hero/tablet/slide3.webp',
+    mobileImage: '/images/hero/mobile/slide3.webp',
+    title: 'Unique Gifts That Last',
+    subtitle: 'For the art lover in your life',
+    cta: 'Explore Gifts',
+    link: '/products?category=gifts'
+  }
 ];
 
-const features = [
-  {
-    icon: <LocalShipping sx={{ fontSize: 40, color: themeColors.primary }} />,
-    title: 'Free Shipping',
-    description: 'Free delivery on orders over Ksh 5,000'
-  },
-  {
-    icon: <Security sx={{ fontSize: 40, color: themeColors.primary }} />,
-    title: 'Secure Payment',
-    description: '100% secure payment processing'
-  },
-  {
-    icon: <Support sx={{ fontSize: 40, color: themeColors.primary }} />,
-    title: '24/7 Support',
-    description: 'Dedicated customer support team'
-  }
+// Categories
+const categories = [
+  { id: '0', name: 'All Products', icon: <Storefront sx={{ fontSize: 18 }} /> },
+  { id: '1', name: 'Wood Intarsia', icon: <Brush sx={{ fontSize: 18 }} /> },
+  { id: '2', name: 'Frames', icon: <Storefront sx={{ fontSize: 18 }} /> },
+  { id: '3', name: 'Wall Art', icon: <Brush sx={{ fontSize: 18 }} /> },
+  { id: '4', name: 'Sculptures', icon: <Brush sx={{ fontSize: 18 }} /> },
+  { id: '5', name: 'Aesthetic Mirrors', icon: <Storefront sx={{ fontSize: 18 }} /> }
 ];
 
 const testimonials = [
@@ -112,15 +149,34 @@ export default function CustomerDashboard() {
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [autoplay, setAutoplay] = useState(true);
+  const autoplayRef = useRef(null);
   const { products, getAllProducts, loading } = useProducts();
   const { cart, addToCart, getCartItemsCount, removeFromCart, updateCartQuantity } = useCart();
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
     getAllProducts();
   }, [getAllProducts]);
+
+  // Hero slider autoplay
+  useEffect(() => {
+    if (autoplay) {
+      autoplayRef.current = setInterval(() => {
+        setActiveSlide((prev) => (prev + 1) % heroSlides.length);
+      }, 5000);
+    }
+    return () => {
+      if (autoplayRef.current) {
+        clearInterval(autoplayRef.current);
+      }
+    };
+  }, [autoplay]);
 
   // Check for cart parameter in URL
   useEffect(() => {
@@ -134,8 +190,6 @@ export default function CustomerDashboard() {
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedCategory, searchTerm, sortBy]);
-
-  // REMOVED: The scrolling useEffect that was pushing view down
 
   // Filter and sort products
   const filteredProducts = products
@@ -158,12 +212,9 @@ export default function CustomerDashboard() {
 
   const handlePageChange = (event, value) => {
     setCurrentPage(value);
-    
-    // Optional: Scroll to top of products section after page change
-    const productsSection = document.querySelector('.products-section');
-    if (productsSection) {
-      productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 50);
   };
 
   const productsPerPage = isMobile ? 6 : 12;
@@ -183,11 +234,116 @@ export default function CustomerDashboard() {
 
   const handleCloseCart = () => {
     setCartDrawerOpen(false);
-    // Remove cart parameter from URL
     const url = new URL(window.location);
     url.searchParams.delete('cart');
     window.history.replaceState({}, '', url);
   };
+
+  const handleSlideChange = (newSlide) => {
+    setActiveSlide(newSlide);
+    setAutoplay(false);
+    // Resume autoplay after 10 seconds of inactivity
+    setTimeout(() => setAutoplay(true), 10000);
+  };
+
+  const hasActiveFilters = selectedCategory !== '0' || searchTerm !== '' || sortBy !== 'newest';
+
+  const clearFilters = () => {
+    setSelectedCategory('0');
+    setSearchTerm('');
+    setSortBy('newest');
+  };
+
+  // Mobile Filter Drawer
+  const MobileFilterDrawer = () => (
+    <Drawer
+      anchor="bottom"
+      open={filterDrawerOpen}
+      onClose={() => setFilterDrawerOpen(false)}
+      sx={{
+        '& .MuiDrawer-paper': {
+          borderRadius: '20px 20px 0 0',
+          maxHeight: '70vh',
+          p: 2
+        }
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, pb: 1, borderBottom: `1px solid ${themeColors.border}` }}>
+        <Typography variant="h6" fontWeight="700">
+          <Tune sx={{ mr: 1, fontSize: 20, verticalAlign: 'middle' }} />
+          Filter & Sort
+        </Typography>
+        <IconButton onClick={() => setFilterDrawerOpen(false)}>
+          <Close />
+        </IconButton>
+      </Box>
+
+      <Box sx={{ overflowY: 'auto', flex: 1 }}>
+        <Typography variant="subtitle2" fontWeight="600" sx={{ mb: 1, mt: 1 }}>
+          Sort By
+        </Typography>
+        <Select
+          fullWidth
+          size="small"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          sx={{ mb: 2 }}
+        >
+          <MenuItem value="newest">Newest First</MenuItem>
+          <MenuItem value="price-low">Price: Low to High</MenuItem>
+          <MenuItem value="price-high">Price: High to Low</MenuItem>
+          <MenuItem value="name">Name A-Z</MenuItem>
+        </Select>
+
+        <Typography variant="subtitle2" fontWeight="600" sx={{ mb: 1, mt: 1 }}>
+          Category
+        </Typography>
+        <Select
+          fullWidth
+          size="small"
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          sx={{ mb: 2 }}
+        >
+          {categories.map((cat) => (
+            <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
+          ))}
+        </Select>
+
+        <Divider sx={{ my: 2 }} />
+
+        {hasActiveFilters && (
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<ClearAll />}
+            onClick={() => {
+              clearFilters();
+              setFilterDrawerOpen(false);
+            }}
+            sx={{ mb: 2 }}
+          >
+            Clear All Filters
+          </Button>
+        )}
+      </Box>
+
+      <Box sx={{ pt: 2, borderTop: `1px solid ${themeColors.border}` }}>
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={() => setFilterDrawerOpen(false)}
+          sx={{
+            backgroundColor: themeColors.primary,
+            py: 1.5,
+            borderRadius: '12px'
+          }}
+        >
+          Show {filteredProducts.length} Results
+        </Button>
+      </Box>
+    </Drawer>
+  );
 
   // Cart Drawer Component
   const CartDrawer = () => (
@@ -289,14 +445,14 @@ export default function CustomerDashboard() {
           display: 'flex',
           flexDirection: 'column',
           border: `1px solid ${themeColors.border}`,
-          borderRadius: '16px',
+          borderRadius: '12px',
           overflow: 'hidden',
           cursor: 'pointer',
           backgroundColor: 'white',
           transition: 'box-shadow 0.3s ease, border-color 0.3s ease',
           willChange: 'box-shadow',
           '&:hover': {
-            boxShadow: '0 12px 24px rgba(0,0,0,0.12)',
+            boxShadow: '0 8px 20px rgba(0,0,0,0.1)',
             borderColor: alpha(themeColors.primary, 0.3)
           }
         }}
@@ -312,7 +468,6 @@ export default function CustomerDashboard() {
           <img
             src={imageUrl}
             alt={product.name}
-            className="product-image"
             style={{
               position: 'absolute',
               top: 0,
@@ -320,8 +475,7 @@ export default function CustomerDashboard() {
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              transition: 'transform 0.4s ease-out',
-              willChange: 'transform'
+              transition: 'transform 0.3s ease-out',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'scale(1.05)';
@@ -330,104 +484,62 @@ export default function CustomerDashboard() {
               e.currentTarget.style.transform = 'scale(1)';
             }}
           />
-          <Box
-            className="favorite-button-overlay"
-            sx={{
-              position: 'absolute',
-              top: 10,
-              right: 10,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 0.5,
-              opacity: 0,
-              transition: 'opacity 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = '1';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = '0';
-            }}
-          >
-            <IconButton
-              size="small"
-              sx={{
-                backgroundColor: 'white',
-                '&:hover': { transform: 'scale(1.1)' }
-              }}
-            >
-              <Favorite sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Box>
         </Box>
 
-        <CardContent sx={{ p: '10px 14px 14px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flexGrow: 1 }}>
+        <CardContent sx={{ p: '10px 12px 12px 12px', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
           <Typography
-            variant="body1"
+            variant="body2"
             fontWeight={600}
             sx={{
-              fontSize: '0.9rem',
-              lineHeight: 1.2,
+              fontSize: isMobile ? '0.8rem' : '0.9rem',
+              lineHeight: 1.3,
               color: themeColors.text,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
-              mb: 1
+              mb: 0.5,
+              minHeight: isMobile ? '2.6rem' : 'auto'
             }}
           >
             {product.name}
           </Typography>
 
-          <Box sx={{ mt: 0.2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.6 }}>
-              <Typography variant="h6" fontWeight="800" sx={{ color: themeColors.primary, fontSize: '1.1rem', lineHeight: 1, mb: 1 }}>
-                Ksh {(product.price || 0).toLocaleString()}
-              </Typography>
-              {product.compare_price && (
-                <Typography variant="body2" sx={{ color: themeColors.lightText, textDecoration: 'line-through', fontSize: '0.7rem', lineHeight: 1 }}>
-                  Ksh {product.compare_price.toLocaleString()}
-                </Typography>
-              )}
-            </Box>
+          <Typography variant="h6" fontWeight="800" sx={{ color: themeColors.primary, fontSize: isMobile ? '1rem' : '1.1rem', lineHeight: 1, mb: 1 }}>
+            Ksh {(product.price || 0).toLocaleString()}
+          </Typography>
 
-            <Button
-              variant="contained"
-              fullWidth
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                addToCart(product);
-              }}
-              disabled={cartItem}
-              startIcon={cartItem ? <Check /> : <ShoppingCart />}
-              sx={{
-                backgroundColor: cartItem ? themeColors.success : themeColors.primary,
-                color: 'white',
-                borderRadius: '8px',
-                py: 0.8,
-                mb: 0.6,
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                textTransform: 'none',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 2px 8px rgba(52, 152, 219, 0.3)',
-                '&:hover': {
-                  backgroundColor: cartItem ? themeColors.success : alpha(themeColors.primary, 0.9),
-                  transform: 'translateY(-1px)',
-                  boxShadow: '0 4px 12px rgba(52, 152, 219, 0.4)'
-                },
-                '&.Mui-disabled': {
-                  backgroundColor: themeColors.success,
-                  color: 'white'
-                },
-                m: 0
-              }}
-            >
-              {cartItem ? 'Added' : 'Add to Cart'}
-            </Button>
-          </Box>
+          <Button
+            variant="contained"
+            fullWidth
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              addToCart(product);
+            }}
+            disabled={cartItem}
+            startIcon={cartItem ? <Check sx={{ fontSize: isMobile ? 14 : 16 }} /> : <ShoppingCart sx={{ fontSize: isMobile ? 14 : 16 }} />}
+            sx={{
+              backgroundColor: cartItem ? themeColors.success : themeColors.primary,
+              color: 'white',
+              borderRadius: '8px',
+              py: 0.6,
+              fontSize: isMobile ? '0.7rem' : '0.8rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                backgroundColor: cartItem ? themeColors.success : alpha(themeColors.primary, 0.9),
+              },
+              '&.Mui-disabled': {
+                backgroundColor: themeColors.success,
+                color: 'white'
+              }
+            }}
+          >
+            {cartItem ? 'Added' : 'Add to Cart'}
+          </Button>
         </CardContent>
       </Card>
     );
@@ -437,15 +549,11 @@ export default function CustomerDashboard() {
   const TestimonialCard = ({ testimonial }) => (
     <Card
       sx={{
-        minWidth: 300,
-        maxWidth: 350,
-        height: 200,
-        p: 3,
+        minWidth: 280,
+        maxWidth: 320,
+        p: 2.5,
         borderRadius: 3,
         border: `1px solid ${themeColors.border}`,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
         transition: 'all 0.3s ease',
         '&:hover': {
           transform: 'translateY(-4px)',
@@ -454,25 +562,26 @@ export default function CustomerDashboard() {
       }}
     >
       <Typography
-        variant="body1"
+        variant="body2"
         sx={{
           fontStyle: 'italic',
-          mb: 1,
+          mb: 1.5,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           display: '-webkit-box',
           WebkitLineClamp: 3,
-          WebkitBoxOrient: 'vertical'
+          WebkitBoxOrient: 'vertical',
+          minHeight: 60
         }}
       >
         "{testimonial.content}"
       </Typography>
       
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Box
           sx={{
-            width: 50,
-            height: 50,
+            width: 40,
+            height: 40,
             borderRadius: '50%',
             backgroundImage: `url(${testimonial.image})`,
             backgroundSize: 'cover',
@@ -480,18 +589,18 @@ export default function CustomerDashboard() {
           }}
         />
         <Box>
-          <Typography variant="subtitle1" fontWeight="600">
+          <Typography variant="subtitle2" fontWeight="600">
             {testimonial.name}
           </Typography>
           <Typography variant="caption" color="text.secondary">
             {testimonial.role}
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, mt: 0.3 }}>
             {[1, 2, 3, 4, 5].map((star) => (
               <Star
                 key={star}
                 sx={{
-                  fontSize: 14,
+                  fontSize: 12,
                   color: star <= testimonial.rating ? '#FFD700' : '#E0E0E0'
                 }}
               />
@@ -508,180 +617,481 @@ export default function CustomerDashboard() {
       {/* Cart Drawer */}
       <CartDrawer />
       
-{/* Hero Section - FULLY RESPONSIVE FIX */}
+      {/* Mobile Filter Drawer */}
+      <MobileFilterDrawer />
+
+{/* INSPIRED BY MAWU AFRICA - HERO SECTION WITH SLIDING IMAGES */}
 <Box
   sx={{
     position: 'relative',
-    backgroundColor: '#e9e6df',
-    color: 'white',
-    minHeight: { xs: 280, sm: 350, md: 450, lg: 500 },
-    display: 'flex',
-    alignItems: 'center',
+    width: '100%',
     overflow: 'hidden',
-    // Responsive background image with different positioning for mobile
-    backgroundImage: {
-      xs: "url('/hero_mobile.jpg')",
-      sm: "url('/hero_image.jpg')",
-    },
-    backgroundSize: { xs: 'auto 100%', sm: 'cover', md: 'cover' },
-    backgroundPosition: { xs: 'center center', sm: 'center', md: 'center' },
-    backgroundRepeat: 'no-repeat',
-    '&::before': {
-      content: '""',
-      position: 'absolute',
-      inset: 0,
-      backgroundColor: 'rgba(0,0,0,0.35)', // Slightly darker for better text contrast
-      zIndex: 0
-    }
+    bgcolor: '#000'
   }}
 >
-  <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1, px: { xs: 2, sm: 3, md: 4 } }}>
-    <Box sx={{ 
-      textAlign: 'center', 
-      maxWidth: { xs: '100%', sm: 520, md: 720 }, 
-      mx: 'auto',
-      px: { xs: 1, sm: 2 }
-    }}>
-      <Typography 
-        variant="h4" 
-        fontWeight="800" 
-        sx={{ 
-          mb: { xs: 1, sm: 1.5, md: 2 },
-          textShadow: '0 2px 12px rgba(0,0,0,0.4)',
-          fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem', lg: '3rem' },
-          lineHeight: { xs: 1.2, sm: 1.3 }
-        }}
-      >
-        Discover Unique Art & Decor
-      </Typography>
-      <Typography 
-        variant="subtitle1" 
-        sx={{ 
-          mb: { xs: 2, sm: 2.5, md: 3 },
-          fontWeight: 400, 
-          opacity: 0.95,
-          fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1.1rem' },
-          px: { xs: 1, sm: 0 }
-        }}
-      >
-        Transform your space with art that speaks and gifts that lasts.
-      </Typography>
-      <TextField
-        fullWidth
-        placeholder="Search for art, frames, decor..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
+  {/* Hero Slider Container - REDUCED HEIGHT */}
+  <Box
+    sx={{
+      position: 'relative',
+      height: { xs: '40vh', sm: '45vh', md: '50vh' },
+      transition: 'all 0.3s ease'
+    }}
+  >
+    {/* Slides */}
+    {heroSlides.map((slide, index) => (
+      <Box
+        key={slide.id}
         sx={{
-          maxWidth: { xs: '100%', sm: 480, md: 520 },
-          mx: 'auto',
-          '& .MuiOutlinedInput-root': {
-            backgroundColor: 'white',
-            borderRadius: '50px',
-            height: { xs: 44, sm: 48, md: 56 },
-            '& fieldset': { border: 'none' }
-          }
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          opacity: activeSlide === index ? 1 : 0,
+          transition: 'opacity 0.8s ease-in-out',
+          zIndex: activeSlide === index ? 1 : 0
         }}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <Search sx={{ color: themeColors.lightText, fontSize: { xs: 18, sm: 20, md: 24 } }} />
-            </InputAdornment>
-          )
-        }}
-      />
-    </Box>
-  </Container>
+      >
+        {/* Background Image - Supports both images and GIFs */}
+{/* Background Image - Supports both images and GIFs */}
+<Box
+  sx={{
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundImage: `url(${slide.image})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center -80px', /* Negative pixels pull image UP */
+    backgroundRepeat: 'no-repeat',
+    filter: 'brightness(0.65)',
+    transform: activeSlide === index ? 'scale(1.05)' : 'scale(1)',
+    transition: 'transform 8s ease-out'
+  }}
+/>
+        
+        {/* Gradient Overlay */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)'
+          }}
+        />
+
+        {/* Content Overlay */}
+        <Container
+          maxWidth="lg"
+          sx={{
+            position: 'relative',
+            zIndex: 2,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            textAlign: 'center',
+            color: 'white'
+          }}
+        >
+          {/* Fun Badge - Single Vendor Highlight */}
+          <Chip
+            icon={<EmojiEvents sx={{ fontSize: 16 }} />}
+            label="Kenyan Artisan • Handcrafted With ❤️"
+            sx={{
+              backgroundColor: alpha(themeColors.gold, 0.9),
+              color: '#2C1810',
+              fontWeight: 600,
+              mb: { xs: 1, sm: 2 },
+              backdropFilter: 'blur(4px)',
+              '& .MuiChip-icon': {
+                color: '#2C1810'
+              }
+            }}
+          />
+
+          <Typography
+            variant="h1"
+            sx={{
+              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+              fontWeight: 800,
+              mb: 0.5,
+              textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+              letterSpacing: '-0.02em'
+            }}
+          >
+            {slide.title}
+          </Typography>
+
+          <Typography
+            variant="h5"
+            sx={{
+              fontSize: { xs: '0.8rem', sm: '1rem', md: '1.2rem' },
+              mb: { xs: 1.5, sm: 2 },
+              opacity: 0.9,
+              textShadow: '0 2px 10px rgba(0,0,0,0.3)',
+              maxWidth: '500px'
+            }}
+          >
+            {slide.subtitle}
+          </Typography>
+
+          {/* CTA Button - RESTORED */}
+          <Button
+            variant="contained"
+            size={isSmallMobile ? "small" : "medium"}
+            onClick={() => navigate(slide.link)}
+            sx={{
+              backgroundColor: themeColors.gold,
+              color: '#2C1810',
+              px: { xs: 3, sm: 4 },
+              py: { xs: 0.8, sm: 1 },
+              borderRadius: '40px',
+              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontWeight: 700,
+              textTransform: 'none',
+              '&:hover': {
+                backgroundColor: '#C5A028',
+                transform: 'translateY(-2px)'
+              },
+              transition: 'all 0.3s ease'
+            }}
+          >
+            {slide.cta}
+          </Button>
+        </Container>
+      </Box>
+    ))}
+
+    {/* Navigation Arrows */}
+    <IconButton
+      onClick={() => handleSlideChange((activeSlide - 1 + heroSlides.length) % heroSlides.length)}
+      sx={{
+        position: 'absolute',
+        left: { xs: 8, sm: 16 },
+        top: '50%',
+        transform: 'translateY(-50%)',
+        zIndex: 3,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        backdropFilter: 'blur(8px)',
+        color: 'white',
+        '&:hover': {
+          backgroundColor: 'rgba(255,255,255,0.3)'
+        }
+      }}
+    >
+      <KeyboardArrowLeft />
+    </IconButton>
+
+    <IconButton
+      onClick={() => handleSlideChange((activeSlide + 1) % heroSlides.length)}
+      sx={{
+        position: 'absolute',
+        right: { xs: 8, sm: 16 },
+        top: '50%',
+        transform: 'translateY(-50%)',
+        zIndex: 3,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        backdropFilter: 'blur(8px)',
+        color: 'white',
+        '&:hover': {
+          backgroundColor: 'rgba(255,255,255,0.3)'
+        }
+      }}
+    >
+      <KeyboardArrowRight />
+    </IconButton>
+
+    {/* Dots Navigation */}
+    <MobileStepper
+      steps={heroSlides.length}
+      position="static"
+      activeStep={activeSlide}
+      sx={{
+        position: 'absolute',
+        bottom: 12,
+        left: 0,
+        right: 0,
+        zIndex: 3,
+        backgroundColor: 'transparent',
+        justifyContent: 'center',
+        '& .MuiMobileStepper-dot': {
+          backgroundColor: 'rgba(255,255,255,0.5)',
+          margin: '0 4px'
+        },
+        '& .MuiMobileStepper-dotActive': {
+          backgroundColor: themeColors.gold,
+          width: 20,
+          borderRadius: '4px'
+        }
+      }}
+      backButton={null}
+      nextButton={null}
+    />
+  </Box>
 </Box>
 
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        {/* Categories Section - RESPONSIVE */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ maxWidth: 900, mx: 'auto', px: 2 }}>
-            {/* Mobile Dropdown */}
-            <FormControl fullWidth sx={{ display: { xs: 'block', sm: 'none' }, mb: 2 }} size="small">
-              <InputLabel>Select Category</InputLabel>
-              <Select
-                value={selectedCategory}
-                label="Select Category"
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                {categories.map((category) => (
-                  <MenuItem key={category.id} value={category.id}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+      {/* Trust Bar - Below Hero (Mawu Africa Inspired) */}
+      <Box
+        sx={{
+          backgroundColor: themeColors.warmWood,
+          color: 'white',
+          py: { xs: 1.5, sm: 2 },
+          borderBottom: `1px solid ${alpha(themeColors.gold, 0.3)}`
+        }}
+      >
+        <Container maxWidth="lg">
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={{ xs: 1.5, sm: 4 }}
+            justifyContent="center"
+            alignItems="center"
+            divider={<Divider orientation="vertical" flexItem sx={{ bgcolor: alpha('#fff', 0.2), display: { xs: 'none', sm: 'block' } }} />}
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Verified sx={{ color: themeColors.gold }} />
+              <Typography variant="body2">100% Handmade in Kenya</Typography>
+            </Stack>
 
-            {/* Desktop Buttons */}
-            <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
-              {categories.map((category) => (
-                <Button
-                  key={category.id}
-                  variant={selectedCategory === category.id ? 'contained' : 'outlined'}
-                  onClick={() => setSelectedCategory(category.id)}
-                  sx={{
-                    textTransform: 'none',
-                    fontWeight: selectedCategory === category.id ? 700 : 600,
-                    backgroundColor: selectedCategory === category.id ? themeColors.primary : 'transparent',
-                    color: selectedCategory === category.id ? 'white' : themeColors.text,
-                    borderColor: alpha(themeColors.primary, 0.3),
-                    px: { sm: 1.5, md: 2 },
-                    py: 0.75,
-                    borderRadius: 999,
-                    fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.9rem' },
-                    '&:hover': {
-                      backgroundColor: selectedCategory === category.id ? themeColors.primary : alpha(themeColors.primary, 0.08),
-                      borderColor: themeColors.primary,
-                      color: selectedCategory === category.id ? 'white' : themeColors.primary
-                    }
-                  }}
-                >
-                  {category.name}
-                </Button>
-              ))}
-            </Box>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <FlashOn sx={{ color: themeColors.gold }} />
+              <Typography variant="body2">Free Delivery Over Ksh 5,000</Typography>
+            </Stack>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <LocalShipping sx={{ color: themeColors.gold }} />
+              <Typography variant="body2">Nationwide Shipping</Typography>
+            </Stack>
+          </Stack>
+        </Container>
+      </Box>
+
+      {/* Categories Section - RESPONSIVE */}
+      <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 } }}>
+        {/* Fun Category Pills - More engaging */}
+        <Box sx={{ mb: { xs: 2, sm: 3, md: 4 } }}>
+          {/* Mobile: Horizontal Scroll */}
+          <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 1, overflowX: 'auto', pb: 1, px: 1 }}>
+            {categories.map((category) => (
+              <Chip
+                key={category.id}
+                icon={category.icon}
+                label={category.name}
+                onClick={() => setSelectedCategory(category.id)}
+                variant={selectedCategory === category.id ? 'filled' : 'outlined'}
+                sx={{
+                  backgroundColor: selectedCategory === category.id ? themeColors.primary : 'transparent',
+                  color: selectedCategory === category.id ? 'white' : themeColors.text,
+                  borderColor: alpha(themeColors.primary, 0.3),
+                  '&:hover': {
+                    backgroundColor: selectedCategory === category.id ? themeColors.primary : alpha(themeColors.primary, 0.08)
+                  },
+                  py: 2,
+                  px: 0.5
+                }}
+              />
+            ))}
+          </Box>
+
+          {/* Desktop: Centered Buttons */}
+          <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {categories.map((category) => (
+              <Button
+                key={category.id}
+                variant={selectedCategory === category.id ? 'contained' : 'outlined'}
+                onClick={() => setSelectedCategory(category.id)}
+                startIcon={category.icon}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: selectedCategory === category.id ? 700 : 600,
+                  backgroundColor: selectedCategory === category.id ? themeColors.primary : 'transparent',
+                  color: selectedCategory === category.id ? 'white' : themeColors.text,
+                  borderColor: alpha(themeColors.primary, 0.3),
+                  px: { sm: 1.5, md: 2.5 },
+                  py: 0.75,
+                  borderRadius: 40,
+                  fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.9rem' },
+                  '&:hover': {
+                    backgroundColor: selectedCategory === category.id ? themeColors.primary : alpha(themeColors.primary, 0.08)
+                  }
+                }}
+              >
+                {category.name}
+              </Button>
+            ))}
           </Box>
         </Box>
         
-        {/* Products Section - IMPROVED FILTERS */}
+        {/* Products Section - STREAMLINED FILTERS AND SEARCH IN ONE ROW */}
         <div>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
-            {/* Mobile Sort Dropdown */}
-            <FormControl sx={{ display: { xs: 'flex', md: 'none' }, minWidth: { xs: '48%', sm: 150 } }} size="small">
-              <InputLabel>Sort</InputLabel>
-              <Select
-                value={sortBy}
-                label="Sort"
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <MenuItem value="newest">Newest</MenuItem>
-                <MenuItem value="price-low">Price: Low</MenuItem>
-                <MenuItem value="price-high">Price: High</MenuItem>
-                <MenuItem value="name">Name A-Z</MenuItem>
-              </Select>
-            </FormControl>
+          <Paper
+            elevation={0}
+            sx={{
+              p: { xs: 1.5, sm: 2 },
+              mb: 3,
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              border: `1px solid ${themeColors.border}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: { xs: 'wrap', sm: 'nowrap' },
+              gap: { xs: 1.5, sm: 2 }
+            }}
+          >
+            {/* Search Box */}
+            <Box
+              sx={{
+                flex: { xs: '1 1 100%', sm: '1 1 auto' },
+                display: 'flex',
+                alignItems: 'center',
+                backgroundColor: themeColors.background,
+                borderRadius: '40px',
+                px: 2,
+                py: 0.5,
+                border: `1px solid ${themeColors.border}`,
+                order: { xs: 0, sm: 1 }
+              }}
+            >
+              <Search sx={{ color: themeColors.lightText, fontSize: 20, mr: 1 }} />
+              <InputBase
+                fullWidth
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                sx={{ fontSize: '0.9rem' }}
+              />
+              {searchTerm && (
+                <IconButton size="small" onClick={() => setSearchTerm('')}>
+                  <Close sx={{ fontSize: 16 }} />
+                </IconButton>
+              )}
+            </Box>
 
-            {/* Desktop Sort Dropdown */}
-            <FormControl sx={{ display: { xs: 'none', md: 'flex' }, minWidth: 180 }} size="small">
-              <InputLabel>Sort By</InputLabel>
-              <Select
-                value={sortBy}
-                label="Sort By"
-                onChange={(e) => setSortBy(e.target.value)}
+            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', order: { xs: 1, sm: 2 }, flexWrap: 'wrap' }}>
+              {/* Mobile Filter Button */}
+              {isMobile && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<FilterList />}
+                  onClick={() => setFilterDrawerOpen(true)}
+                  sx={{
+                    borderRadius: '20px',
+                    textTransform: 'none',
+                    borderColor: alpha(themeColors.primary, 0.3)
+                  }}
+                >
+                  Filter
+                  {hasActiveFilters && (
+                    <Badge
+                      variant="dot"
+                      color="error"
+                      sx={{
+                        '& .MuiBadge-badge': {
+                          top: -4,
+                          right: -8,
+                          width: 8,
+                          height: 8,
+                          minWidth: 8,
+                          borderRadius: '50%'
+                        }
+                      }}
+                    />
+                  )}
+                </Button>
+              )}
+
+              {/* Sort Dropdown */}
+              <FormControl size="small" sx={{ minWidth: { xs: 'auto', sm: 150, md: 180 } }}>
+                <Select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  displayEmpty
+                  startAdornment={!isMobile && <Sort sx={{ mr: 0.5, fontSize: 18, color: themeColors.lightText }} />}
+                  sx={{
+                    borderRadius: '8px',
+                    '& .MuiSelect-select': {
+                      py: 0.8,
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }
+                  }}
+                >
+                  <MenuItem value="newest">Newest First</MenuItem>
+                  <MenuItem value="price-low">Price: Low to High</MenuItem>
+                  <MenuItem value="price-high">Price: High to Low</MenuItem>
+                  <MenuItem value="name">Name A-Z</MenuItem>
+                </Select>
+              </FormControl>
+
+              {/* Results count */}
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  whiteSpace: 'nowrap',
+                  fontSize: '0.8rem',
+                  display: { xs: 'none', sm: 'block' }
+                }}
               >
-                <MenuItem value="newest">Newest First</MenuItem>
-                <MenuItem value="price-low">Price: Low to High</MenuItem>
-                <MenuItem value="price-high">Price: High to Low</MenuItem>
-                <MenuItem value="name">Name A-Z</MenuItem>
-              </Select>
-            </FormControl>
-            
-            {/* Results count */}
-            <Typography variant="body2" color="text.secondary" sx={{ ml: { xs: 0, md: 'auto' }, fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
-              {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
-            </Typography>
-          </Box>
+                {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+              </Typography>
+
+              {/* Clear filters button */}
+              {hasActiveFilters && !isMobile && (
+                <Button
+                  size="small"
+                  variant="text"
+                  startIcon={<ClearAll />}
+                  onClick={clearFilters}
+                  sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                >
+                  Clear
+                </Button>
+              )}
+            </Box>
+          </Paper>
+
+          {/* Active filters chips - mobile */}
+          {hasActiveFilters && isMobile && (
+            <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 2 }}>
+              {selectedCategory !== '0' && (
+                <Chip
+                  size="small"
+                  label={categories.find(c => c.id === selectedCategory)?.name}
+                  onDelete={() => setSelectedCategory('0')}
+                  sx={{ fontSize: '0.7rem', height: 28 }}
+                />
+              )}
+              {searchTerm && (
+                <Chip
+                  size="small"
+                  label={`Search: ${searchTerm.substring(0, 20)}${searchTerm.length > 20 ? '...' : ''}`}
+                  onDelete={() => setSearchTerm('')}
+                  sx={{ fontSize: '0.7rem', height: 28 }}
+                />
+              )}
+              {sortBy !== 'newest' && (
+                <Chip
+                  size="small"
+                  label={`Sort: ${sortBy === 'price-low' ? 'Price: Low' : sortBy === 'price-high' ? 'Price: High' : 'Name A-Z'}`}
+                  onDelete={() => setSortBy('newest')}
+                  sx={{ fontSize: '0.7rem', height: 28 }}
+                />
+              )}
+              <Chip
+                size="small"
+                label={`${filteredProducts.length} results`}
+                variant="outlined"
+                sx={{ fontSize: '0.7rem', height: 28 }}
+              />
+            </Box>
+          )}
 
           {/* Products Grid */}
           {loading ? (
@@ -693,16 +1103,17 @@ export default function CustomerDashboard() {
               <Box
                 sx={{
                   display: 'grid',
-                  gap: { xs: 1.5, sm: 2, md: 2 },
+                  gap: { xs: 1.5, sm: 2, md: 2.5 },
                   gridTemplateColumns: {
-                    xs: 'repeat(2, minmax(0, 1fr))',
-                    sm: 'repeat(3, minmax(0, 1fr))',
-                    md: 'repeat(4, minmax(0, 1fr))'
+                    xs: 'repeat(2, 1fr)',
+                    sm: 'repeat(3, 1fr)',
+                    md: 'repeat(4, 1fr)',
+                    lg: 'repeat(4, 1fr)'
                   }
                 }}
               >
                 {paginatedProducts.map((product) => (
-                  <Box key={product.id} sx={{ width: '100%' }}>
+                  <Box key={product.id}>
                     <ProductCard product={product} />
                   </Box>
                 ))}
@@ -716,6 +1127,13 @@ export default function CustomerDashboard() {
                   <Typography variant="body2" color="text.secondary">
                     Try adjusting your search criteria or browse different categories
                   </Typography>
+                  <Button
+                    variant="outlined"
+                    onClick={clearFilters}
+                    sx={{ mt: 2 }}
+                  >
+                    Clear All Filters
+                  </Button>
                 </Box>
               )}
 
@@ -725,22 +1143,14 @@ export default function CustomerDashboard() {
                   <Pagination
                     count={totalPages}
                     page={currentPage}
-                    onChange={(event, value) => {
-                      setCurrentPage(value);
-                      // Use setTimeout to ensure scroll happens after the component re-renders
-                      setTimeout(() => {
-                        window.scrollTo({
-                          top: 0,
-                          behavior: 'smooth'
-                        });
-                      }, 50);
-                    }}
+                    onChange={handlePageChange}
                     color="primary"
-                    size={isMobile ? "medium" : "large"}
+                    size={isMobile ? "small" : "medium"}
+                    siblingCount={isMobile ? 0 : 1}
+                    boundaryCount={isMobile ? 1 : 2}
                     sx={{
                       '& .MuiPaginationItem-root': {
                         borderRadius: '8px',
-                        margin: '0 4px',
                         '&.Mui-selected': {
                           backgroundColor: themeColors.primary,
                           color: 'white',
@@ -757,44 +1167,15 @@ export default function CustomerDashboard() {
           )}
         </div>
 
-        {/* Features Section */}
-        <Box sx={{ mb: 6, mt: 6 }}>
-          <Container maxWidth="lg">
-            <Grid container spacing={4} justifyContent="center" alignItems="stretch">
-              {features.map((feature, index) => (
-                <Grid item xs={12} sm={6} md={4} key={index}>
-                  <Box sx={{
-                    textAlign: 'center',
-                    px: 3,
-                    py: 3,
-                    border: `1px solid ${themeColors.border}`,
-                    borderRadius: 3,
-                    backgroundColor: 'white',
-                    height: '100%'
-                  }}>
-                    {feature.icon}
-                    <Typography variant="h6" fontWeight="700" sx={{ mt: 2, mb: 1 }}>
-                      {feature.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {feature.description}
-                    </Typography>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
-          </Container>
-        </Box>
-
         {/* Testimonials Section */}
-        <Box sx={{ mb: 8 }}>
-          <Typography variant="h4" fontWeight="700" sx={{ mb: 4, textAlign: 'center' }}>
+        <Box sx={{ mb: 6, mt: 6 }}>
+          <Typography variant="h4" fontWeight="700" sx={{ mb: 4, textAlign: 'center', fontSize: isMobile ? '1.5rem' : '2rem' }}>
             What Our Customers Say
           </Typography>
           <Box
             sx={{
               display: 'flex',
-              gap: 3,
+              gap: 2,
               overflowX: 'auto',
               py: 2,
               px: 1,
@@ -822,7 +1203,7 @@ export default function CustomerDashboard() {
           backgroundColor: themeColors.primary,
           '&:hover': {
             backgroundColor: alpha(themeColors.primary, 0.9),
-            transform: 'scale(1.1)'
+            transform: 'scale(1.05)'
           },
           transition: 'all 0.2s ease-in-out'
         }}

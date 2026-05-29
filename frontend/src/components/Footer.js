@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Container,
   Grid,
@@ -76,10 +77,10 @@ const Footer = () => {
               Links
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Link href="/dashboard" underline="hover" sx={{ color: themeColors.lightText, fontSize: '0.9rem' }}>
+              <Link component={RouterLink} to="/dashboard" underline="hover" sx={{ color: themeColors.lightText, fontSize: '0.9rem' }}>
                 Home
               </Link>
-              <Link href="/customer/orders" underline="hover" sx={{ color: themeColors.lightText, fontSize: '0.9rem' }}>
+              <Link component={RouterLink} to="/customer/orders" underline="hover" sx={{ color: themeColors.lightText, fontSize: '0.9rem' }}>
                 Orders
               </Link>
             </Box>

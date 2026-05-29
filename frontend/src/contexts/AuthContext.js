@@ -21,6 +21,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
   const [userType, setUserType] = useState(null); // ✅ Start with null, NOT 'customer'
+  const [authInitialized, setAuthInitialized] = useState(false); // ✅ Track initial auth check completion
 
   // Cache for profile to reduce unnecessary fetches
   const profileCacheRef = useRef({
@@ -212,6 +213,7 @@ export function AuthProvider({ children }) {
             setUserType(null);
             sessionStorage.removeItem(`userType_${TAB_ID}`);
             setLoading(false); // ✅ Set loading to false IMMEDIATELY for unauthenticated users
+            setAuthInitialized(true); // ✅ Mark auth check as complete
           }
           return;
         }
@@ -233,6 +235,7 @@ export function AuthProvider({ children }) {
             setUserType(null);
             sessionStorage.removeItem(`userType_${TAB_ID}`);
             setLoading(false);
+            setAuthInitialized(true); // ✅ Mark auth check as complete
           }
           return;
         }
@@ -244,6 +247,7 @@ export function AuthProvider({ children }) {
           
           // Set loading to false so app can render - fetch profile in background
           setLoading(false);
+          setAuthInitialized(true); // ✅ Mark auth check as complete - user is authenticated
           
           // Fetch profile to get userType (non-blocking)
           const isGoogle = cachedSession.user.app_metadata?.provider === 'google' ||
@@ -282,6 +286,7 @@ export function AuthProvider({ children }) {
           setUser(null);
           setProfile(null);
           setUserType(null);
+          setAuthInitialized(true); // ✅ Mark auth check as complete even on error
         }
       }
     };
@@ -311,6 +316,7 @@ export function AuthProvider({ children }) {
         setUserType(null);
         sessionStorage.removeItem(`userType_${TAB_ID}`);
         profileCacheRef.current.data = null;
+        setAuthInitialized(true); // ✅ Mark auth check as complete - user is now logged out
         stopSessionHeartbeat();
       }
     });
@@ -463,6 +469,7 @@ export function AuthProvider({ children }) {
     userData: user ? { ...user, profile } : null,
     isAuthenticated: !!user && !!session,
     sessionReady: !loading && !!session && userType !== null,
+    authInitialized, // ✅ Export auth initialization state
     userType: userType || 'guest',
     login,
     register,

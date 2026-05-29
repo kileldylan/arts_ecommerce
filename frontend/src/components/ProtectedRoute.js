@@ -16,10 +16,15 @@ export default function ProtectedRoute({
   allowedRoles = ['customer', 'artist', 'admin'], // Roles allowed to access this route
   redirectTo = '/login' // Where to redirect if not authenticated
 }) {
-  const { isAuthenticated, userType, loading } = useAuth();
+  const { isAuthenticated, userType, loading, authInitialized } = useAuth();
 
-  // ✅ Show "Verifying your account..." ONLY if auth is still loading AND user is authenticated
-  // If loading but no auth, just redirect immediately (don't show spinner)
+  // ✅ While initial auth check is not complete, show spinner and don't redirect
+  // This fixes the race condition on page refresh
+  if (!authInitialized) {
+    return <CustomSpinner text="Verifying your account..." />;
+  }
+
+  // ✅ Show "Verifying your account..." if loading after auth is initialized
   if (loading && isAuthenticated) {
     return <CustomSpinner text="Verifying your account..." />;
   }
