@@ -135,27 +135,31 @@ export default function Navbar() {
   const navItems = getNavItems();
 
   const renderDesktopNav = () => (
-    <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, gap: { md: 2, lg: 4 } }}>
       <Typography
         variant="h6"
         component="div"
         sx={{
           cursor: 'pointer',
-          mr: 4,
+          mr: { md: 2, lg: 4 },
           fontWeight: '800',
-          fontSize: '1.5rem',
+          fontSize: { md: '1.2rem', lg: '1.5rem' },
           background: 'linear-gradient(45deg, #FFFFFF 30%, #F39C12 90%)',
           backgroundClip: 'text',
           textFillColor: 'transparent',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
+          transition: 'all 0.3s ease',
+          '&:hover': {
+            transform: 'scale(1.05)',
+          }
         }}
         onClick={() => navigate('/dashboard')}
       >
         Branchi Arts & Gifts
       </Typography>
 
-      <Box sx={{ display: 'flex', gap: 1 }}>
+      <Box sx={{ display: 'flex', gap: { md: 0.5, lg: 1 } }}>
         {navItems.map((item) => (
           <Button
             key={item.path}
@@ -164,12 +168,14 @@ export default function Navbar() {
             onClick={() => handleNavigation(item.path)}
             sx={{
               color: 'white',
-              fontWeight: '500',
+              fontWeight: '600',
+              fontSize: { md: '0.85rem', lg: '0.95rem' },
+              px: { md: 1, lg: 1.5 },
               '&:hover': { 
-                backgroundColor: alpha('#FFFFFF', 0.1), 
-                transform: 'translateY(-1px)' 
+                backgroundColor: alpha('#FFFFFF', 0.15), 
+                transform: 'translateY(-2px)',
               },
-              transition: 'all 0.2s ease-in-out',
+              transition: 'all 0.3s ease-in-out',
             }}
           >
             {item.label}

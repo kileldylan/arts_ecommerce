@@ -106,7 +106,7 @@ const testimonials = [
   }
 ];
 
-export default function ModernDashboard() {
+export default function CustomerDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('0');
   const [sortBy, setSortBy] = useState('newest');
@@ -361,12 +361,12 @@ export default function ModernDashboard() {
           </Box>
         </Box>
 
-        <CardContent sx={{ p: { xs: '8px 10px 10px 10px', sm: '10px 14px 14px 14px' }, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flexGrow: 1 }}>
+        <CardContent sx={{ p: '10px 14px 14px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flexGrow: 1 }}>
           <Typography
             variant="body1"
             fontWeight={600}
             sx={{
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontSize: '0.9rem',
               lineHeight: 1.2,
               color: themeColors.text,
               overflow: 'hidden',
@@ -382,11 +382,11 @@ export default function ModernDashboard() {
 
           <Box sx={{ mt: 0.2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.6 }}>
-              <Typography variant="h6" fontWeight="800" sx={{ color: themeColors.primary, fontSize: { xs: '0.95rem', sm: '1.1rem' }, lineHeight: 1, mb: 1 }}>
+              <Typography variant="h6" fontWeight="800" sx={{ color: themeColors.primary, fontSize: '1.1rem', lineHeight: 1, mb: 1 }}>
                 Ksh {(product.price || 0).toLocaleString()}
               </Typography>
               {product.compare_price && (
-                <Typography variant="body2" sx={{ color: themeColors.lightText, textDecoration: 'line-through', fontSize: { xs: '0.65rem', sm: '0.7rem' }, lineHeight: 1 }}>
+                <Typography variant="body2" sx={{ color: themeColors.lightText, textDecoration: 'line-through', fontSize: '0.7rem', lineHeight: 1 }}>
                   Ksh {product.compare_price.toLocaleString()}
                 </Typography>
               )}
@@ -406,9 +406,9 @@ export default function ModernDashboard() {
                 backgroundColor: cartItem ? themeColors.success : themeColors.primary,
                 color: 'white',
                 borderRadius: '8px',
-                py: { xs: 0.6, sm: 0.8 },
+                py: 0.8,
                 mb: 0.6,
-                fontSize: { xs: '0.7rem', sm: '0.8rem' },
+                fontSize: '0.8rem',
                 fontWeight: 600,
                 textTransform: 'none',
                 transition: 'all 0.2s ease',
@@ -664,10 +664,10 @@ export default function ModernDashboard() {
               <Box
                 sx={{
                   display: 'grid',
-                  gap: { xs: 1.5, sm: 2, md: 2 },
+                  gap: 2,
                   gridTemplateColumns: {
-                    xs: 'repeat(2, minmax(0, 1fr))',
-                    sm: 'repeat(3, minmax(0, 1fr))',
+                    xs: '1fr',
+                    sm: 'repeat(2, minmax(0, 1fr))',
                     md: 'repeat(4, minmax(0, 1fr))'
                   }
                 }}
