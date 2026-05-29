@@ -594,47 +594,76 @@ export default function CustomerDashboard() {
 </Box>
 
       <Container maxWidth="xl" sx={{ py: 4 }}>
-        {/* Categories Section - NOW INCLUDING ALL PRODUCTS */}
+        {/* Categories Section - RESPONSIVE */}
         <Box sx={{ mb: 4 }}>
           <Box sx={{ maxWidth: 900, mx: 'auto', px: 2 }}>
-            <Grid container spacing={1} justifyContent="center">
-              {/* Changed: Now showing ALL categories including "All Products" */}
-              {categories.map((category) => (
-                <Grid item xs="auto" key={category.id}>
-                  <Button
-                    variant={selectedCategory === category.id ? "contained" : "text"}
-                    onClick={() => setSelectedCategory(category.id)}
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: selectedCategory === category.id ? 700 : 600,
-                      backgroundColor: selectedCategory === category.id ? themeColors.primary : 'transparent',
-                      color: selectedCategory === category.id ? 'white' : themeColors.text,
-                      px: 2,
-                      py: 0.75,
-                      borderRadius: 999,
-                      '&:hover': {
-                        backgroundColor: selectedCategory === category.id ? themeColors.primary : alpha(themeColors.primary, 0.08),
-                        color: selectedCategory === category.id ? 'white' : themeColors.primary
-                      }
-                    }}
-                  >
+            {/* Mobile Dropdown */}
+            <FormControl fullWidth sx={{ display: { xs: 'block', sm: 'none' }, mb: 2 }} size="small">
+              <InputLabel>Select Category</InputLabel>
+              <Select
+                value={selectedCategory}
+                label="Select Category"
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                {categories.map((category) => (
+                  <MenuItem key={category.id} value={category.id}>
                     {category.name}
-                    {category.count > 0 && selectedCategory !== category.id && (
-                      <Typography component="span" sx={{ ml: 0.5, fontSize: '0.75rem', opacity: 0.7 }}>
-                        ({category.count})
-                      </Typography>
-                    )}
-                  </Button>
-                </Grid>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Desktop Buttons */}
+            <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {categories.map((category) => (
+                <Button
+                  key={category.id}
+                  variant={selectedCategory === category.id ? 'contained' : 'outlined'}
+                  onClick={() => setSelectedCategory(category.id)}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: selectedCategory === category.id ? 700 : 600,
+                    backgroundColor: selectedCategory === category.id ? themeColors.primary : 'transparent',
+                    color: selectedCategory === category.id ? 'white' : themeColors.text,
+                    borderColor: alpha(themeColors.primary, 0.3),
+                    px: { sm: 1.5, md: 2 },
+                    py: 0.75,
+                    borderRadius: 999,
+                    fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.9rem' },
+                    '&:hover': {
+                      backgroundColor: selectedCategory === category.id ? themeColors.primary : alpha(themeColors.primary, 0.08),
+                      borderColor: themeColors.primary,
+                      color: selectedCategory === category.id ? 'white' : themeColors.primary
+                    }
+                  }}
+                >
+                  {category.name}
+                </Button>
               ))}
-            </Grid>
+            </Box>
           </Box>
         </Box>
         
-        {/* Products Section - Removed ref that was causing scroll issue */}
+        {/* Products Section - IMPROVED FILTERS */}
         <div>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
-            <FormControl sx={{ minWidth: 150 }} size="small">
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
+            {/* Mobile Sort Dropdown */}
+            <FormControl sx={{ display: { xs: 'flex', md: 'none' }, minWidth: { xs: '48%', sm: 150 } }} size="small">
+              <InputLabel>Sort</InputLabel>
+              <Select
+                value={sortBy}
+                label="Sort"
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <MenuItem value="newest">Newest</MenuItem>
+                <MenuItem value="price-low">Price: Low</MenuItem>
+                <MenuItem value="price-high">Price: High</MenuItem>
+                <MenuItem value="name">Name A-Z</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Desktop Sort Dropdown */}
+            <FormControl sx={{ display: { xs: 'none', md: 'flex' }, minWidth: 180 }} size="small">
               <InputLabel>Sort By</InputLabel>
               <Select
                 value={sortBy}
@@ -649,8 +678,8 @@ export default function CustomerDashboard() {
             </FormControl>
             
             {/* Results count */}
-            <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto' }}>
-              Showing {paginatedProducts.length} of {filteredProducts.length} products
+            <Typography variant="body2" color="text.secondary" sx={{ ml: { xs: 0, md: 'auto' }, fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+              {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
             </Typography>
           </Box>
 
@@ -664,10 +693,10 @@ export default function CustomerDashboard() {
               <Box
                 sx={{
                   display: 'grid',
-                  gap: 2,
+                  gap: { xs: 1.5, sm: 2, md: 2 },
                   gridTemplateColumns: {
-                    xs: '1fr',
-                    sm: 'repeat(2, minmax(0, 1fr))',
+                    xs: 'repeat(2, minmax(0, 1fr))',
+                    sm: 'repeat(3, minmax(0, 1fr))',
                     md: 'repeat(4, minmax(0, 1fr))'
                   }
                 }}
