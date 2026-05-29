@@ -1,51 +1,34 @@
 // src/components/ProtectedRoute.js
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Box, LinearProgress } from '@mui/material';
-import CustomSpinner from './CustomSpinner';
+import { Box, CircularProgress, Typography } from '@mui/material';
 
-/**
- * ProtectedRoute Component
- * Ensures only authenticated users can access certain routes
- * Redirects to login if not authenticated
- * Shows loading spinner while checking authentication
- */
-export default function ProtectedRoute({ 
-  children, 
-  allowedRoles = ['customer', 'artist', 'admin'], // Roles allowed to access this route
-  redirectTo = '/login' // Where to redirect if not authenticated
-}) {
+export default function ProtectedRoute({ children, requiredUserType = null }) {
   const { isAuthenticated, userType, loading, authInitialized } = useAuth();
+  const location = useLocation();
 
-  // ✅ While initial auth check is not complete, show spinner and don't redirect
-  // This fixes the race condition on page refresh
-  if (!authInitialized) {
-    return <CustomSpinner text="Verifying your account..." />;
+  // Show loading spinner only during initial auth check
+  if (!authInitialized || (loading && isAuthenticated)) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: 2 }}>
+        <CircularProgress sx={{ color: '#D4AF37' }} />
+        <Typography variant="body2" color="text.secondary">Verifying access...</Typography>
+      </Box>
+    );
   }
 
-  // ✅ Show "Verifying your account..." if loading after auth is initialized
-  if (loading && isAuthenticated) {
-    return <CustomSpinner text="Verifying your account..." />;
-  }
-
-  // Not authenticated - redirect to login
+  // ✅ Not authenticated - SAVE the attempted location and redirect to login
   if (!isAuthenticated) {
-    return <Navigate to={redirectTo} replace />;
+    // This is the CRITICAL line that saves where the user wanted to go
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  // Check if user has required role
-  if (allowedRoles && !allowedRoles.includes(userType)) {
+  // Check user type if required
+  if (requiredUserType && userType !== requiredUserType) {
     // Redirect to appropriate dashboard based on user type
-    const dashboardPath = userType === 'admin' 
-      ? '/admin' 
-      : userType === 'artist' 
-        ? '/artist/dashboard' 
-        : '/customer/dashboard';
-    
-    return <Navigate to={dashboardPath} replace />;
+    const redirectPath = userType === 'artist' ? '/artist/dashboard' : '/customer/dashboard';
+    return <Navigate to={redirectPath} replace />;
   }
 
-  // Authenticated and has proper role - render children
   return children;
 }
