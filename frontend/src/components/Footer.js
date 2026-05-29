@@ -77,11 +77,14 @@ const Footer = () => {
               Links
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Link component={RouterLink} to="/dashboard" underline="hover" sx={{ color: themeColors.lightText, fontSize: '0.9rem' }}>
+              <Link component={RouterLink} to="/customer/dashboard" underline="hover" sx={{ color: themeColors.lightText, fontSize: '0.9rem' }}>
                 Home
               </Link>
               <Link component={RouterLink} to="/customer/orders" underline="hover" sx={{ color: themeColors.lightText, fontSize: '0.9rem' }}>
                 Orders
+              </Link>
+              <Link component={RouterLink} to="/customer/profile" underline="hover" sx={{ color: themeColors.lightText, fontSize: '0.9rem' }}>
+                Profile
               </Link>
             </Box>
           </Grid>

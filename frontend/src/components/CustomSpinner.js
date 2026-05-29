@@ -93,7 +93,7 @@ const beadRing = keyframes`
   }
 `;
 
-export default function CustomSpinner({ size = 80 }) {
+export default function CustomSpinner({ size = 80, text = 'Loading' }) {
   return (
     <Box
       sx={{
@@ -299,7 +299,7 @@ export default function CustomSpinner({ size = 80 }) {
               },
             }}
           >
-            Loading
+            {text}
           </Typography>
         </Box>
 

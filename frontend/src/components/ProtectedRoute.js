@@ -1,7 +1,7 @@
 // src/components/ProtectedRoute.js
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import CustomSpinner from './CustomSpinner';
 
 export default function ProtectedRoute({ children, requiredUserType = null }) {
   const { isAuthenticated, userType, loading, authInitialized } = useAuth();
@@ -9,12 +9,7 @@ export default function ProtectedRoute({ children, requiredUserType = null }) {
 
   // Show loading spinner only during initial auth check
   if (!authInitialized || (loading && isAuthenticated)) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: 2 }}>
-        <CircularProgress sx={{ color: '#D4AF37' }} />
-        <Typography variant="body2" color="text.secondary">Verifying access...</Typography>
-      </Box>
-    );
+    return <CustomSpinner text="Verifying access..." />;
   }
 
   // ✅ Not authenticated - SAVE the attempted location and redirect to login
