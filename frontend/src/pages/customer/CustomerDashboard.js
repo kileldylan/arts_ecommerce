@@ -72,13 +72,12 @@ const themeColors = {
   gold: '#D4AF37'
 };
 
-// Hero slides data with responsive images
 const heroSlides = [
   {
     id: 1,
-    image: '/images/hero/desktop/hero_image.jpg', // Desktop: 1920×800px
-    tabletImage: '/images/hero/tablet/hero_image_tablet.jpg', // Tablet: 1024×600px
-    mobileImage: '/images/hero/mobile/hero_image_mobile1.jpg', // Mobile: 640×400px
+    imageDesktop: '/images/hero/desktop/hero_image.jpg',
+    imageTablet: '/images/hero/tablet/hero_tablet.jpg',
+    imageMobile: '/images/hero/mobile/hero.jpg',
     title: 'Handcrafted Wood Art',
     subtitle: 'Each piece tells a story',
     cta: 'Shop Now',
@@ -86,9 +85,9 @@ const heroSlides = [
   },
   {
     id: 2,
-    image: '/images/hero/desktop/slide2.webp',
-    tabletImage: '/images/hero/tablet/slide2.webp',
-    mobileImage: '/images/hero/mobile/slide2.webp',
+    imageDesktop: '/images/hero/desktop/hero_image.jpg',
+    imageTablet: '/images/hero/tablet/hero_tablet.jpg',
+    imageMobile: '/images/hero/mobile/hero.jpg',
     title: 'Custom Intarsia',
     subtitle: 'Your vision, carved in wood',
     cta: 'Commission Art',
@@ -96,9 +95,9 @@ const heroSlides = [
   },
   {
     id: 3,
-    image: '/images/hero/desktop/slide3.webp',
-    tabletImage: '/images/hero/tablet/slide3.webp',
-    mobileImage: '/images/hero/mobile/slide3.webp',
+    imageDesktop: '/images/hero/desktop/hero_image.jpg',
+    imageTablet: '/images/hero/tablet/hero_tablet.jpg',
+    imageMobile: '/images/hero/mobile/hero.jpg',
     title: 'Unique Gifts That Last',
     subtitle: 'For the art lover in your life',
     cta: 'Explore Gifts',
@@ -120,26 +119,42 @@ const testimonials = [
   {
     id: 1,
     name: 'Joy Muthoni',
-    role: 'Interior Designer',
-    content: 'The quality of frames and wall art exceeded my expectations. My clients are always impressed!',
+    role: 'Interior Designer, Nairobi',
+    content: 'The quality of frames and wall art exceeded my expectations. My clients are always impressed! The wood intarsia pieces add such warmth to modern spaces.',
     rating: 5,
     image: '/api/placeholder/80/80?text=SJ'
   },
   {
     id: 2,
     name: 'Mike Oduor',
-    role: 'Office Manager',
-    content: 'Perfect signage solutions for our corporate office. Professional and durable.',
+    role: 'Office Manager, Kisumu',
+    content: 'Perfect signage solutions for our corporate office. Professional and durable. The delivery was prompt and the team was very helpful with custom sizing.',
     rating: 5,
     image: '/api/placeholder/80/80?text=MC'
   },
   {
     id: 3,
     name: 'Emily Chepchumba',
-    role: 'Home Owner',
-    content: 'Transformed my living space with beautiful wall decor. The customization options are amazing!',
+    role: 'Home Owner, Eldoret',
+    content: 'Transformed my living space with beautiful wall decor. The customization options are amazing! Got a custom piece for my daughter\'s birthday and she loved it.',
     rating: 4,
     image: '/api/placeholder/80/80?text=ED'
+  },
+  {
+    id: 4,
+    name: 'Samuel Kipchoge',
+    role: 'Art Collector, Mombasa',
+    content: 'I\'ve collected art for years, and Branchi Arts stands out. The attention to detail in their wood intarsia is unmatched. Truly world-class craftsmanship from Kenya!',
+    rating: 5,
+    image: '/api/placeholder/80/80?text=SK'
+  },
+  {
+    id: 5,
+    name: 'Dr. Wanjiku Ndegwa',
+    role: 'Restaurant Owner, Westlands',
+    content: 'Commissioned several large wall art pieces for my restaurant. My customers constantly compliment them. The wood art creates such a warm, inviting atmosphere.',
+    rating: 5,
+    image: '/api/placeholder/80/80?text=WN'
   }
 ];
 
@@ -545,68 +560,113 @@ export default function CustomerDashboard() {
     );
   };
 
-  // Testimonial Card Component
+  // Enhanced Testimonial Card Component
   const TestimonialCard = ({ testimonial }) => (
     <Card
+      elevation={0}
       sx={{
-        minWidth: 280,
-        maxWidth: 320,
+        minWidth: { xs: 280, sm: 300 },
+        maxWidth: { xs: 280, sm: 300 },
         p: 2.5,
         borderRadius: 3,
         border: `1px solid ${themeColors.border}`,
+        backgroundColor: 'white',
         transition: 'all 0.3s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
         '&:hover': {
           transform: 'translateY(-4px)',
-          boxShadow: '0 8px 25px rgba(0,0,0,0.1)'
+          boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
+          borderColor: alpha(themeColors.gold, 0.3)
         }
       }}
     >
+      {/* Quote Icon */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 16,
+          right: 20,
+          fontSize: 40,
+          color: alpha(themeColors.gold, 0.15),
+          fontFamily: 'Georgia, serif',
+          fontWeight: 'bold'
+        }}
+      >
+        "
+      </Box>
+
+      {/* Rating Stars */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            sx={{
+              fontSize: 16,
+              color: star <= testimonial.rating ? '#FFB800' : '#E0E0E0'
+            }}
+          />
+        ))}
+      </Box>
+
+      {/* Content */}
       <Typography
         variant="body2"
         sx={{
           fontStyle: 'italic',
-          mb: 1.5,
+          mb: 2,
+          lineHeight: 1.5,
+          color: themeColors.text,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           display: '-webkit-box',
-          WebkitLineClamp: 3,
+          WebkitLineClamp: 4,
           WebkitBoxOrient: 'vertical',
-          minHeight: 60
+          minHeight: 80
         }}
       >
         "{testimonial.content}"
       </Typography>
-      
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+
+      {/* Customer Info */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 'auto', pt: 1 }}>
+        {/* Avatar with initial */}
         <Box
           sx={{
             width: 40,
             height: 40,
             borderRadius: '50%',
-            backgroundImage: `url(${testimonial.image})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center'
+            backgroundColor: alpha(themeColors.primary, 0.1),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: themeColors.primary,
+            fontWeight: 'bold',
+            fontSize: '1rem'
           }}
-        />
+        >
+          {testimonial.name.charAt(0)}
+        </Box>
+        
         <Box>
-          <Typography variant="subtitle2" fontWeight="600">
+          <Typography variant="subtitle2" fontWeight="700" sx={{ fontSize: '0.85rem' }}>
             {testimonial.name}
           </Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>
             {testimonial.role}
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, mt: 0.3 }}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                sx={{
-                  fontSize: 12,
-                  color: star <= testimonial.rating ? '#FFD700' : '#E0E0E0'
-                }}
-              />
-            ))}
-          </Box>
         </Box>
+
+        {/* Verified Badge */}
+        <Verified
+          sx={{
+            fontSize: 14,
+            color: themeColors.success,
+            ml: 'auto',
+            opacity: 0.7
+          }}
+        />
       </Box>
     </Card>
   );
@@ -620,222 +680,190 @@ export default function CustomerDashboard() {
       {/* Mobile Filter Drawer */}
       <MobileFilterDrawer />
 
-{/* INSPIRED BY MAWU AFRICA - HERO SECTION WITH SLIDING IMAGES */}
-<Box
-  sx={{
-    position: 'relative',
-    width: '100%',
-    overflow: 'hidden',
-    bgcolor: '#000'
-  }}
->
-  {/* Hero Slider Container - REDUCED HEIGHT */}
-  <Box
-    sx={{
-      position: 'relative',
-      height: { xs: '40vh', sm: '45vh', md: '50vh' },
-      transition: 'all 0.3s ease'
-    }}
-  >
-    {/* Slides */}
-    {heroSlides.map((slide, index) => (
+      {/* HERO SECTION - SIMPLE & RESPONSIVE */}
       <Box
-        key={slide.id}
         sx={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          opacity: activeSlide === index ? 1 : 0,
-          transition: 'opacity 0.8s ease-in-out',
-          zIndex: activeSlide === index ? 1 : 0
+          position: 'relative',
+          width: '100%',
+          overflow: 'hidden',
+          bgcolor: '#000'
         }}
       >
-        {/* Background Image - Supports both images and GIFs */}
-{/* Background Image - Supports both images and GIFs */}
-<Box
-  sx={{
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundImage: `url(${slide.image})`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center -80px', /* Negative pixels pull image UP */
-    backgroundRepeat: 'no-repeat',
-    filter: 'brightness(0.65)',
-    transform: activeSlide === index ? 'scale(1.05)' : 'scale(1)',
-    transition: 'transform 8s ease-out'
-  }}
-/>
-        
-        {/* Gradient Overlay */}
+        {/* Hero Container */}
         <Box
           sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)'
-          }}
-        />
-
-        {/* Content Overlay */}
-        <Container
-          maxWidth="lg"
-          sx={{
             position: 'relative',
-            zIndex: 2,
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center',
-            color: 'white'
+            height: { xs: '40vh', sm: '45vh', md: '50vh' },
+            transition: 'all 0.3s ease'
           }}
         >
-          {/* Fun Badge - Single Vendor Highlight */}
-          <Chip
-            icon={<EmojiEvents sx={{ fontSize: 16 }} />}
-            label="Kenyan Artisan • Handcrafted With ❤️"
+          {heroSlides.map((slide, index) => (
+            <Box
+              key={slide.id}
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                opacity: activeSlide === index ? 1 : 0,
+                transition: 'opacity 0.8s ease-in-out',
+                zIndex: activeSlide === index ? 1 : 0
+              }}
+            >
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundColor: '#2C1810',
+                  filter: 'brightness(0.65)',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundImage: {
+                    xs: `url(${slide.imageMobile})`,
+                    sm: `url(${slide.imageTablet})`,
+                    md: `url(${slide.imageDesktop})`
+                  },
+                  transform: activeSlide === index ? 'scale(1.05)' : 'scale(1)',
+                  transition: 'transform 8s ease-out'
+                }}
+              />
+              
+              {/* Gradient Overlay */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)'
+                }}
+              />
+
+              {/* Content Overlay */}
+              <Container
+                maxWidth="lg"
+                sx={{
+                  position: 'relative',
+                  zIndex: 2,
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  color: 'white'
+                }}
+              >
+                <Chip
+                  icon={<EmojiEvents sx={{ fontSize: 16 }} />}
+                  label="Kenyan Artisan • Handcrafted With ❤️"
+                  sx={{
+                    backgroundColor: alpha(themeColors.gold, 0.9),
+                    color: '#2C1810',
+                    fontWeight: 600,
+                    mb: { xs: 1, sm: 2 },
+                    fontSize: { xs: '0.65rem', sm: '0.75rem', md: '0.875rem' }
+                  }}
+                />
+
+                <Typography
+                  variant="h1"
+                  sx={{
+                    fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2rem', lg: '2.5rem' },
+                    fontWeight: 800,
+                    mb: { xs: 0.5, sm: 1 },
+                    textShadow: '0 2px 10px rgba(0,0,0,0.3)'
+                  }}
+                >
+                  {slide.title}
+                </Typography>
+
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontSize: { xs: '0.7rem', sm: '0.85rem', md: '1rem', lg: '1.2rem' },
+                    mb: { xs: 1.5, sm: 2, md: 2.5 },
+                    opacity: 0.9,
+                    maxWidth: { xs: '280px', sm: '400px', md: '500px' }
+                  }}
+                >
+                  {slide.subtitle}
+                </Typography>
+              </Container>
+            </Box>
+          ))}
+
+          {/* Navigation Arrows */}
+          <IconButton
+            onClick={() => handleSlideChange((activeSlide - 1 + heroSlides.length) % heroSlides.length)}
             sx={{
-              backgroundColor: alpha(themeColors.gold, 0.9),
-              color: '#2C1810',
-              fontWeight: 600,
-              mb: { xs: 1, sm: 2 },
-              backdropFilter: 'blur(4px)',
-              '& .MuiChip-icon': {
-                color: '#2C1810'
+              position: 'absolute',
+              left: { xs: 8, sm: 16 },
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 3,
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(8px)',
+              color: 'white',
+              '&:hover': { backgroundColor: 'rgba(255,255,255,0.3)' }
+            }}
+          >
+            <KeyboardArrowLeft />
+          </IconButton>
+
+          <IconButton
+            onClick={() => handleSlideChange((activeSlide + 1) % heroSlides.length)}
+            sx={{
+              position: 'absolute',
+              right: { xs: 8, sm: 16 },
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 3,
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(8px)',
+              color: 'white',
+              '&:hover': { backgroundColor: 'rgba(255,255,255,0.3)' }
+            }}
+          >
+            <KeyboardArrowRight />
+          </IconButton>
+
+          {/* Dots Navigation */}
+          <MobileStepper
+            steps={heroSlides.length}
+            position="static"
+            activeStep={activeSlide}
+            sx={{
+              position: 'absolute',
+              bottom: 12,
+              left: 0,
+              right: 0,
+              zIndex: 3,
+              backgroundColor: 'transparent',
+              justifyContent: 'center',
+              '& .MuiMobileStepper-dot': {
+                backgroundColor: 'rgba(255,255,255,0.5)',
+                margin: '0 4px'
+              },
+              '& .MuiMobileStepper-dotActive': {
+                backgroundColor: themeColors.gold,
+                width: 20,
+                borderRadius: '4px'
               }
             }}
+            backButton={null}
+            nextButton={null}
           />
-
-          <Typography
-            variant="h1"
-            sx={{
-              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
-              fontWeight: 800,
-              mb: 0.5,
-              textShadow: '0 4px 20px rgba(0,0,0,0.3)',
-              letterSpacing: '-0.02em'
-            }}
-          >
-            {slide.title}
-          </Typography>
-
-          <Typography
-            variant="h5"
-            sx={{
-              fontSize: { xs: '0.8rem', sm: '1rem', md: '1.2rem' },
-              mb: { xs: 1.5, sm: 2 },
-              opacity: 0.9,
-              textShadow: '0 2px 10px rgba(0,0,0,0.3)',
-              maxWidth: '500px'
-            }}
-          >
-            {slide.subtitle}
-          </Typography>
-
-          {/* CTA Button - RESTORED */}
-          <Button
-            variant="contained"
-            size={isSmallMobile ? "small" : "medium"}
-            onClick={() => navigate(slide.link)}
-            sx={{
-              backgroundColor: themeColors.gold,
-              color: '#2C1810',
-              px: { xs: 3, sm: 4 },
-              py: { xs: 0.8, sm: 1 },
-              borderRadius: '40px',
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-              fontWeight: 700,
-              textTransform: 'none',
-              '&:hover': {
-                backgroundColor: '#C5A028',
-                transform: 'translateY(-2px)'
-              },
-              transition: 'all 0.3s ease'
-            }}
-          >
-            {slide.cta}
-          </Button>
-        </Container>
+        </Box>
       </Box>
-    ))}
 
-    {/* Navigation Arrows */}
-    <IconButton
-      onClick={() => handleSlideChange((activeSlide - 1 + heroSlides.length) % heroSlides.length)}
-      sx={{
-        position: 'absolute',
-        left: { xs: 8, sm: 16 },
-        top: '50%',
-        transform: 'translateY(-50%)',
-        zIndex: 3,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        backdropFilter: 'blur(8px)',
-        color: 'white',
-        '&:hover': {
-          backgroundColor: 'rgba(255,255,255,0.3)'
-        }
-      }}
-    >
-      <KeyboardArrowLeft />
-    </IconButton>
-
-    <IconButton
-      onClick={() => handleSlideChange((activeSlide + 1) % heroSlides.length)}
-      sx={{
-        position: 'absolute',
-        right: { xs: 8, sm: 16 },
-        top: '50%',
-        transform: 'translateY(-50%)',
-        zIndex: 3,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        backdropFilter: 'blur(8px)',
-        color: 'white',
-        '&:hover': {
-          backgroundColor: 'rgba(255,255,255,0.3)'
-        }
-      }}
-    >
-      <KeyboardArrowRight />
-    </IconButton>
-
-    {/* Dots Navigation */}
-    <MobileStepper
-      steps={heroSlides.length}
-      position="static"
-      activeStep={activeSlide}
-      sx={{
-        position: 'absolute',
-        bottom: 12,
-        left: 0,
-        right: 0,
-        zIndex: 3,
-        backgroundColor: 'transparent',
-        justifyContent: 'center',
-        '& .MuiMobileStepper-dot': {
-          backgroundColor: 'rgba(255,255,255,0.5)',
-          margin: '0 4px'
-        },
-        '& .MuiMobileStepper-dotActive': {
-          backgroundColor: themeColors.gold,
-          width: 20,
-          borderRadius: '4px'
-        }
-      }}
-      backButton={null}
-      nextButton={null}
-    />
-  </Box>
-</Box>
-
-      {/* Trust Bar - Below Hero (Mawu Africa Inspired) */}
+      {/* Trust Bar - Below Hero */}
       <Box
         sx={{
           backgroundColor: themeColors.warmWood,
@@ -871,7 +899,7 @@ export default function CustomerDashboard() {
 
       {/* Categories Section - RESPONSIVE */}
       <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 } }}>
-        {/* Fun Category Pills - More engaging */}
+        {/* Fun Category Pills */}
         <Box sx={{ mb: { xs: 2, sm: 3, md: 4 } }}>
           {/* Mobile: Horizontal Scroll */}
           <Box sx={{ display: { xs: 'flex', sm: 'none' }, gap: 1, overflowX: 'auto', pb: 1, px: 1 }}>
@@ -925,7 +953,7 @@ export default function CustomerDashboard() {
           </Box>
         </Box>
         
-        {/* Products Section - STREAMLINED FILTERS AND SEARCH IN ONE ROW */}
+        {/* Products Section */}
         <div>
           <Paper
             elevation={0}
@@ -1167,26 +1195,88 @@ export default function CustomerDashboard() {
           )}
         </div>
 
-        {/* Testimonials Section */}
+        {/* Testimonials Section - Enhanced */}
         <Box sx={{ mb: 6, mt: 6 }}>
-          <Typography variant="h4" fontWeight="700" sx={{ mb: 4, textAlign: 'center', fontSize: isMobile ? '1.5rem' : '2rem' }}>
+          <Typography
+            variant="h4"
+            fontWeight="700"
+            sx={{
+              mb: 1,
+              textAlign: 'center',
+              fontSize: isMobile ? '1.5rem' : '2rem',
+              color: themeColors.primary
+            }}
+          >
             What Our Customers Say
           </Typography>
+          <Typography
+            variant="body1"
+            sx={{
+              textAlign: 'center',
+              mb: 4,
+              color: themeColors.lightText,
+              maxWidth: 500,
+              mx: 'auto'
+            }}
+          >
+            Join 500+ happy customers who transformed their spaces
+          </Typography>
+
           <Box
             sx={{
               display: 'flex',
-              gap: 2,
+              gap: 2.5,
               overflowX: 'auto',
               py: 2,
-              px: 1,
-              scrollbarWidth: 'none',
-              '&::-webkit-scrollbar': { display: 'none' },
-              WebkitOverflowScrolling: 'touch'
+              px: 2,
+              scrollbarWidth: 'thin',
+              '&::-webkit-scrollbar': {
+                height: 6
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: alpha(themeColors.border, 0.5),
+                borderRadius: 10
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: alpha(themeColors.primary, 0.3),
+                borderRadius: 10
+              }
             }}
           >
             {testimonials.map((testimonial) => (
               <TestimonialCard key={testimonial.id} testimonial={testimonial} />
             ))}
+          </Box>
+
+          {/* Trust Indicator */}
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 3,
+              mt: 4,
+              flexWrap: 'wrap'
+            }}
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Star sx={{ fontSize: 18, color: '#FFB800' }} />
+              <Typography variant="body2" color="text.secondary">
+                4.8 ★ Average Rating
+              </Typography>
+            </Stack>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: themeColors.success }} />
+              <Typography variant="body2" color="text.secondary">
+                500+ Happy Customers
+              </Typography>
+            </Stack>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: themeColors.gold }} />
+              <Typography variant="body2" color="text.secondary">
+                Kenya Wide Delivery
+              </Typography>
+            </Stack>
           </Box>
         </Box>
       </Container>
